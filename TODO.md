@@ -51,6 +51,21 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
   retired. FKs reference `seed_id`: `contacts.account_seed_id`, `accounts.parent_seed_id`,
   `products.parent_seed_id`, and (future) `pipeline.account_seed_id`.
 
+### Schema design decisions (drafted in `schema.sql`, Pipedrive-modeled)
+
+- [x] **DECISION-4 — person↔org cardinality:** many-to-many. Membership lives in
+  `person_organizations`; `is_primary` marks the org that ports to Pipedrive's single `org_id`.
+- [x] **DECISION-5 — multi-value fields:** child tables (`person_emails`, `person_phones`,
+  `product_prices`), mirroring Pipedrive's labeled-array model. No flattening.
+- [x] **DECISION-6 — scope:** CRM capture only (organizations/persons/products). No deals/pipeline;
+  the pipeline stays in KV. `organizations.acct_match` retained so the app still resolves it.
+- [x] **DECISION-7 — notes:** Pipedrive-style `notes` table (many timestamped, attributed notes
+  per org/person) for the evolving log, plus a flat `organizations.about` for the static blurb.
+- [x] **DECISION-8 — edit tracking:** `version` + `updated_by` on organizations/persons/products,
+  mirroring the pipeline's optimistic-concurrency pattern.
+- [x] **DECISION-9 — review state:** none added; `account_type = 'unclassified'` (122 rows) is the
+  review backlog. Add a real `review_status` only if a formal sign-off workflow appears.
+
 ## 1. Schema reconciliation
 
 - [ ] Write the seed→app field map for accounts (see gaps table in PR/notes).

@@ -71,10 +71,13 @@ CREATE TABLE organizations (
   lon            REAL,
   acct_match     TEXT,        -- load-bearing: resolves pipeline acct strings (DECISION-1)
 
-  notes          TEXT,
+  about          TEXT,        -- one-line static blurb (CRM description); the
+                              -- evolving log lives in the notes table (DECISION-7)
   active_flag    INTEGER NOT NULL DEFAULT 1,   -- from status = Active
   add_time       TEXT,        -- created_on
-  update_time    TEXT         -- modified_on
+  update_time    TEXT,        -- modified_on
+  version        INTEGER NOT NULL DEFAULT 1,   -- optimistic concurrency (DECISION-8)
+  updated_by     INTEGER REFERENCES users(id)
 );
 CREATE INDEX idx_org_parent     ON organizations(parent_seed_id);
 CREATE INDEX idx_org_type       ON organizations(account_type);
@@ -102,7 +105,9 @@ CREATE TABLE persons (
 
   active_flag    INTEGER NOT NULL DEFAULT 1,
   add_time       TEXT,
-  update_time    TEXT
+  update_time    TEXT,
+  version        INTEGER NOT NULL DEFAULT 1,   -- DECISION-8
+  updated_by     INTEGER REFERENCES users(id)
 );
 CREATE UNIQUE INDEX idx_person_dynamics ON persons(dynamics_id) WHERE dynamics_id IS NOT NULL;
 
@@ -142,7 +147,9 @@ CREATE TABLE products (
   category       TEXT,                   -- 21 categories
   structure      TEXT,                   -- 'Product' | 'Product Family'
   parent_seed_id TEXT REFERENCES products(seed_id),  -- family hierarchy
-  active_flag    INTEGER NOT NULL DEFAULT 1
+  active_flag    INTEGER NOT NULL DEFAULT 1,
+  version        INTEGER NOT NULL DEFAULT 1,   -- DECISION-8
+  updated_by     INTEGER REFERENCES users(id)
 );
 CREATE INDEX idx_product_parent   ON products(parent_seed_id);
 CREATE INDEX idx_product_category ON products(category);
@@ -156,6 +163,24 @@ CREATE TABLE product_prices (
   cost            REAL,
   PRIMARY KEY (product_seed_id, currency)
 );
+
+-- ── notes (Pipedrive: Note) = the evolving capture log (DECISION-7) ─────────
+-- Many timestamped, attributed notes per record. A note attaches to an org
+-- and/or a person (at least one set) — mirrors Pipedrive's org_id/person_id.
+-- This is distinct from organizations.about (the one-line static blurb).
+CREATE TABLE notes (
+  id             INTEGER PRIMARY KEY,
+  pipedrive_id   INTEGER,
+  content        TEXT NOT NULL,
+  org_seed_id    TEXT REFERENCES organizations(seed_id),
+  person_seed_id TEXT REFERENCES persons(seed_id),
+  author_id      INTEGER REFERENCES users(id),
+  add_time       TEXT NOT NULL,
+  update_time    TEXT,
+  CHECK (org_seed_id IS NOT NULL OR person_seed_id IS NOT NULL)
+);
+CREATE INDEX idx_notes_org    ON notes(org_seed_id);
+CREATE INDEX idx_notes_person ON notes(person_seed_id);
 
 -- Deals/pipelines are intentionally OUT OF SCOPE (DECISION-6): this schema is
 -- for tracking & capturing CRM info only. The existing pipeline stays in KV.
