@@ -109,8 +109,18 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
 - [ ] Load `seed_contacts.json` → `persons` + `person_organizations` (primary row from
       `matched_account_seed_id`) + `person_phones`/`person_emails`.
 - [ ] Load `seed_products.json` → `products` (+ empty `product_prices` rows skipped until priced).
-- [ ] Verify: all 38 pipeline `acct` strings still resolve via `organizations.acct_match`.
-- [ ] Loader is idempotent / re-runnable (git seed stays source-of-truth staging).
+- [x] Verify: 36/38 pipeline `acct` strings resolve via `organizations.acct_match`/name.
+- [x] Loader is idempotent / re-runnable (git seed stays source-of-truth staging).
+
+**Loader status: BUILT & PASSING — `load_seed.py` → `tsi-intel.db` (gitignored).**
+Output: 389 organizations (374 seed + 15 new, 57 enriched, 42 with geo), 371 persons,
+357 emails, 322 phones, 354 org links (17 standalone), 131 products; **0 FK violations**;
+account/contact joins verified. Re-run: `python3 load_seed.py`.
+
+- [ ] **Residual — 2 pipeline codes unresolved: `ARSA` (Arauco site), `HUCR` (Huber Crossett).**
+  They're 4-letter internal codes that don't prefix-match any single `acct_match`. A single
+  alias column can't hold them → consider a small `org_aliases` table (many aliases per org)
+  if more such codes surface. Low priority; doesn't block the load.
 
 ## 3. Contacts import
 

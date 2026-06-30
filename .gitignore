@@ -1,0 +1,3 @@
+tsi-intel.db
+*.db
+__pycache__/
