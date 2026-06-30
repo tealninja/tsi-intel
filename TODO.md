@@ -171,9 +171,15 @@ Current state (verified): `tsi-intel-api` Worker is KV-only — `env.TSI_DATA` (
 
 ## 6. Validation / cleanup
 
-- [ ] De-dupe pass across all three files (name collisions, `dynamics_id` uniqueness).
-- [ ] Verify referential integrity: every contact `matched_account_seed_id` and product
-      `parent_seed_id` resolves.
+**Data-quality audit done — seed is clean.** Referential integrity perfect; 0 duplicate
+`dynamics_id`; products pristine (no dup `pn`/name, all have `pn`); contacts 0 dup/malformed
+emails. Fixes + residuals:
+- [x] Country canonicalized in loader (`USA`→`United States`, `UK`→`United Kingdom`,
+      `The Netherlands`→`Netherlands`) — feeds geocoding (DECISION-10).
+- [ ] **Human review (tiny):** 1 near-dup account `acct_0037` (`bel`) vs `acct_0038`
+      (`BEL (Biomass Energy Lab)`) — merge or keep? 3 repeated contact names (David Wong,
+      Mark Cunningham, Michael Wild — likely distinct people, emails differ; confirm). 11
+      contacts missing a first/last split (have `full_name`).
 - [ ] Keep `seed_manifest.json` `count`s in sync if files are re-exported.
 
 ---

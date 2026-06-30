@@ -21,6 +21,15 @@ def load(name): return json.load(open(p(name)))
 
 def active(status): return 1 if (status or "").lower() == "active" else 0
 
+# Canonicalize country to one spelling — inconsistent values (USA/United States,
+# UK/United Kingdom, The Netherlands) otherwise split the data and hurt geocoding.
+COUNTRY = {"usa": "United States", "united states": "United States",
+           "uk": "United Kingdom", "united kingdom": "United Kingdom",
+           "the netherlands": "Netherlands", "netherlands": "Netherlands"}
+def country(v):
+    if not v: return v
+    return COUNTRY.get(v.strip().lower(), v.strip())
+
 def main():
     accounts = load("seed_accounts.json")
     contacts = load("seed_contacts.json")
@@ -57,7 +66,7 @@ def main():
             (a["seed_id"], a.get("dynamics_id"), a["name"], a.get("formal_name"),
              owner_id(a.get("owner")), a.get("account_type"), a.get("parent_seed_id"),
              street, a.get("city"), a.get("state"), a.get("postal_code"),
-             a.get("country"), a.get("phone"), a.get("website"),
+             country(a.get("country")), a.get("phone"), a.get("website"),
              a.get("description") or a.get("notes"),
              active(a.get("status")), a.get("created_on"), a.get("modified_on")))
 
