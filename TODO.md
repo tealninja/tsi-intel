@@ -172,11 +172,18 @@ returns true when `TSI_API_KEY` is unset ("dev mode allow-all"); CORS is `*`. Fo
 that leaks deal data; for the CRM it would make **371 contacts' names/emails/phones + every
 address publicly readable** by anyone with the `*.workers.dev` URL. D1 itself is NOT public
 (reachable only via the account API token or a bound Worker) — the Worker is the exposure.
-- [ ] **Authenticate reads too** on CRM endpoints — drop the GET-is-public pattern.
-- [ ] **Fail closed** if `TSI_API_KEY` (or better, real auth) is unset — no allow-all default.
-- [ ] Prefer **Cloudflare Access / session token** over a single shared key near client code.
-- [ ] **Restrict CORS** to the real app origin, not `*`.
+- [x] **Authenticate reads too** — coded in `worker.js` (auth now covers every request
+      except `/api/health`).
+- [x] **Fail closed** if `TSI_API_KEY` unset — coded (`isAuthorized` returns false, was allow-all).
+- [x] **Restrict CORS** — coded (`ALLOWED_ORIGINS` allowlist constant, no `*`).
+- [ ] Prefer **Cloudflare Access / session token** over a single shared key (stronger follow-up).
 - [ ] Keep the **Cloudflare account API token** (wrangler/MCP master key to the data) secret.
+- [ ] **DEPLOY PREREQUISITES for the hardened Worker** (it now fails closed — deploying without
+      these 401s the live app): (1) `wrangler secret put TSI_API_KEY`; (2) update the client
+      `workerHeaders()` to send `X-TSI-Key` (HTML currently doesn't); (3) fill `ALLOWED_ORIGINS`
+      for cross-origin use. `wrangler.toml` already declares the KV + D1 bindings.
+- [ ] KV→D1 endpoint rewrite + new CRM endpoints (org/contact/product/notes) — the large,
+      test-after-data-loads work; not done here.
 - [ ] **Geocoding step (DECISION-10), runs in the Worker at import:**
   - [ ] Normalize country first (`USA`/`United States`, `UK`/`United Kingdom`) before building the
         query — counts showed inconsistent values.
