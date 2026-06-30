@@ -20,9 +20,20 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
     seed records or ~60% of pipeline→account links break.
   - **Reconcile by hand:** ~50 app accounts match a seed record (enrich those); ~22 are
     app-only (Georgia-Pacific, Van Lung, Arauco, site-code rows) — map or add as seed-origin.
-- [?] **DECISION-2 — Worker backend storage.** The DB schema lives in the Cloudflare Worker (not
-  in this repo). Confirm it's D1 (SQL — supports the manifest's `staging_*` tables) vs KV/blob,
-  before deciding where staging and promotion happen.
+- [?] **DECISION-2 — Storage for the CRM data. FINDING: the Worker is KV-backed, NOT D1.**
+  Verified via Cloudflare API: `tsi-intel-api` binds KV namespace `tsi-pipeline-data` (`env.TSI_DATA`)
+  and stores whole-JSON blobs under keys `pipeline` / `bugs` / `usage_log` / `locks/:id`. There is
+  no D1 binding. The account's only D1 db (`dive-log`) is empty and unrelated. So the manifest's
+  `staging_accounts/contacts/products` SQL tables do **not** exist and can't without introducing D1.
+  Real choice:
+  - (A) **Extend KV** — add `accounts`/`contacts`/`products` blob keys; client joins in JS (current
+    pattern). Minimal Worker change, ships fast. No server-side query/joins/integrity; staging is a
+    flag or separate keys, not tables.
+  - (B) **Introduce D1** — new `tsi-intel` database with real tables + `staging_*`; rewrite Worker
+    endpoints + client sync to be query-based. Matches the relational seed (FKs everywhere) and the
+    manifest's staging→promote intent. Bigger lift.
+  - (C) **Hybrid** — pipeline stays in KV (untouched, works today); CRM reference data
+    (accounts/contacts/products) goes to D1. Clean separation, two stores in one Worker.
 - [?] **DECISION-3 — ID strategy.** Seed uses `seed_id` (`acct_0001`) + `dynamics_id`; app uses
   `AG-*`/`S-*`. (Largely settled by DECISION-1: seed_id is canonical — confirm and build the
   seed↔app crosswalk for the ~50 enriched records.)
