@@ -1,0 +1,19 @@
+{
+  "generated": "2026-06-30T14:26:59.053492Z",
+  "source": "Microsoft Dynamics CRM export, cleaned manually with John Teal",
+  "files": {
+    "seed_accounts.json": {
+      "count": 374,
+      "notes": "374 accounts. account_type field is manual classification (customer/vendor/competitor/government/contact_only/unclassified). parent_account_name/parent_seed_id encode corporate hierarchy (e.g. Drax, Enviva, West Fraser sites). formal_name holds full legal name where a short preferred name is used (LP, GP, Huber)."
+    },
+    "seed_contacts.json": {
+      "count": 371,
+      "notes": "371 contacts. matched_account/matched_account_seed_id links to accounts where resolvable (exact name, formal-name alias, or email-domain match). match_type field documents how the match was made. 17 contacts are standalone with no account link."
+    },
+    "seed_products.json": {
+      "count": 131,
+      "notes": "131 products across 21 categories, scoped to TSI's full equipment/services line (not just torrefaction). structure = Product/Product Family. parent_pn/parent_seed_id encode family relationships where confirmed (e.g. Combustion/Burners). price is null throughout - to be filled in manually."
+    }
+  },
+  "staging_recommendation": "Load into staging_accounts / staging_contacts / staging_products tables (mirroring live schema), not directly into production tables. Promote to active tables as a deliberate, reviewed step."
+}

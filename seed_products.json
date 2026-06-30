@@ -1,0 +1,1331 @@
+[
+  {
+    "pn": "CTR0001",
+    "name": "Controls",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Controls",
+    "price": null,
+    "seed_id": "prod_0001",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "EHS0000",
+    "name": "EHouse",
+    "structure": "Product",
+    "status": "Active",
+    "category": "E-House",
+    "price": null,
+    "seed_id": "prod_0002",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ENG-XXXX",
+    "name": "Hours",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Engineering / PM Hours",
+    "price": null,
+    "seed_id": "prod_0003",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ROT 000000",
+    "name": "Rotary Drums",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Rotary Drums",
+    "price": null,
+    "seed_id": "prod_0004",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "HE00000",
+    "name": "Heat Energy System",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Heat Energy System",
+    "price": null,
+    "seed_id": "prod_0005",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "REFR00000",
+    "name": "Refractory",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Refractory",
+    "price": null,
+    "seed_id": "prod_0006",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-00000",
+    "name": "Torrefaction Sample",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0007",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "BS000XX",
+    "name": "Biocarbon Services",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Biocarbon Services",
+    "price": null,
+    "seed_id": "prod_0008",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS0000",
+    "name": "TorrSample",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0009",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TO00XXX",
+    "name": "Thermal Oil - XXX MW",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Thermal Oil",
+    "price": null,
+    "seed_id": "prod_0010",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "AMS-XXXXX",
+    "name": "AMS",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0011",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-I",
+    "name": "AMS Service - Inspections",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0012",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-E",
+    "name": "AMS Service - Engineering",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0013",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-EA",
+    "name": "AMS Service - Energy Audit",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0014",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-PO",
+    "name": "AMS Service - Process Optimization",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0015",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-SS",
+    "name": "AMS Service - Site Support",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0016",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-T",
+    "name": "AMS Service - Training",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0017",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-M",
+    "name": "AMS Service - Maintenance",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0018",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "ANS-0000-R",
+    "name": "AMS Service - Replacement",
+    "structure": "Product",
+    "status": "Active",
+    "category": "AMS Services",
+    "price": null,
+    "seed_id": "prod_0019",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-SHT-100-14-",
+    "name": "Self Heating Test (3rd party)-100x100x100 at 140C",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0020",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-SHT-25-140",
+    "name": "Self Heating Test (3rd party)-25x25x25 at 140C",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0021",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-SHT-25-120",
+    "name": "Self Heating Test (3rd party)-25x25x25 at 120C",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0022",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "SS-424244-UN",
+    "name": "Super Sack - 42x42x44-[UN 13H4 PP FIBC]",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0023",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "PAL-4242-ISPM",
+    "name": "Pallet, 42x42-ISPM",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0024",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "SS-353548-UN",
+    "name": "Super Sack - 35x35x48-[UN 13H4 PP FIBC]",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0025",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "BioC-RPT",
+    "name": "Material Process Report",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Reports & Custom Services",
+    "price": null,
+    "seed_id": "prod_0026",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CUST-MTL-HND",
+    "name": "Custom Material Handing",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Reports & Custom Services",
+    "price": null,
+    "seed_id": "prod_0027",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-ASH-FUS",
+    "name": "Ash Fusion Analysis (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0028",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-ASH-COMP",
+    "name": "Ash Composition (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0029",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "BS000GEN",
+    "name": "Services - General",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Biocarbon Services",
+    "price": null,
+    "seed_id": "prod_0030",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "SS-424244",
+    "name": "Super Sack - 42x42x44",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0031",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "SS-424244-202512051815227421",
+    "name": "Super Sack - Sealed 42x42x44",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0032",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "SS-RENT",
+    "name": "Super Sack Sealer - 1wk rental",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0033",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "PAL-4242",
+    "name": "Pallet, 42x42",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Packaging",
+    "price": null,
+    "seed_id": "prod_0034",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-PROX",
+    "name": "Proximate Analysis (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0035",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-SCLF",
+    "name": "add S, Cl, F (3rd party proximate analysis)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0036",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-ULT",
+    "name": "Ultimate Analysis (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0037",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-CV",
+    "name": "Calorific Value (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0038",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-SHIP",
+    "name": "Shipping & Handling, Test Sample",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0039",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-DUR",
+    "name": "Mechanical Durability (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0040",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "3P-PSD",
+    "name": "Particle Size Distribution (3rd party)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (3rd Party)",
+    "price": null,
+    "seed_id": "prod_0041",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INT-PROX",
+    "name": "Proximate Analysis (internal)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (Internal)",
+    "price": null,
+    "seed_id": "prod_0042",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INT-CV",
+    "name": "Calorific Value (internal)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (Internal)",
+    "price": null,
+    "seed_id": "prod_0043",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INT-DUR",
+    "name": "Mechanical Durability (internal)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (Internal)",
+    "price": null,
+    "seed_id": "prod_0044",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INT-PSD",
+    "name": "Particle Size Distribution (internal)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (Internal)",
+    "price": null,
+    "seed_id": "prod_0045",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INT-BD",
+    "name": "Bulk Density (internal)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (Internal)",
+    "price": null,
+    "seed_id": "prod_0046",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INT-HGI",
+    "name": "Grindability / HGI (internal)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Testing & Analysis (Internal)",
+    "price": null,
+    "seed_id": "prod_0047",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CYC00012",
+    "name": "Cyclone - \u00d812ft",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Cyclone",
+    "price": null,
+    "seed_id": "prod_0048",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CYC00014",
+    "name": "Cyclone - \u00d814ft",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Cyclone",
+    "price": null,
+    "seed_id": "prod_0049",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CYC000GEN",
+    "name": "Cyclone - Generic",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Cyclone",
+    "price": null,
+    "seed_id": "prod_0050",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "GSB00375",
+    "name": "Granular Suspension Burner - 3.75MW",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "SB00000",
+    "seed_id": "prod_0051",
+    "parent_seed_id": "prod_0054"
+  },
+  {
+    "pn": "RG00000",
+    "name": "Reciprocating Grate Furnace",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "seed_id": "prod_0052",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "RB00000",
+    "name": "Register Burner",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "seed_id": "prod_0053",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "SB00000",
+    "name": "Suspension Burner",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "seed_id": "prod_0054",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "GB00030-LNG",
+    "name": "Gas Burner - 30MMBtu/hr - LNG",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "GB00000",
+    "seed_id": "prod_0055",
+    "parent_seed_id": "prod_0131"
+  },
+  {
+    "pn": "SGF0090",
+    "name": "Step Grate Furnace - 90m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0056",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0075",
+    "name": "Step Grate Furnace - 75m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0057",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0065",
+    "name": "Step Grate Furnace - 65m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0058",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0080",
+    "name": "Step Grate Furnace - 80m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0059",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0100",
+    "name": "Step Grate Furnace - 100m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0060",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0045",
+    "name": "Step Grate Furnace - 45m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0061",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0060",
+    "name": "Step Grate Furnace - 60m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0062",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0055",
+    "name": "Step Grate Furnace - 55m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0063",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0030",
+    "name": "Step Grate Furnace - 30m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0064",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0035",
+    "name": "Step Grate Furnace - 35m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0065",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "SGF0040",
+    "name": "Step Grate Furnace - 40m",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RG00000",
+    "seed_id": "prod_0066",
+    "parent_seed_id": "prod_0052"
+  },
+  {
+    "pn": "RB00050",
+    "name": "Register Burner - 50MMBtu/hr (15MW)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RB00000",
+    "seed_id": "prod_0067",
+    "parent_seed_id": "prod_0053"
+  },
+  {
+    "pn": "RB00135",
+    "name": "Register Burner - 135MMBtu/hr",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RB00000",
+    "seed_id": "prod_0068",
+    "parent_seed_id": "prod_0053"
+  },
+  {
+    "pn": "RB00070",
+    "name": "Register Burner - 70MMBtu/hr (20MW)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RB00000",
+    "seed_id": "prod_0069",
+    "parent_seed_id": "prod_0053"
+  },
+  {
+    "pn": "RB00100",
+    "name": "Register Burner - 100MMBtu/hr (35MW)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "RB00000",
+    "seed_id": "prod_0070",
+    "parent_seed_id": "prod_0053"
+  },
+  {
+    "pn": "SUS00040",
+    "name": "Suspension Burner - 40MMBtu/hr",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "SB00000",
+    "seed_id": "prod_0071",
+    "parent_seed_id": "prod_0054"
+  },
+  {
+    "pn": "SUS00060",
+    "name": "Suspension Burner - 60MMBtu/hr",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "parent_pn": "SB00000",
+    "seed_id": "prod_0072",
+    "parent_seed_id": "prod_0054"
+  },
+  {
+    "pn": "ENG0001",
+    "name": "Hours - Engineering",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Engineering / PM Hours",
+    "price": null,
+    "seed_id": "prod_0073",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "PM0001",
+    "name": "Hours - Project Management",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Engineering / PM Hours",
+    "price": null,
+    "seed_id": "prod_0074",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CM0001",
+    "name": "Hours - Construction Management",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Engineering / PM Hours",
+    "price": null,
+    "seed_id": "prod_0075",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "PRO00001",
+    "name": "Hours - Programming",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Engineering / PM Hours",
+    "price": null,
+    "seed_id": "prod_0076",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INS0001-E",
+    "name": "Install - Electrical",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Installation",
+    "price": null,
+    "seed_id": "prod_0077",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "INS0001-M",
+    "name": "Install - Mechanical",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Installation",
+    "price": null,
+    "seed_id": "prod_0078",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "RCO-00000",
+    "name": "RCO - Regenerative Catalytic Oxidizer",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0079",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "RTO-00001",
+    "name": "RTO - Regenerative Thermal Oxidizer",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0080",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CFL00040",
+    "name": "CFL40-RTO",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0081",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CFL00060",
+    "name": "CFL60-RTO",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0082",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CFL00080",
+    "name": "CFL80-RTO",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0083",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CFL00030",
+    "name": "CFL30-RTO",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0084",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CFL00050",
+    "name": "CFL50-RTO",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0085",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "CFL00070",
+    "name": "CFL70-RTO",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0086",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "RTO00100",
+    "name": "RTO Legacy",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0087",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "RCO00200",
+    "name": "RCO Legacy",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Oxidizers",
+    "price": null,
+    "seed_id": "prod_0088",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY20x100-OSB",
+    "name": "Dryer - 20x100 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0089",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY16x060-OSB",
+    "name": "Dryer - 16x060 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0090",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY12x060-OSB",
+    "name": "Dryer - 12x060 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0091",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY13x060-OSB",
+    "name": "Dryer - 13x060 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0092",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY23x100-OSB",
+    "name": "Dryer - 23x100 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0093",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY24x100-OSB",
+    "name": "Dryer - 24x100 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0094",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY15x060-OSB",
+    "name": "Dryer - 15x60 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0095",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY14x060-OSB",
+    "name": "Dryer - 14x060 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0096",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY16x070-OSB",
+    "name": "Dryer - 16x070 - OSB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0097",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY20x080-CHIP",
+    "name": "Dryer - 20x080-CHIPS",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0098",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY23x100-CHIP",
+    "name": "Dryer - 23x100-CHIPS",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0099",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY24x120-PEL-PB",
+    "name": "Dryer - 24x120-PEL-PB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0100",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY18x080-PEL-PB",
+    "name": "Dryer - 18x080-PEL-PB",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0101",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY14x060-CHIP",
+    "name": "Dryer - 14x060-CHIPS",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0102",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY18x070-CHIP",
+    "name": "Dryer - 18x70 - Chips",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0103",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "DRY16x070-CHIP",
+    "name": "Dryer - 16x70 - Chips",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Dryers",
+    "price": null,
+    "seed_id": "prod_0104",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR16x080-CHIPS_CS",
+    "name": "Torreactor-16x080-CHIPS Carbon Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0105",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 14x120-PEL-LT",
+    "name": "TorreactorSystem-14x120-Pellets Low Temp",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0106",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 05x030-CH-SS",
+    "name": "TorreactorSystem-05x030-Chips Stainless Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0107",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 14x080-PEL-CS",
+    "name": "TorreactorSystem-14x080-Pellets Carbon Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0108",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 14x100-CH-CS",
+    "name": "TorreactorSystem-14x100-Chips Stainless Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0109",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 14x070-CH-CS",
+    "name": "TorreactorSystem-14x070-Chips Stainless Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0110",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 16x070-CHIP-CS",
+    "name": "TorreactorSystem-16x070-Chips Carbon Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0111",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 07x080-CHIP-LT",
+    "name": "TorreactorSystem-07x040-Chips Low Temp",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0112",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 07x080-PEL-LT",
+    "name": "TorreactorSystem-07x040-Pellets Low Temp",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0113",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TOR-SYS 14x080-CHIP-CS",
+    "name": "TorreactorSystem-14x080-Chips Carbon Steel",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torreactor Systems",
+    "price": null,
+    "seed_id": "prod_0114",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000GEN",
+    "name": "Torreactor Samples - General",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0115",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000CUST",
+    "name": "Torrefaction Sample - Chips - Customer Supplied",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0116",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000CUST-P",
+    "name": "Torrefaction Sample - Pellets - Customer Supplied",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0117",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000PH-TAP",
+    "name": "Torrefaction Sample - Pellets - High - TAP",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0118",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000LP-TAP",
+    "name": "Torrefaction Sample - Pellets - Low - TAP",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0119",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000CUST-P-TAP",
+    "name": "Torrefaction Sample - Pellets - Customer Supplied-TAP",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0120",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000LC",
+    "name": "Torrefaction Sample - Chips - Low",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0121",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000MC",
+    "name": "Torrefaction Sample - Chips - Medium",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0122",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000HC",
+    "name": "Torrefaction Sample - Chips - High",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0123",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000PH-TBP",
+    "name": "Torrefaction Sample - Pellets - High - TBP",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0124",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000MP",
+    "name": "Torrefaction Sample - Pellets - Medium - TBP",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0125",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "TS-000LP-TBP",
+    "name": "Torrefaction Sample - Pellets - Low - TBP",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Torrefaction Samples",
+    "price": null,
+    "seed_id": "prod_0126",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "WESP04x207",
+    "name": "Wet ESP - 4x207 (828)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Wet ESP",
+    "price": null,
+    "seed_id": "prod_0127",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "WESP03x243",
+    "name": "Wet ESP - 3x243 (729)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Wet ESP",
+    "price": null,
+    "seed_id": "prod_0128",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "WESP02x250",
+    "name": "Wet ESP - 2x250",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Wet ESP",
+    "price": null,
+    "seed_id": "prod_0129",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "WESP03x752",
+    "name": "Wet ESP - 3x2 (752)",
+    "structure": "Product",
+    "status": "Active",
+    "category": "Wet ESP",
+    "price": null,
+    "seed_id": "prod_0130",
+    "parent_seed_id": null
+  },
+  {
+    "pn": "GB00000",
+    "name": "Gas Burner",
+    "structure": "Product Family",
+    "status": "Active",
+    "category": "Combustion / Burners",
+    "price": null,
+    "seed_id": "prod_0131",
+    "parent_seed_id": null
+  }
+]
