@@ -14,7 +14,10 @@ import json, sqlite3, sys, os, re
 HERE = os.path.dirname(os.path.abspath(__file__))
 def p(name): return os.path.join(HERE, name)
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else p("tsi-intel.db")
+argv = [a for a in sys.argv[1:] if not a.startswith("--")]
+EMIT_D1 = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--emit-d1=")), None)
+EMIT_D1_DATA = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--emit-d1-data=")), None)
+OUT = argv[0] if argv else p("tsi-intel.db")
 OWNER_EMAIL = "teal.john@gmail.com"   # sole owner in the export
 
 def load(name): return json.load(open(p(name)))
@@ -133,7 +136,37 @@ def main():
 
     con.commit()
     report(con, accounts, contacts, products, enriched, added)
+    if EMIT_D1:
+        emit_d1(con, EMIT_D1)
+        print(f"\nwrote D1-ready SQL (schema+data) → {EMIT_D1}")
+    if EMIT_D1_DATA:
+        emit_d1(con, EMIT_D1_DATA, data_only=True)
+        print(f"\nwrote D1 data-only SQL → {EMIT_D1_DATA}")
     con.close()
+
+def emit_d1(con, path, data_only=False):
+    """Dump schema (PRAGMA-stripped; D1 rejects runtime PRAGMA) + data as a single
+    SQL file loadable via MCP d1_database_query or `wrangler d1 execute --file`.
+    data_only=True skips DDL (load onto an already-provisioned schema)."""
+    def lit(v):
+        if v is None: return "NULL"
+        if isinstance(v, (int, float)): return repr(v)
+        return "'" + str(v).replace("'", "''") + "'"
+    out = [] if data_only else [l for l in open(p("schema.sql")) if not l.strip().upper().startswith("PRAGMA")]
+    order = ["users","organizations","persons","person_emails","person_phones",
+             "person_organizations","products","product_prices","geocode_cache","notes"]
+    for t in order:
+        cols = [r[1] for r in con.execute(f"PRAGMA table_info({t})")]
+        rows = con.execute(f"SELECT {','.join(cols)} FROM {t}").fetchall()
+        if not rows: continue
+        head = f"INSERT INTO {t} ({','.join(cols)}) VALUES"
+        chunk = []
+        for i, row in enumerate(rows):
+            chunk.append("(" + ",".join(lit(v) for v in row) + ")")
+            if len(chunk) == 80 or i == len(rows) - 1:
+                out.append("\n" + head + "\n" + ",\n".join(chunk) + ";\n")
+                chunk = []
+    open(path, "w").write("".join(out))
 
 def report(con, accounts, contacts, products, enriched, added):
     q = lambda s: con.execute(s).fetchone()[0]

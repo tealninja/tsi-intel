@@ -151,11 +151,16 @@ account/contact joins verified. Re-run: `python3 load_seed.py`.
 Current state (verified): `tsi-intel-api` Worker is KV-only — `env.TSI_DATA` (namespace
 `tsi-pipeline-data`), JSON blobs under `pipeline`/`bugs`/`usage_log`/`locks/:id`. No D1.
 
-- [ ] Design the D1 schema: `accounts`, `contacts`, `products` (+ `pipeline` when migrated).
-      PKs = `seed_id`; FKs per DECISION-3. Include `account_type`, `dynamics_id`, address cols.
-- [ ] Provision the `tsi-intel` D1 database + bind it to the Worker.
-- [ ] Migration loader: git seed JSON → D1, with DECISION-1 enrichment applied. Idempotent /
-      re-runnable (git seed stays the source-of-truth "staging" layer).
+- [x] Design the D1 schema (`schema.sql`). PKs = `seed_id`; FKs per DECISION-3.
+- [x] **Provision `tsi-intel` D1** — created (uuid `e18ad8cb-ce35-42b2-ba01-8a1d31551398`,
+      ENAM region) and **schema applied live via MCP** (10 tables verified, 0 rows).
+- [x] Migration loader (`load_seed.py`) — idempotent; builds local SQLite and emits D1 SQL.
+- [ ] **Load data into D1.** The ~1900 rows can't go through the MCP `d1_database_query` tool
+      practically (SQL must be authored inline; 240KB is too big to transcribe reliably) and
+      `wrangler` has no credentials in the build sandbox. **Run locally where wrangler is authed:**
+      `python3 load_seed.py --emit-d1-data=d1_data.sql && wrangler d1 execute tsi-intel --remote --file=d1_data.sql`
+      (schema is already live; use the data-only file). For a fresh DB use `--emit-d1=` (schema+data).
+- [ ] Bind the D1 database to the Worker (`wrangler.toml` / dashboard binding).
 - [ ] Rewrite Worker endpoints from KV blob get/put to D1 queries (keep optimistic-concurrency
       + locks behavior).
 - [ ] Update client sync: replace whole-blob fetch with query-based reads where it helps.
