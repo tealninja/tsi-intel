@@ -4,6 +4,8 @@
     "name": "Louisiana-Pacific (LP)",
     "action": "enrich",
     "seed_id": "acct_0207",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Louisiana-Pacific (LP)",
       "industry": "OSB/LVL/Siding"
@@ -14,6 +16,8 @@
     "name": "West Fraser",
     "action": "enrich",
     "seed_id": "acct_0350",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "West Fraser",
       "industry": "OSB/LVL"
@@ -24,6 +28,8 @@
     "name": "Huber Engineered Woods",
     "action": "enrich",
     "seed_id": "acct_0167",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Huber Engineered Woods",
       "industry": "OSB"
@@ -34,6 +40,8 @@
     "name": "Weyerhaeuser",
     "action": "enrich",
     "seed_id": "acct_0362",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Weyerhaeuser",
       "industry": "OSB/LVL"
@@ -44,6 +52,8 @@
     "name": "Martco",
     "action": "enrich",
     "seed_id": "acct_0230",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Martco",
       "industry": "OSB"
@@ -54,6 +64,8 @@
     "name": "Drax",
     "action": "enrich",
     "seed_id": "acct_0089",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Drax",
       "industry": "Biomass Pellets"
@@ -64,6 +76,8 @@
     "name": "Idemitsu",
     "action": "enrich",
     "seed_id": "acct_0170",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Idemitsu",
       "industry": "Torrefaction"
@@ -74,6 +88,8 @@
     "name": "Alfanar",
     "action": "enrich",
     "seed_id": "acct_0011",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Alfanar",
       "industry": "Torrefaction/SAF"
@@ -84,6 +100,8 @@
     "name": "Bionow",
     "action": "enrich",
     "seed_id": "acct_0046",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Bionow",
       "industry": "Torrefaction"
@@ -94,6 +112,8 @@
     "name": "Samling",
     "action": "enrich",
     "seed_id": "acct_0293",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Samling",
       "industry": "Biomass/Torrefaction"
@@ -104,6 +124,8 @@
     "name": "Georgia-Pacific (GP)",
     "action": "enrich",
     "seed_id": "acct_0133",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Georgia-Pacific (GP)",
       "industry": "OSB"
@@ -114,6 +136,8 @@
     "name": "Arbec",
     "action": "enrich",
     "seed_id": "acct_0022",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Arbec",
       "industry": "OSB"
@@ -122,9 +146,10 @@
   {
     "app_id": "AG-NF",
     "name": "Nature's Flame",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0378",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": true,
     "carry": {
       "acctMatch": "Nature's Flame",
       "industry": "Biomass Pellets"
@@ -133,9 +158,10 @@
   {
     "app_id": "AG-PNRE",
     "name": "PNRE",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0375",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": true,
     "carry": {
       "acctMatch": "PNRE",
       "industry": "Biomass Pellets"
@@ -146,6 +172,8 @@
     "name": "Spectrum",
     "action": "enrich",
     "seed_id": "acct_0306",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Spectrum",
       "industry": "Biomass Pellets"
@@ -156,6 +184,8 @@
     "name": "Enviva",
     "action": "enrich",
     "seed_id": "acct_0113",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Enviva",
       "industry": "Biomass Pellets"
@@ -166,6 +196,8 @@
     "name": "Berneck",
     "action": "enrich",
     "seed_id": "acct_0040",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Berneck",
       "industry": "MDF/Particle Board"
@@ -176,6 +208,8 @@
     "name": "Kap Paper",
     "action": "enrich",
     "seed_id": "acct_0187",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Kap Paper",
       "industry": "MDF"
@@ -186,6 +220,8 @@
     "name": "Homanit",
     "action": "enrich",
     "seed_id": "acct_0157",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Homanit",
       "industry": "MDF"
@@ -194,9 +230,10 @@
   {
     "app_id": "AG-TAF",
     "name": "Tafisa",
-    "action": "add_seed_origin",
+    "action": "enrich",
+    "seed_id": "acct_0315",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Tafisa",
       "industry": "Particle Board"
@@ -207,6 +244,8 @@
     "name": "Kronospan",
     "action": "enrich",
     "seed_id": "acct_0193",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Kronospan",
       "industry": "Particle Board"
@@ -215,9 +254,10 @@
   {
     "app_id": "AG-WEG",
     "name": "WEGR",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": null,
+    "action": "add",
+    "seed_id": "acct_0385",
+    "parent_seed_id": "acct_0350",
+    "is_new": true,
     "carry": {
       "acctMatch": "WEGR",
       "industry": "OSB"
@@ -228,6 +268,8 @@
     "name": "Austwood",
     "action": "enrich",
     "seed_id": "acct_0030",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Austwood",
       "industry": "Biomass"
@@ -236,9 +278,10 @@
   {
     "app_id": "AG-VAN",
     "name": "Van Lung Company",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0376",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": true,
     "carry": {
       "acctMatch": "Van Lung Company",
       "industry": "Biomass"
@@ -247,9 +290,10 @@
   {
     "app_id": "AG-BFV",
     "name": "Biomass Fuel Vietnam",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0377",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": true,
     "carry": {
       "acctMatch": "Biomass Fuel Vietnam",
       "industry": "Biomass"
@@ -258,9 +302,10 @@
   {
     "app_id": "AG-ARA",
     "name": "Arauco",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0379",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": true,
     "carry": {
       "acctMatch": "Arauco",
       "industry": "OSB"
@@ -269,9 +314,10 @@
   {
     "app_id": "AG-WFJ",
     "name": "West Fraser / Javelin",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0380",
     "parent_seed_id": null,
-    "parent_token": null,
+    "is_new": true,
     "carry": {
       "acctMatch": "West Fraser / Javelin",
       "industry": "Torrefaction"
@@ -282,6 +328,8 @@
     "name": "LP Sagola",
     "action": "enrich",
     "seed_id": "acct_0221",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "46.1",
@@ -294,6 +342,8 @@
     "name": "LP Newberry",
     "action": "enrich",
     "seed_id": "acct_0218",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "46.35",
@@ -304,9 +354,10 @@
   {
     "app_id": "S-LPTO",
     "name": "LP Tomahawk",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": "LP",
+    "action": "add",
+    "seed_id": "acct_0381",
+    "parent_seed_id": "acct_0207",
+    "is_new": true,
     "carry": {
       "acctMatch": "LP",
       "lat": "45.47",
@@ -319,6 +370,8 @@
     "name": "LP Two Harbors",
     "action": "enrich",
     "seed_id": "acct_0223",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "47.02",
@@ -331,6 +384,8 @@
     "name": "LP Jasper",
     "action": "enrich",
     "seed_id": "acct_0215",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "30.92",
@@ -343,6 +398,8 @@
     "name": "LP Hanceville",
     "action": "enrich",
     "seed_id": "acct_0212",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "34.07",
@@ -355,6 +412,8 @@
     "name": "LP Dawson Creek",
     "action": "enrich",
     "seed_id": "acct_0211",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "55.76",
@@ -367,6 +426,8 @@
     "name": "LP Lautaro",
     "action": "enrich",
     "seed_id": "acct_0216",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP (LPLA)",
       "lat": "-37.56",
@@ -379,6 +440,8 @@
     "name": "LP Argentina",
     "action": "enrich",
     "seed_id": "acct_0208",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "-34.6",
@@ -389,9 +452,10 @@
   {
     "app_id": "S-LPPG",
     "name": "LP Ponta Grossa",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": "LP",
+    "action": "add",
+    "seed_id": "acct_0382",
+    "parent_seed_id": "acct_0207",
+    "is_new": true,
     "carry": {
       "acctMatch": "LP",
       "lat": "-25.09",
@@ -404,6 +468,8 @@
     "name": "LP Panguipulli",
     "action": "enrich",
     "seed_id": "acct_0219",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "LP",
       "lat": "-39.64",
@@ -416,6 +482,8 @@
     "name": "WF Grande Prairie",
     "action": "enrich",
     "seed_id": "acct_0350",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "West Fraser",
       "lat": "55.17",
@@ -428,6 +496,8 @@
     "name": "WF Joanna",
     "action": "enrich",
     "seed_id": "acct_0350",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "West Fraser",
       "lat": "34.41",
@@ -440,6 +510,8 @@
     "name": "WF Jefferson",
     "action": "enrich",
     "seed_id": "acct_0350",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "West Fraser",
       "lat": "32.76",
@@ -452,6 +524,8 @@
     "name": "WF Allendale",
     "action": "enrich",
     "seed_id": "acct_0351",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "WEAL",
       "lat": "33.01",
@@ -464,6 +538,8 @@
     "name": "WF Newberry",
     "action": "enrich",
     "seed_id": "acct_0350",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "West Fraser",
       "lat": "34.27",
@@ -476,6 +552,8 @@
     "name": "Huber Broken Bow",
     "action": "enrich",
     "seed_id": "acct_0161",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Huber",
       "lat": "34.02",
@@ -488,6 +566,8 @@
     "name": "Huber Shuqualak",
     "action": "enrich",
     "seed_id": "acct_0165",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Huber",
       "lat": "32.99",
@@ -500,6 +580,8 @@
     "name": "Huber Spring City",
     "action": "enrich",
     "seed_id": "acct_0166",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Huber",
       "lat": "35.69",
@@ -512,6 +594,8 @@
     "name": "Huber Crystal Hill",
     "action": "enrich",
     "seed_id": "acct_0164",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Huber",
       "lat": "37.13",
@@ -524,6 +608,8 @@
     "name": "Weyerhaeuser Elkin",
     "action": "enrich",
     "seed_id": "acct_0363",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Weyerhauser",
       "lat": "36.25",
@@ -534,9 +620,10 @@
   {
     "app_id": "S-WEYA",
     "name": "Weyerhaeuser Arcadia",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0383",
     "parent_seed_id": "acct_0362",
-    "parent_token": "Weyerhaeuser",
+    "is_new": true,
     "carry": {
       "acctMatch": "Weyerhauser",
       "lat": "32.55",
@@ -547,9 +634,10 @@
   {
     "app_id": "S-WEYED",
     "name": "Weyerhaeuser Edson",
-    "action": "add_seed_origin",
+    "action": "add",
+    "seed_id": "acct_0384",
     "parent_seed_id": "acct_0362",
-    "parent_token": "Weyerhaeuser",
+    "is_new": true,
     "carry": {
       "acctMatch": "Weyerhauser",
       "lat": "53.58",
@@ -562,6 +650,8 @@
     "name": "Martco Oakdale",
     "action": "enrich",
     "seed_id": "acct_0234",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Martco",
       "lat": "30.82",
@@ -574,6 +664,8 @@
     "name": "Martco Corrigan",
     "action": "enrich",
     "seed_id": "acct_0232",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Martco",
       "lat": "30.99",
@@ -586,6 +678,8 @@
     "name": "Martco Arkansas",
     "action": "enrich",
     "seed_id": "acct_0230",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Martco",
       "lat": "34.8",
@@ -598,6 +692,8 @@
     "name": "Drax Princeton",
     "action": "enrich",
     "seed_id": "acct_0089",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Drax",
       "lat": "49.46",
@@ -610,6 +706,8 @@
     "name": "Drax Amite",
     "action": "enrich",
     "seed_id": "acct_0090",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Drax",
       "lat": "30.73",
@@ -622,6 +720,8 @@
     "name": "Drax Urania",
     "action": "enrich",
     "seed_id": "acct_0100",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Drax",
       "lat": "31.51",
@@ -634,6 +734,8 @@
     "name": "GP Fordyce",
     "action": "enrich",
     "seed_id": "acct_0140",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "GP",
       "lat": "33.81",
@@ -644,9 +746,10 @@
   {
     "app_id": "S-GPEN",
     "name": "GP Englehart",
-    "action": "add_seed_origin",
-    "parent_seed_id": "acct_0133",
-    "parent_token": "Georgia-Pacific",
+    "action": "enrich",
+    "seed_id": "acct_0139",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "GP",
       "lat": "47.83",
@@ -659,6 +762,8 @@
     "name": "Arbec Miramichi",
     "action": "enrich",
     "seed_id": "acct_0022",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Arbec",
       "lat": "47.02",
@@ -669,9 +774,10 @@
   {
     "app_id": "S-PNRE",
     "name": "PNRE Hoquiam",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": "PNRE",
+    "action": "add",
+    "seed_id": "acct_0386",
+    "parent_seed_id": "acct_0375",
+    "is_new": true,
     "carry": {
       "acctMatch": "PNRE",
       "lat": "46.98",
@@ -684,6 +790,8 @@
     "name": "Spectrum Adel",
     "action": "enrich",
     "seed_id": "acct_0306",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Spectrum",
       "lat": "31.13",
@@ -696,6 +804,8 @@
     "name": "Enviva Southampton",
     "action": "enrich",
     "seed_id": "acct_0122",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Enviva",
       "lat": "36.73",
@@ -708,6 +818,8 @@
     "name": "Berneck Arauc\u00e1ria",
     "action": "enrich",
     "seed_id": "acct_0040",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Berneck",
       "lat": "-25.59",
@@ -720,6 +832,8 @@
     "name": "Kap Paper Kapuskasing",
     "action": "enrich",
     "seed_id": "acct_0187",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Kap Paper",
       "lat": "49.42",
@@ -732,6 +846,8 @@
     "name": "Homanit Alcolu",
     "action": "enrich",
     "seed_id": "acct_0157",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Homanit",
       "lat": "33.76",
@@ -744,6 +860,8 @@
     "name": "Tafisa Lac-M\u00e9gantic",
     "action": "enrich",
     "seed_id": "acct_0315",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Tafisa",
       "lat": "45.58",
@@ -756,6 +874,8 @@
     "name": "Kronospan Kazakhstan",
     "action": "enrich",
     "seed_id": "acct_0193",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Kronospan",
       "lat": "48",
@@ -766,9 +886,10 @@
   {
     "app_id": "S-NF",
     "name": "Nature's Flame NZ",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": "Nature's Flame",
+    "action": "add",
+    "seed_id": "acct_0387",
+    "parent_seed_id": "acct_0378",
+    "is_new": true,
     "carry": {
       "acctMatch": "Nature's Flame",
       "lat": "-38",
@@ -781,6 +902,8 @@
     "name": "Austwood Vietnam",
     "action": "enrich",
     "seed_id": "acct_0030",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Austwood",
       "lat": "16",
@@ -791,9 +914,10 @@
   {
     "app_id": "S-VAN",
     "name": "Van Lung Vietnam",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": "Van Lung",
+    "action": "add",
+    "seed_id": "acct_0388",
+    "parent_seed_id": "acct_0376",
+    "is_new": true,
     "carry": {
       "acctMatch": "Van Lung",
       "lat": "16",
@@ -804,9 +928,10 @@
   {
     "app_id": "S-BFV",
     "name": "BFV Vietnam",
-    "action": "add_seed_origin",
-    "parent_seed_id": null,
-    "parent_token": "Biomass Fuel Vietnam",
+    "action": "add",
+    "seed_id": "acct_0389",
+    "parent_seed_id": "acct_0377",
+    "is_new": true,
     "carry": {
       "acctMatch": "Biomass Fuel Vietnam",
       "lat": "16",
@@ -819,6 +944,8 @@
     "name": "Samling Bintulu",
     "action": "enrich",
     "seed_id": "acct_0293",
+    "parent_seed_id": null,
+    "is_new": false,
     "carry": {
       "acctMatch": "Samling",
       "lat": "3.17",

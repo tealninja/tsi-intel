@@ -87,13 +87,16 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
   → `person_phones` child table justified (label `work`/`mobile`). One email max per contact.
 - Products: 121 Product + 10 Family, 21 categories, 0 prices (manual later).
 
-**app↔seed crosswalk** (draft worksheet → `enrichment_crosswalk.json`, NEEDS human review):
-- ~55 of 72 app accounts auto-match a seed row → action `enrich`.
-- ~17 don't auto-match → action `add_seed_origin`. **9 of these carry geo** (lat/lon/plantType) —
-  the must-not-lose operational rows (LP Tomahawk, Weyerhaeuser Arcadia/Edson, GP Englehart,
-  PNRE Hoquiam, Spectrum Adel, …) that the CRM doesn't track at site granularity.
-- ⚠️ Matcher artifact: it strips `lp`/`gp` as legal suffixes, so a few "absent" parents (esp. LP)
-  are really naming mismatches — the manual pass resolves these to existing seed rows.
+**app↔seed crosswalk** (RECONCILED → `enrichment_crosswalk.json`, 0 unresolved / 0 bad links):
+- **57 of 72** app accounts → action `enrich` an existing seed row (incl. matcher-miss fixes:
+  `S-GPEN`→acct_0139 `GP - Engelhart` spelling; `S-TAF`/`AG-TAF`→acct_0315 Tafisa site).
+- **15** → action `add` net-new seed-origin rows, IDs `acct_0375`–`acct_0389` (no `dynamics_id`),
+  **8 carry the must-not-lose geo**. Hierarchy wired, e.g. new PNRE corp acct_0375 ← PNRE-Hoquiam
+  acct_0386. Children placed under existing parents where present (LP→acct_0207, Weyerhaeuser→
+  acct_0362, WEGR=West-Fraser-Grand-Prairie→acct_0350).
+- Manual calls resolved (John Teal): WEGR = West Fraser – Grand Prairie (new WF child);
+  "West Fraser / Javelin" = separate JV (new co); Nature's Flame = new co (not Leaf-NZ);
+  Van Lung / BFV = new entries.
 
 **Loader algorithm:**
 - [ ] Load `users` (one row: John Teal).
