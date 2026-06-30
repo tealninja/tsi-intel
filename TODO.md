@@ -206,5 +206,40 @@ emails. Fixes + residuals:
       contacts missing a first/last split (have `full_name`).
 - [ ] Keep `seed_manifest.json` `count`s in sync if files are re-exported.
 
+## 7. Sample-supply opportunities + quoting (new feature area)
+
+The headline flow: **biomass sample opportunity → generate quote → export to a Word
+template.** Touches both stores — opportunities live in KV (pipeline, deals out of D1 per
+DECISION-6); products/orgs/contacts live in D1 — so a quote bridges the two.
+
+- [ ] **Opportunity type: biomass / torrefied biomass sample supply.**
+  - Add to the pipeline opportunity taxonomy (`cat`/`type` on the KV pipeline records).
+  - Capture the fields a sample opp needs: material (biomass vs torrefied), quantity, target
+    spec, destination, freight terms, requested-by date. (Reuse existing opp fields where they fit.)
+- [ ] **Quote object (new).**
+  - Header: quote number, date, validity/expiry, linked opportunity (KV opp `id`), customer
+    org (`org_seed_id`) + contact (`person_seed_id`), currency, terms.
+  - Line items: `product_seed_id`, description, qty, unit price (from `product_prices`),
+    discount, line total; plus subtotal/total.
+  - **Pipedrive-consistency:** model line items on Pipedrive's deal-products attachment
+    (product + item_price + quantity + discount) so a future push maps cleanly.
+  - ❓ Open (→ DECISION-11): where does the quote live — **D1** (relational; links products/
+    orgs; references the KV opp by id) vs KV blob? Leaning D1 (it joins D1 data).
+- [ ] **Generate quote from opportunity** (most important path: from a **biomass sample** opp).
+  - Pre-fill line items, pricing (`product_prices`), and customer (linked org/primary contact)
+    from the opportunity; let the user adjust before finalizing.
+  - Quote numbering scheme + draft/sent/accepted status.
+- [ ] **Export quote → MS Word template** (John will upload the `.docx` template).
+  - Render quote data into the template via merge fields/placeholders.
+  - ❓ Open (→ DECISION-12): mechanism — client-side (e.g. docxtemplater in the HTML) vs a
+    Worker route (python-docx-style server render). Define the template's placeholder names →
+    quote-field map once the template lands.
+
+## 8. UX — tooltips / help
+
+- [ ] Contextual tooltips + inline help across the app (KPI tiles, fields, actions).
+- [ ] Follow `tsi-style`: Lucide icons (`stroke-width:1.5`), 0.5px hairline borders, **no
+      shadows**, sentence case, no emoji. Model the affordance after `ui_kits/dashboard/`.
+
 ---
 _Seed source: Dynamics CRM export, cleaned with John Teal (`seed_manifest.json`)._
