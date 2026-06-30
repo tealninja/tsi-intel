@@ -70,19 +70,23 @@ def main():
         carry = c.get("carry") or {}
         vals = (carry.get("acctMatch"), num(carry.get("lat")), num(carry.get("lon")),
                 carry.get("plantType"), carry.get("industry"))
+        # tag carried app coordinates as precise 'plant' geo (DECISION-10) so the
+        # Worker's address-geocoder never overwrites them.
+        gsrc = "plant" if vals[1] is not None else None
         if c["action"] == "enrich" and c["seed_id"]:
             con.execute("""UPDATE organizations SET
                 acct_match=COALESCE(?,acct_match), lat=COALESCE(?,lat), lon=COALESCE(?,lon),
+                geo_source=COALESCE(?,geo_source),
                 plant_type=COALESCE(?,plant_type), industry=COALESCE(?,industry)
-                WHERE seed_id=?""", (*vals, c["seed_id"]))
+                WHERE seed_id=?""", (vals[0], vals[1], vals[2], gsrc, vals[3], vals[4], c["seed_id"]))
             enriched += 1
         elif c["action"] == "add":
             con.execute("""INSERT INTO organizations
                 (seed_id,name,owner_id,account_type,parent_seed_id,
-                 acct_match,lat,lon,plant_type,industry,active_flag)
-                VALUES(?,?,?,?,?,?,?,?,?,?,1)""",
+                 acct_match,lat,lon,geo_source,plant_type,industry,active_flag)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,1)""",
                 (c["seed_id"], c["name"], owner_id("John Teal"), "unclassified",
-                 c.get("parent_seed_id"), *vals))
+                 c.get("parent_seed_id"), vals[0], vals[1], vals[2], gsrc, vals[3], vals[4]))
             added += 1
 
     # ── persons + emails/phones + org membership ───────────────────────────
@@ -128,7 +132,10 @@ def report(con, accounts, contacts, products, enriched, added):
     print(f"users                 {q('SELECT COUNT(*) FROM users')}")
     print(f"organizations         {q('SELECT COUNT(*) FROM organizations')}  "
           f"(seed {len(accounts)} + new {added}; enriched {enriched})")
-    print(f"  with geo (lat)      {q('SELECT COUNT(*) FROM organizations WHERE lat IS NOT NULL')}")
+    plant_geo = q("SELECT COUNT(*) FROM organizations WHERE geo_source='plant'")
+    print(f"  geo: plant-precise  {plant_geo}")
+    print(f"  geo: to geocode     {q('SELECT COUNT(*) FROM organizations WHERE lat IS NULL AND (address_locality IS NOT NULL OR address_postal_code IS NOT NULL)')}  (has address, no coord — Worker fills at import)")
+    print(f"  geo: no address     {q('SELECT COUNT(*) FROM organizations WHERE lat IS NULL AND address_locality IS NULL AND address_postal_code IS NULL')}")
     print(f"  with acct_match     {q('SELECT COUNT(*) FROM organizations WHERE acct_match IS NOT NULL')}")
     print(f"persons               {q('SELECT COUNT(*) FROM persons')}  (seed {len(contacts)})")
     print(f"  person_emails       {q('SELECT COUNT(*) FROM person_emails')}")

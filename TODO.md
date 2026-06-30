@@ -65,6 +65,13 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
   mirroring the pipeline's optimistic-concurrency pattern.
 - [x] **DECISION-9 — review state:** none added; `account_type = 'unclassified'` (122 rows) is the
   review backlog. Add a real `review_status` only if a formal sign-off workflow appears.
+- [x] **DECISION-10 — geocoding: at import, in the Worker.** Live geocoders are policy-blocked from
+  the build session; offline city-centroid covered only 58% coarsely. So the Worker geocodes org
+  addresses at D1 import via an external API (key required). Schema support added: `organizations.
+  geo_source` (`plant`|`geocoded`) so the 42 precise app coords are never overwritten, and a
+  `geocode_cache` table (keyed by normalized address) so each address is geocoded once.
+  Loader tags the 42 carried coords as `geo_source='plant'`. Coverage at load: 42 plant-precise,
+  **301 to geocode**, 46 with no address.
 
 ## 1. Schema reconciliation
 
@@ -153,6 +160,14 @@ Current state (verified): `tsi-intel-api` Worker is KV-only — `env.TSI_DATA` (
       + locks behavior).
 - [ ] Update client sync: replace whole-blob fetch with query-based reads where it helps.
 - [ ] Sequence the pipeline KV→D1 move (do CRM tables first to de-risk, per DECISION-2 note).
+- [ ] **Geocoding step (DECISION-10), runs in the Worker at import:**
+  - [ ] Normalize country first (`USA`/`United States`, `UK`/`United Kingdom`) before building the
+        query — counts showed inconsistent values.
+  - [ ] For each org with `lat IS NULL` and an address (301 rows): build normalized
+        `address_key`, look up `geocode_cache`; on miss call the geocoding API (Google/Mapbox key
+        in Worker secret), store result in `geocode_cache`, then set `lat`/`lon` +
+        `geo_source='geocoded'`. Never touch `geo_source='plant'` rows.
+  - [ ] Respect provider rate limits; cache makes re-imports free.
 
 ## 6. Validation / cleanup
 

@@ -69,6 +69,9 @@ CREATE TABLE organizations (
   plant_type     TEXT,
   lat            REAL,
   lon            REAL,
+  geo_source     TEXT,        -- 'plant' = precise app coord | 'geocoded' = from address | NULL
+                              -- (DECISION-10: Worker geocodes addresses at import; never
+                              --  overwrites a 'plant' row)
   acct_match     TEXT,        -- load-bearing: resolves pipeline acct strings (DECISION-1)
 
   about          TEXT,        -- one-line static blurb (CRM description); the
@@ -162,6 +165,18 @@ CREATE TABLE product_prices (
   price           REAL,
   cost            REAL,
   PRIMARY KEY (product_seed_id, currency)
+);
+
+-- ── geocode_cache (DECISION-10) ────────────────────────────────────────────
+-- The Worker geocodes org addresses at import via an external API. Keyed by a
+-- normalized address string so each unique address is geocoded once, ever.
+CREATE TABLE geocode_cache (
+  address_key TEXT PRIMARY KEY,   -- normalized "street, city, state postal, country"
+  lat         REAL,
+  lon         REAL,
+  precision   TEXT,               -- provider match granularity (rooftop/locality/…)
+  provider    TEXT,               -- e.g. google | mapbox
+  fetched_at  TEXT
 );
 
 -- ── notes (Pipedrive: Note) = the evolving capture log (DECISION-7) ─────────
