@@ -79,6 +79,7 @@ CREATE TABLE organizations (
 CREATE INDEX idx_org_parent     ON organizations(parent_seed_id);
 CREATE INDEX idx_org_type       ON organizations(account_type);
 CREATE INDEX idx_org_acct_match ON organizations(acct_match);
+CREATE UNIQUE INDEX idx_org_dynamics ON organizations(dynamics_id) WHERE dynamics_id IS NOT NULL;
 
 -- ── persons (Pipedrive: Person) = TSI contacts ─────────────────────────────
 CREATE TABLE persons (
@@ -92,9 +93,10 @@ CREATE TABLE persons (
   job_title      TEXT,                   -- Pipedrive: job_title
   owner_id       INTEGER REFERENCES users(id),
 
-  -- Pipedrive Person has a single primary org_id. TSI's app allows a contact
-  -- to span multiple accounts -> see person_organizations join + DECISION-4.
-  org_seed_id    TEXT REFERENCES organizations(seed_id),  -- primary org
+  -- DECISION-4: a person can belong to MANY orgs. Membership lives entirely in
+  -- person_organizations (below); the row flagged is_primary is the "primary org"
+  -- that ports to Pipedrive's single org_id and back-maintains the many relation.
+  -- No denormalized org column here -> single source of truth.
   match_type     TEXT,                   -- how the seed matched (exact/alias/domain)
   company_name_raw TEXT,                 -- unresolved company string from CRM
 
@@ -102,7 +104,7 @@ CREATE TABLE persons (
   add_time       TEXT,
   update_time    TEXT
 );
-CREATE INDEX idx_person_org ON persons(org_seed_id);
+CREATE UNIQUE INDEX idx_person_dynamics ON persons(dynamics_id) WHERE dynamics_id IS NOT NULL;
 
 -- Pipedrive stores email/phone as arrays of {label, value, primary}. Child
 -- tables mirror that exactly (vs flattening to one column) -> DECISION-5.
@@ -119,14 +121,16 @@ CREATE TABLE person_phones (
   is_primary     INTEGER NOT NULL DEFAULT 0
 );
 
--- Many-to-many person<->org (DECISION-4). One row per person flagged
--- is_primary mirrors Pipedrive's single org_id on export.
+-- Many-to-many person<->org (DECISION-4) — source of truth for membership.
+-- Exactly one row per person should carry is_primary=1; that is the org we
+-- send to Pipedrive's single org_id (app/loader enforces the single-primary rule).
 CREATE TABLE person_organizations (
   person_seed_id TEXT NOT NULL REFERENCES persons(seed_id),
   org_seed_id    TEXT NOT NULL REFERENCES organizations(seed_id),
   is_primary     INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (person_seed_id, org_seed_id)
 );
+CREATE INDEX idx_po_org ON person_organizations(org_seed_id);  -- reverse: org's contacts
 
 -- ── products (Pipedrive: Product) ──────────────────────────────────────────
 CREATE TABLE products (
@@ -153,35 +157,8 @@ CREATE TABLE product_prices (
   PRIMARY KEY (product_seed_id, currency)
 );
 
--- ===========================================================================
--- PHASE 2 — pipeline migration (KV -> D1). Sketched for shape only; not loaded
--- until we sequence the pipeline cutover (DECISION-2 phasing note).
--- ===========================================================================
-CREATE TABLE pipelines (            -- Pipedrive: Pipeline
-  id INTEGER PRIMARY KEY, name TEXT NOT NULL
-);
-CREATE TABLE stages (               -- Pipedrive: Stage
-  id INTEGER PRIMARY KEY, pipeline_id INTEGER REFERENCES pipelines(id),
-  name TEXT NOT NULL, order_nr INTEGER
-);
-CREATE TABLE deals (                -- Pipedrive: Deal = TSI pipeline opp
-  id            TEXT PRIMARY KEY,   -- existing opp id (e.g. 'ALTE-1')
-  pipedrive_id  INTEGER,
-  title         TEXT NOT NULL,      -- type/description
-  org_seed_id   TEXT REFERENCES organizations(seed_id),   -- resolves via acct_match
-  person_seed_id TEXT REFERENCES persons(seed_id),
-  owner_id      INTEGER REFERENCES users(id),
-  stage_id      INTEGER REFERENCES stages(id),
-  value         REAL,
-  currency      TEXT DEFAULT 'USD',
-  status        TEXT CHECK (status IN ('open','won','lost')),
-  probability   REAL,
-  expected_close_date TEXT,
-  add_time      TEXT, update_time TEXT
-);
-CREATE TABLE deal_products (        -- Pipedrive: deal<->product line items
-  deal_id         TEXT NOT NULL REFERENCES deals(id),
-  product_seed_id TEXT NOT NULL REFERENCES products(seed_id),
-  quantity        REAL DEFAULT 1,
-  item_price      REAL
-);
+-- Deals/pipelines are intentionally OUT OF SCOPE (DECISION-6): this schema is
+-- for tracking & capturing CRM info only. The existing pipeline stays in KV.
+-- organizations.acct_match remains so the app can still resolve a KV pipeline
+-- row to its D1 organization. If deals ever move to D1, add them modeled on
+-- Pipedrive's Deal object (org_seed_id FK via acct_match).
