@@ -223,17 +223,23 @@ DECISION-6); products/orgs/contacts live in D1 — so a quote bridges the two.
     discount, line total; plus subtotal/total.
   - **Pipedrive-consistency:** model line items on Pipedrive's deal-products attachment
     (product + item_price + quantity + discount) so a future push maps cleanly.
-  - ❓ Open (→ DECISION-11): where does the quote live — **D1** (relational; links products/
-    orgs; references the KV opp by id) vs KV blob? Leaning D1 (it joins D1 data).
+  - [x] **DECISION-11 — quote lives in D1** (avoid blobs wherever possible). New tables:
+    `quotes` (header) + `quote_line_items` (PK quote_id+line; FK `product_seed_id`). Quote
+    references the KV opp by id and the D1 `org_seed_id`/`person_seed_id`.
 - [ ] **Generate quote from opportunity** (most important path: from a **biomass sample** opp).
   - Pre-fill line items, pricing (`product_prices`), and customer (linked org/primary contact)
     from the opportunity; let the user adjust before finalizing.
   - Quote numbering scheme + draft/sent/accepted status.
 - [ ] **Export quote → MS Word template** (John will upload the `.docx` template).
-  - Render quote data into the template via merge fields/placeholders.
-  - ❓ Open (→ DECISION-12): mechanism — client-side (e.g. docxtemplater in the HTML) vs a
-    Worker route (python-docx-style server render). Define the template's placeholder names →
-    quote-field map once the template lands.
+  - [x] **DECISION-12a — generation in-browser** via docxtemplater + PizZip (CDN, like
+    ECharts/Lucide). Faster (no round-trip), no served compute, quote PII stays client-side.
+    Uses table-row loops for the line-item table. (A Worker would also need docxtemplater —
+    no python-docx in Workers — so server adds infra without a better engine.)
+  - ❓ Open (→ DECISION-12b): where the master `.docx` lives — **R2** (recommended: one
+    source-of-truth, updatable without redeploy, binary in object storage not a DB blob;
+    fetched via authed route/signed URL) vs base64-embed in the app vs pick-file-each-time.
+  - Define the template placeholder names → quote-field map once the template lands
+    (incl. the `{#lineItems}…{/lineItems}` table loop).
 
 ## 8. UX — tooltips / help
 
