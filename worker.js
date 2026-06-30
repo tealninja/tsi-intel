@@ -14,22 +14,36 @@ const KV_PIPELINE = 'pipeline';
 const KV_BUGS     = 'bugs';
 const KV_USAGE    = 'usage_log';
 
-// Auth: check for shared secret in header X-TSI-Key
-// Set this as a Worker secret: wrangler secret put TSI_API_KEY
+// ⚠️ DEPLOY PREREQUISITES (this Worker now fails closed):
+//   1. `wrangler secret put TSI_API_KEY` — without it EVERY request is 401.
+//   2. The client must send `X-TSI-Key` on every call (the HTML currently does
+//      not — update workerHeaders() to attach it, or the app will 401).
+//   3. Set ALLOWED_ORIGINS below to the app's real origin(s) for cross-origin use.
+// A shared key in client code is soft auth (stops casual discovery/scrapers);
+// for real protection put the Worker behind Cloudflare Access (see TODO §5).
+
+// Auth: shared secret in header X-TSI-Key. Fail closed — no key configured = no access.
 function isAuthorized(request, env) {
-  // If no secret configured, allow all (dev mode)
-  if (!env.TSI_API_KEY) return true;
+  if (!env.TSI_API_KEY) return false;            // fail closed (was: allow-all dev mode)
   const key = request.headers.get('X-TSI-Key');
   return key === env.TSI_API_KEY;
 }
 
+// CORS allowlist — '*' is intentionally NOT used (it would let any site read the API).
+// Leave empty to deny all cross-origin (fine if the app is served same-origin).
+const ALLOWED_ORIGINS = [
+  // 'https://intel.tsi-inc.net',
+];
 function corsHeaders(origin) {
-  return {
-    'Access-Control-Allow-Origin':  origin || '*',
+  const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '');
+  const h = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User',
     'Access-Control-Max-Age':       '86400',
+    'Vary':                         'Origin',
   };
+  if (allow) h['Access-Control-Allow-Origin'] = allow;
+  return h;
 }
 
 function json(data, status=200, origin) {
@@ -54,8 +68,9 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
 
-    // Auth check for all non-GET requests
-    if (request.method !== 'GET' && !isAuthorized(request, env)) {
+    // Authenticate EVERY request, reads included (was: non-GET only, leaving all
+    // GET data endpoints public). Only the health check is left open.
+    if (path !== '/api/health' && !isAuthorized(request, env)) {
       return err('Unauthorized', 401, origin);
     }
 
