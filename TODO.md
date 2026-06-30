@@ -76,16 +76,38 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
 - [ ] Bump `SCHEMA_VERSION` (currently 2) and add a migration in `loadAccounts()` for the new fields.
 - [ ] Decide whether `account_type` becomes a filter/badge in `view-accounts`.
 
-## 2. Accounts import (seed = canonical)
+## 2. Accounts import (seed = canonical) — LOADER SPEC
 
-- [ ] Loader that maps all 374 `seed_accounts.json` into the unified `accounts[]` shape.
-- [ ] Resolve seed `parent_seed_id` hierarchy → `parentId` (keep seed IDs as canonical).
-- [ ] **Build the app↔seed match table** for the 72 defaults (50 auto by name/`formal_name`,
-      ~22 by hand).
-- [ ] **Enrich** matched seed records with `lat`/`lon`/`plantType`/`industry`/weather and the
-      hand-tuned `acctMatch` alias string from the app defaults.
-- [ ] Add the ~22 app-only accounts as seed-origin records (no `dynamics_id`).
-- [ ] Re-link pipeline rows: confirm all 38 `acct` strings still resolve via `acctMatch`.
+**Data profiling (verified against the committed seed):**
+- Seed referential integrity is **perfect**: 0 unresolved account parents, 0 unresolved
+  contact→account links (354 linked / 17 standalone), 0 unresolved product parents, 0 duplicate
+  `dynamics_id`. Loader needs no orphan-repair.
+- Owner is a single user ("John Teal", all 745 records) → seed one `users` row.
+- Phones: 62 contacts have **both** business+mobile, 48 business-only, 150 mobile-only, 111 none
+  → `person_phones` child table justified (label `work`/`mobile`). One email max per contact.
+- Products: 121 Product + 10 Family, 21 categories, 0 prices (manual later).
+
+**app↔seed crosswalk** (draft worksheet → `enrichment_crosswalk.json`, NEEDS human review):
+- ~55 of 72 app accounts auto-match a seed row → action `enrich`.
+- ~17 don't auto-match → action `add_seed_origin`. **9 of these carry geo** (lat/lon/plantType) —
+  the must-not-lose operational rows (LP Tomahawk, Weyerhaeuser Arcadia/Edson, GP Englehart,
+  PNRE Hoquiam, Spectrum Adel, …) that the CRM doesn't track at site granularity.
+- ⚠️ Matcher artifact: it strips `lp`/`gp` as legal suffixes, so a few "absent" parents (esp. LP)
+  are really naming mismatches — the manual pass resolves these to existing seed rows.
+
+**Loader algorithm:**
+- [ ] Load `users` (one row: John Teal).
+- [ ] Load all 374 `seed_accounts.json` → `organizations` (PK `seed_id`; map address sub-fields,
+      `account_type`, `dynamics_id`; `status`→`active_flag`; `created/modified_on`→`add/update_time`).
+- [ ] Resolve `parent_seed_id` self-FK (data already clean).
+- [ ] Apply crosswalk: for `enrich` rows, set `acct_match` + `lat`/`lon`/`plant_type`/`industry`
+      on the matched org; for `add_seed_origin` rows, INSERT a new org (no `dynamics_id`) parented
+      to its corporate row (add the absent parent company too where needed).
+- [ ] Load `seed_contacts.json` → `persons` + `person_organizations` (primary row from
+      `matched_account_seed_id`) + `person_phones`/`person_emails`.
+- [ ] Load `seed_products.json` → `products` (+ empty `product_prices` rows skipped until priced).
+- [ ] Verify: all 38 pipeline `acct` strings still resolve via `organizations.acct_match`.
+- [ ] Loader is idempotent / re-runnable (git seed stays source-of-truth staging).
 
 ## 3. Contacts import
 
