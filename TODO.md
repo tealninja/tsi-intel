@@ -6,7 +6,7 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
 
 ## 0. Decisions to make first (blockers)
 
-- [x] **Account model strategy — DECIDED: seed canonical + enrich.**
+- [x] **DECISION-1 — Account model strategy — DECIDED: seed canonical + enrich.**
   The seed (374) becomes the single account list. It already beats the app on identity,
   scale, the corporate→site hierarchy (`parent_account_name`/`parent_seed_id`), `account_type`,
   and CRM fields (`dynamics_id`, address, website). We **enrich** seed records with the data
@@ -20,11 +20,12 @@ Working list for wiring the CRM seed data (`seed_accounts.json`, `seed_contacts.
     seed records or ~60% of pipeline→account links break.
   - **Reconcile by hand:** ~50 app accounts match a seed record (enrich those); ~22 are
     app-only (Georgia-Pacific, Van Lung, Arauco, site-code rows) — map or add as seed-origin.
-- [?] **Worker backend storage.** The DB schema lives in the Cloudflare Worker (not in this
-  repo). Confirm it's D1 (SQL — supports the manifest's `staging_*` tables) vs KV/blob, before
-  deciding where staging and promotion happen.
-- [?] **ID strategy.** Seed uses `seed_id` (`acct_0001`) + `dynamics_id`; app uses `AG-*`/`S-*`.
-  Decide canonical ID and build a seed↔app crosswalk.
+- [?] **DECISION-2 — Worker backend storage.** The DB schema lives in the Cloudflare Worker (not
+  in this repo). Confirm it's D1 (SQL — supports the manifest's `staging_*` tables) vs KV/blob,
+  before deciding where staging and promotion happen.
+- [?] **DECISION-3 — ID strategy.** Seed uses `seed_id` (`acct_0001`) + `dynamics_id`; app uses
+  `AG-*`/`S-*`. (Largely settled by DECISION-1: seed_id is canonical — confirm and build the
+  seed↔app crosswalk for the ~50 enriched records.)
 
 ## 1. Schema reconciliation
 
