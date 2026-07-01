@@ -1,0 +1,29 @@
+-- TSI Intel — promote staging → live (TEMPLATE, run as a deliberate reviewed step)
+--
+-- Per seed_manifest.json, seed data loads into staging_* first, then is promoted
+-- to the live tables as a separate, reviewed action. This file is a TEMPLATE:
+-- the live table names/columns below are ASSUMPTIONS — confirm them against the
+-- Worker's actual schema before running (the Worker source is not in this repo).
+--
+-- Review checklist before promoting:
+--   1. Confirm live table names + columns match (`wrangler d1 execute DB --remote
+--      --command "SELECT name FROM sqlite_master WHERE type='table'"`).
+--   2. Decide insert semantics: INSERT OR IGNORE (keep existing) vs OR REPLACE (overwrite).
+--   3. Spot-check counts after each block.
+--
+-- Example (ADJUST column lists to the real live schema):
+
+-- BEGIN TRANSACTION;
+--
+-- INSERT OR IGNORE INTO accounts (seed_id, dynamics_id, name, formal_name, account_type,
+--   status, owner, phone, website, street1, street2, city, state, postal_code, country,
+--   description, notes, parent_account_name, parent_seed_id, created_on, modified_on)
+-- SELECT seed_id, dynamics_id, name, formal_name, account_type, status, owner, phone,
+--   website, street1, street2, city, state, postal_code, country, description, notes,
+--   parent_account_name, parent_seed_id, created_on, modified_on
+-- FROM staging_accounts;
+--
+-- INSERT OR IGNORE INTO contacts (...) SELECT ... FROM staging_contacts;
+-- INSERT OR IGNORE INTO products (...) SELECT ... FROM staging_products;
+--
+-- COMMIT;

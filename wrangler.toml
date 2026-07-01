@@ -1,0 +1,12 @@
+# wrangler config for TSI Intel D1 access.
+# This repo holds the dashboard + seed data; the API Worker lives separately.
+# This file exists so `wrangler d1 execute` can target the shared D1 database.
+#
+# Fill in database_id before use:  wrangler d1 list   (copy the UUID for the DB)
+name = "tsi-intel-db-admin"
+compatibility_date = "2026-06-30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tsi-intel"        # ← confirm the real DB name via `wrangler d1 list`
+database_id = "REPLACE_WITH_DATABASE_ID"
