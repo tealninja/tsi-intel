@@ -152,7 +152,15 @@ def emit_d1(con, path, data_only=False):
         if v is None: return "NULL"
         if isinstance(v, (int, float)): return repr(v)
         return "'" + str(v).replace("'", "''") + "'"
-    out = [] if data_only else [l for l in open(p("schema.sql")) if not l.strip().upper().startswith("PRAGMA")]
+    # Full file is idempotent: drop existing tables first so it loads cleanly from
+    # any prior state (e.g. schema already applied). Children before parents.
+    DROPS = ["notes","person_organizations","person_phones","person_emails",
+             "product_prices","products","persons","geocode_cache","organizations","users"]
+    if data_only:
+        out = []
+    else:
+        out = [f"DROP TABLE IF EXISTS {t};\n" for t in DROPS]
+        out += [l for l in open(p("schema.sql")) if not l.strip().upper().startswith("PRAGMA")]
     order = ["users","organizations","persons","person_emails","person_phones",
              "person_organizations","products","product_prices","geocode_cache","notes"]
     for t in order:
