@@ -30,9 +30,19 @@ function isAuthorized(request, env) {
 }
 
 // CORS allowlist — '*' is intentionally NOT used (it would let any site read the API).
-// Leave empty to deny all cross-origin (fine if the app is served same-origin).
+//
+// ⚠️ CUTOVER-BLOCKING: the app is served from SharePoint, so its calls to this
+//    Worker are CROSS-ORIGIN. This list MUST contain the app's exact SharePoint
+//    origin (scheme + host, no path), of the form:
+//        'https://<tenant>.sharepoint.com'   (use the REAL tenant, not this literal)
+//    If this list is empty (or missing the real origin) the browser blocks the
+//    app from reading responses EVEN WITH a valid key — the app goes blank.
+//    The live Worker currently returns '*', which is why it works today; locking
+//    CORS is the one behavior change here beyond adding the key, so verify the
+//    exact origin on the staging Worker before going live (see docs/CUTOVER.md).
+//    (Confirm the tenant host from the app's address bar in SharePoint.)
 const ALLOWED_ORIGINS = [
-  // 'https://intel.tsi-inc.net',
+  // 'https://<your-tenant>.sharepoint.com',   // ← set to the real origin at cutover
 ];
 function corsHeaders(origin) {
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '');
@@ -257,8 +267,9 @@ export default {
 
 
     // ── POST /api/ai — proxy to Anthropic ──────────────────────
+    // Auth already enforced by the top-level guard (every path except /api/health),
+    // so no per-route re-check is needed here — the open-proxy risk is closed.
     if (path === '/api/ai' && request.method === 'POST') {
-      if (!isAuthorized(request, env)) return err('Unauthorized', 401, origin);
       let body;
       try { body = await request.json(); }
       catch { return err('Invalid JSON', 400, origin); }
