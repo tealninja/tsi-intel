@@ -1,0 +1,39 @@
+# .assetsignore — gitignore-style. Lists files in the assets directory (repo root)
+# that must NOT be uploaded or served publicly. Negation (!) is NOT supported by
+# Workers Static Assets, so this is an explicit denylist: only the two files that
+# match NO pattern below stay public — tsi-intel.html (the app) and _redirects
+# (its rules, which the platform honors from the assets dir).
+
+# Dev / build / VCS directories (never public)
+.git/
+.wrangler/
+node_modules/
+migrations/
+scripts/
+docs/
+
+# Wrangler + Worker config and server code (never serve as public assets)
+wrangler.jsonc
+wrangler.toml
+worker.js
+schema.sql
+load_seed.py
+.assetsignore
+.gitignore
+
+# Data / docs / code by extension — the seed_*.json exports must NOT be public
+*.json
+*.jsonc
+*.sql
+*.py
+*.md
+*.db
+
+# Explicitly named (redundant with the wildcards above, kept for clarity/safety)
+seed_accounts.json
+seed_contacts.json
+seed_products.json
+seed_manifest.json
+enrichment_crosswalk.json
+IMPLEMENTATION_PLAN.md
+TODO.md

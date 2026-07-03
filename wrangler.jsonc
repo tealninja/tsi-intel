@@ -1,0 +1,17 @@
+{
+  // Cloudflare Workers Static Assets config for the review deploy.
+  // Assets-only Worker (no server script), so `main` is intentionally omitted.
+  // `npx wrangler deploy` (the build's default command) uploads the repo root as
+  // static assets, filtered by .assetsignore, and serves them from Cloudflare's edge.
+  //
+  // NOTE: `name` must match the connected Cloudflare application exactly ("tsi-intel").
+  // This is the STATIC REVIEW site only — it is unrelated to the API Worker
+  // (tsi-intel-api) and does not affect the SharePoint-hosted production copy.
+  "name": "tsi-intel",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    // Serve from the repo root. .assetsignore (at this same root) restricts the
+    // upload to just the public app (tsi-intel.html) + the _redirects rules.
+    "directory": "."
+  }
+}
