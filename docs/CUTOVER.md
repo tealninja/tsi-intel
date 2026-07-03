@@ -36,23 +36,26 @@ python scripts/build_load_staging.py         # regenerates scripts/load_staging.
 ```
 wrangler d1 execute tsi-intel --remote --file=migrations/001_staging.sql
 ```
-Rollback: `DROP TABLE staging_accounts; DROP TABLE staging_contacts; DROP TABLE staging_products;`
+Rollback: `DROP TABLE staging_accounts; DROP TABLE staging_enrichment; DROP TABLE staging_contacts; DROP TABLE staging_products;`
 
 ### A3 — load staging rows (remote)
 ```
 wrangler d1 execute tsi-intel --remote --file=scripts/load_staging.sql
 ```
-Rollback / re-run: `DELETE FROM staging_accounts; DELETE FROM staging_contacts; DELETE FROM staging_products;`
+Loads 389 accounts (374 seed + 15 net-new enrichment orgs), 57 enrichment rows,
+371 contacts, 131 products. Rollback / re-run:
+`DELETE FROM staging_accounts; DELETE FROM staging_enrichment; DELETE FROM staging_contacts; DELETE FROM staging_products;`
 
 ### A4 — validate staging (remote) — **GATE: do not proceed unless clean**
 ```
 wrangler d1 execute tsi-intel --remote --file=scripts/validate_staging.sql
 ```
 Every row's `n` must equal its `expect`:
-`accounts=374, contacts=371, products=131, products_null_price=131,
-orphan_account_parents=0, orphan_product_parents=0, contacts_no_account=17,
-contacts_bad_account_ref=0, bad_account_type=0`, and `load_batch` uniform =
-`dynamics_2026_06_30`. **Any mismatch → STOP**, investigate, do not promote.
+`accounts=389, contacts=371, products=131, enrichment=57, net_new_orgs=15,
+enrichment_orphans=0, products_null_price=131, orphan_account_parents=0,
+orphan_product_parents=0, contacts_no_account=17, contacts_bad_account_ref=0,
+bad_account_type=0`, and `load_batch` uniform = `dynamics_2026_06_30`.
+**Any mismatch → STOP**, investigate, do not promote.
 
 ### A5 — provenance columns (remote, run ONCE)
 ```
@@ -70,14 +73,16 @@ wrangler d1 execute tsi-intel --remote --file=migrations/003_promote.sql
 ```
 wrangler d1 execute tsi-intel --remote --file=scripts/verify_promotion.sql
 ```
-Expect `organizations=374, persons=371, products=131, person_emails=357,
-person_phones=322, person_organizations=354, orgs_with_parent=88,
-products_with_parent=19, product_prices=0`, and **`PRAGMA foreign_key_check`
+Expect `organizations=389, persons=371, products=131, person_emails=357,
+person_phones=322, person_organizations=354, orgs_with_parent=97,
+products_with_parent=19`, enrichment coverage `orgs_with_acct_match=57,
+orgs_with_geo=42, orgs_geo_source_plant=42, orgs_with_industry=27,
+orgs_with_plant_type=42`, `product_prices=0`, and **`PRAGMA foreign_key_check`
 returns zero rows**.
 
 ### A8 — (optional) drop staging tables
 Staging has served its purpose after promotion. Keep them if you want to re-promote;
-otherwise `DROP TABLE staging_accounts; staging_contacts; staging_products;`.
+otherwise `DROP TABLE staging_accounts; staging_enrichment; staging_contacts; staging_products;`.
 
 ### A9 — Part A rollback (exact, if ever needed)
 ```
@@ -88,6 +93,13 @@ pre-existing `users` row and anything else are untouched. Verified locally.
 
 > **Known gap (intentional):** all 131 products have NULL price, so `product_prices`
 > gets **zero** rows this batch. Prices are entered manually later as a separate task.
+>
+> **Enrichment note (DECISION-1):** this load is the *enriched* dataset. 72 crosswalk
+> entries merge onto 57 orgs (42 existing seed orgs + 15 net-new `acct_0375..0389`),
+> carrying the load-bearing `acct_match` alias plus geo/industry/plant_type. One
+> lossy spot: West Fraser is 4 plant sites in the app but one corporate org in the
+> seed, so its org row keeps a single coordinate (3 site coordinates are dropped).
+> Representing plant sites individually would be a later site-level enhancement.
 
 ---
 
@@ -182,10 +194,11 @@ avoid a lockout window, add a temporary second accepted key (`TSI_API_KEY_PREV`)
 
 ## What's already done (this branch, no Cloudflare access needed)
 
-- **Local dry run PASSED** end-to-end via `wrangler d1 execute --local`:
-  staging load → validate (all checks = expected) → provenance cols → promote
-  (374/371/131 + 357/322/354 + 88/19 parents + 0 prices) → `foreign_key_check`
-  clean → rollback returns to zero, leaving pre-existing rows intact.
+- **Local dry run PASSED** end-to-end via `wrangler d1 execute --local` (enriched
+  dataset): staging load (389/57/371/131) → validate (all checks = expected) →
+  provenance cols → promote (389/371/131 + 357/322/354 + 97/19 parents + enrichment
+  57 acct_match / 42 geo / 27 industry / 42 plant_type + 0 prices) →
+  `foreign_key_check` clean → rollback returns to zero, leaving pre-existing rows intact.
 - **Auth logic VERIFIED locally** via `wrangler dev --local`:
   fail-closed when the key is unset (all non-health routes 401 even with a key);
   with the key set: health open, GET/POST require the key, wrong key 401,

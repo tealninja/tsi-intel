@@ -1,6 +1,7 @@
 -- migrations/003_promote.sql
 -- Promote validated staging rows into the live tables. Run ONLY after
--- scripts/validate_staging.sql passes (counts 374/371/131, 0 orphans, clean types).
+-- scripts/validate_staging.sql passes (accounts 389, contacts 371, products 131,
+-- enrichment 57, 0 orphans, clean types).
 -- Every promoted row is tagged source_batch='dynamics_2026_06_30' so the whole
 -- batch is exactly reversible via scripts/rollback_promotion.sql.
 --
@@ -16,23 +17,30 @@
 --    IGNORE makes it a no-op there and satisfies the owner_id FK on a fresh local db.
 INSERT OR IGNORE INTO users (id, name, email) VALUES (1, 'John Teal', 'teal.john@gmail.com');
 
--- 2C.1 organizations (parent links deferred) ---------------------------------
+-- 2C.1 organizations (parent links deferred; enrichment folded in) ------------
+-- LEFT JOIN staging_enrichment carries the app-only fields (acct_match alias +
+-- geo/industry, DECISION-1) onto each org. Orgs with no crosswalk entry get NULLs.
+-- The 15 net-new 'add' orgs are already present as staging_accounts rows, so they
+-- promote here too (389 total). Empty synthesized addresses collapse to NULL.
 INSERT INTO organizations
   (seed_id, dynamics_id, name, formal_name, account_type,
    address_street, address_locality, address_admin_area,
    address_postal_code, address_country, phone, website, about,
+   acct_match, industry, plant_type, lat, lon, geo_source,
    active_flag, add_time, update_time, owner_id, source_batch, version)
 SELECT
-  seed_id, dynamics_id, name, formal_name, account_type,
-  TRIM(COALESCE(street1,'') ||
-       CASE WHEN COALESCE(street2,'')<>'' THEN ', '||street2 ELSE '' END),
-  city, state, postal_code, country, phone, website,
-  COALESCE(description, notes),
-  CASE WHEN status='Active' THEN 1 ELSE 0 END,
-  created_on, modified_on,
+  sa.seed_id, sa.dynamics_id, sa.name, sa.formal_name, sa.account_type,
+  NULLIF(TRIM(COALESCE(sa.street1,'') ||
+       CASE WHEN COALESCE(sa.street2,'')<>'' THEN ', '||sa.street2 ELSE '' END), ''),
+  sa.city, sa.state, sa.postal_code, sa.country, sa.phone, sa.website,
+  COALESCE(sa.description, sa.notes),
+  se.acct_match, se.industry, se.plant_type, se.lat, se.lon, se.geo_source,
+  CASE WHEN sa.status='Active' THEN 1 ELSE 0 END,
+  sa.created_on, sa.modified_on,
   1,                       -- owner_id = John Teal (users.id = 1)
   'dynamics_2026_06_30', 1
-FROM staging_accounts;
+FROM staging_accounts sa
+LEFT JOIN staging_enrichment se ON se.seed_id = sa.seed_id;
 
 UPDATE organizations
 SET parent_seed_id = (SELECT s.parent_seed_id

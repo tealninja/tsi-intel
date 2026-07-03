@@ -5,7 +5,8 @@
 --
 -- Apply:    wrangler d1 execute tsi-intel --local  --file=migrations/001_staging.sql   (dry run)
 --           wrangler d1 execute tsi-intel --remote --file=migrations/001_staging.sql
--- Rollback: DROP TABLE staging_accounts; DROP TABLE staging_contacts; DROP TABLE staging_products;
+-- Rollback: DROP TABLE staging_accounts; DROP TABLE staging_contacts;
+--           DROP TABLE staging_products; DROP TABLE staging_enrichment;
 --           (staging is disposable and references nothing live)
 
 CREATE TABLE IF NOT EXISTS staging_accounts (
@@ -67,4 +68,25 @@ CREATE TABLE IF NOT EXISTS staging_products (
   parent_seed_id TEXT,
   load_batch     TEXT,
   loaded_at      TEXT DEFAULT (datetime('now'))
+);
+
+-- staging_enrichment mirrors enrichment_crosswalk.json (DECISION-1). One row per
+-- account that carries app-only data onto the seed: the load-bearing acct_match
+-- alias (resolves pipeline acct strings), plus geo/industry where the app had it.
+-- geo_source is precomputed 'plant' for rows with a coordinate so the Worker's
+-- address-geocoder never overwrites a precise app coordinate (DECISION-10).
+-- seed_id points at a staging_accounts row (an existing seed org for 'enrich'
+-- entries, or one of the 15 net-new 'add' orgs, which are loaded into
+-- staging_accounts too). Promotion LEFT JOINs this onto organizations.
+CREATE TABLE IF NOT EXISTS staging_enrichment (
+  seed_id     TEXT PRIMARY KEY,
+  app_id      TEXT,        -- source app id (e.g. AG-LP) — traceability only
+  acct_match  TEXT,        -- load-bearing pipeline alias
+  industry    TEXT,
+  lat         REAL,
+  lon         REAL,
+  plant_type  TEXT,
+  geo_source  TEXT,        -- 'plant' when lat present, else NULL
+  load_batch  TEXT,
+  loaded_at   TEXT DEFAULT (datetime('now'))
 );
