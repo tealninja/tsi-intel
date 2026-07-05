@@ -28,6 +28,13 @@ load_seed.py
 *.py
 *.md
 *.db
+# Office docs / PDFs — internal price lists, quotes, signed customer contracts.
+# These live in git for reference but must NEVER be served on the public site.
+*.docx
+*.doc
+*.xlsx
+*.xls
+*.pdf
 
 # Explicitly named (redundant with the wildcards above, kept for clarity/safety)
 seed_accounts.json

@@ -11190,6 +11190,7 @@ startAdminPoll();
     <span class="prod-count" id="prod-count"></span>
     <span class="prod-dirty" id="prod-dirty" style="display:none">● unsaved</span>
     <span style="flex:1"></span>
+    <button class="prod-btn" onclick="exportPriceList()" title="Customer-ready price list, grouped by category">📄 Export Price List</button>
     <button class="prod-btn ghost" onclick="exportProductsJSON()">Export JSON</button>
     <button class="prod-btn ghost" onclick="exportProductsXLSX()">Export XLSX</button>
     <label class="prod-btn ghost" style="cursor:pointer;margin:0">Import JSON
@@ -11294,32 +11295,32 @@ const PRODUCTS_SEED = [
   {"code":"PKG-001","name":"Super Sack - 42x42x44-[UN 13H4 PP FIBC]","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244-UN","notes":"","seedId":"prod_0023"},
   {"code":"PKG-002","name":"Pallet, 42x42-ISPM","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"PAL-4242-ISPM","notes":"","seedId":"prod_0024"},
   {"code":"PKG-003","name":"Super Sack - 35x35x48-[UN 13H4 PP FIBC]","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-353548-UN","notes":"","seedId":"prod_0025"},
-  {"code":"PKG-004","name":"Super Sack - 42x42x44","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244","notes":"","seedId":"prod_0031"},
-  {"code":"PKG-005","name":"Super Sack - Sealed 42x42x44","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244-202512051815227421","notes":"","seedId":"prod_0032"},
-  {"code":"PKG-006","name":"Super Sack Sealer - 1wk rental","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-RENT","notes":"","seedId":"prod_0033"},
-  {"code":"PKG-007","name":"Pallet, 42x42","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"PAL-4242","notes":"","seedId":"prod_0034"},
+  {"code":"PKG-004","name":"Super Sack - 42x42x44","category":"Packaging","price":25,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244","notes":"","seedId":"prod_0031"},
+  {"code":"PKG-005","name":"Super Sack - Sealed 42x42x44","category":"Packaging","price":40,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244-202512051815227421","notes":"Sealed super sack — matched by description (legacy PN was a data glitch).","seedId":"prod_0032"},
+  {"code":"PKG-006","name":"Super Sack Sealer - 1wk rental","category":"Packaging","price":600,"unit":"week","structure":"Product","parentCode":"","legacyPn":"SS-RENT","notes":"","seedId":"prod_0033"},
+  {"code":"PKG-007","name":"Pallet, 42x42","category":"Packaging","price":20,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"PAL-4242","notes":"","seedId":"prod_0034"},
   {"code":"REF-001","name":"Refractory","category":"Refractory","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"REFR00000","notes":"","seedId":"prod_0006"},
   {"code":"RPT-001","name":"Material Process Report","category":"Reports & Custom Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"BioC-RPT","notes":"","seedId":"prod_0026"},
   {"code":"RPT-002","name":"Custom Material Handing","category":"Reports & Custom Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"CUST-MTL-HND","notes":"","seedId":"prod_0027"},
   {"code":"ROT-001","name":"Rotary Drums","category":"Rotary Drums","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"ROT 000000","notes":"","seedId":"prod_0004"},
-  {"code":"3P-001","name":"Self Heating Test (3rd party)-100x100x100 at 140C","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHT-100-14-","notes":"","seedId":"prod_0020"},
-  {"code":"3P-002","name":"Self Heating Test (3rd party)-25x25x25 at 140C","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHT-25-140","notes":"","seedId":"prod_0021"},
+  {"code":"3P-001","name":"Self Heating Test (3rd party)-100x100x100 at 140C","category":"Testing & Analysis (3rd Party)","price":583,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-SHT-100-14-","notes":"100x100x100 @140C — matched by description.","seedId":"prod_0020"},
+  {"code":"3P-002","name":"Self Heating Test (3rd party)-25x25x25 at 140C","category":"Testing & Analysis (3rd Party)","price":583,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-SHT-25-140","notes":"","seedId":"prod_0021"},
   {"code":"3P-003","name":"Self Heating Test (3rd party)-25x25x25 at 120C","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHT-25-120","notes":"","seedId":"prod_0022"},
   {"code":"3P-004","name":"Ash Fusion Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-ASH-FUS","notes":"","seedId":"prod_0028"},
   {"code":"3P-005","name":"Ash Composition (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-ASH-COMP","notes":"","seedId":"prod_0029"},
-  {"code":"3P-006","name":"Proximate Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-PROX","notes":"","seedId":"prod_0035"},
-  {"code":"3P-007","name":"add S, Cl, F (3rd party proximate analysis)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SCLF","notes":"","seedId":"prod_0036"},
-  {"code":"3P-008","name":"Ultimate Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-ULT","notes":"","seedId":"prod_0037"},
-  {"code":"3P-009","name":"Calorific Value (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-CV","notes":"","seedId":"prod_0038"},
-  {"code":"3P-010","name":"Shipping & Handling, Test Sample","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHIP","notes":"","seedId":"prod_0039"},
-  {"code":"3P-011","name":"Mechanical Durability (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-DUR","notes":"","seedId":"prod_0040"},
-  {"code":"3P-012","name":"Particle Size Distribution (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-PSD","notes":"","seedId":"prod_0041"},
-  {"code":"INT-001","name":"Proximate Analysis (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-PROX","notes":"","seedId":"prod_0042"},
-  {"code":"INT-002","name":"Calorific Value (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-CV","notes":"","seedId":"prod_0043"},
-  {"code":"INT-003","name":"Mechanical Durability (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-DUR","notes":"","seedId":"prod_0044"},
-  {"code":"INT-004","name":"Particle Size Distribution (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-PSD","notes":"","seedId":"prod_0045"},
-  {"code":"INT-005","name":"Bulk Density (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-BD","notes":"","seedId":"prod_0046"},
-  {"code":"INT-006","name":"Grindability / HGI (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-HGI","notes":"","seedId":"prod_0047"},
+  {"code":"3P-006","name":"Proximate Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":102,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-PROX","notes":"","seedId":"prod_0035"},
+  {"code":"3P-007","name":"add S, Cl, F (3rd party proximate analysis)","category":"Testing & Analysis (3rd Party)","price":216,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-SCLF","notes":"","seedId":"prod_0036"},
+  {"code":"3P-008","name":"Ultimate Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":216,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-ULT","notes":"","seedId":"prod_0037"},
+  {"code":"3P-009","name":"Calorific Value (3rd party)","category":"Testing & Analysis (3rd Party)","price":48,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-CV","notes":"","seedId":"prod_0038"},
+  {"code":"3P-010","name":"Shipping & Handling, Test Sample","category":"Testing & Analysis (3rd Party)","price":75,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-SHIP","notes":"","seedId":"prod_0039"},
+  {"code":"3P-011","name":"Mechanical Durability (3rd party)","category":"Testing & Analysis (3rd Party)","price":60,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-DUR","notes":"","seedId":"prod_0040"},
+  {"code":"3P-012","name":"Particle Size Distribution (3rd party)","category":"Testing & Analysis (3rd Party)","price":66,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-PSD","notes":"","seedId":"prod_0041"},
+  {"code":"INT-001","name":"Proximate Analysis (internal)","category":"Testing & Analysis (Internal)","price":65,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"INT-PROX","notes":"","seedId":"prod_0042"},
+  {"code":"INT-002","name":"Calorific Value (internal)","category":"Testing & Analysis (Internal)","price":30,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"INT-CV","notes":"","seedId":"prod_0043"},
+  {"code":"INT-003","name":"Mechanical Durability (internal)","category":"Testing & Analysis (Internal)","price":30,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"INT-DUR","notes":"","seedId":"prod_0044"},
+  {"code":"INT-004","name":"Particle Size Distribution (internal)","category":"Testing & Analysis (Internal)","price":30,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"INT-PSD","notes":"","seedId":"prod_0045"},
+  {"code":"INT-005","name":"Bulk Density (internal)","category":"Testing & Analysis (Internal)","price":20,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"INT-BD","notes":"","seedId":"prod_0046"},
+  {"code":"INT-006","name":"Grindability / HGI (internal)","category":"Testing & Analysis (Internal)","price":50,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"INT-HGI","notes":"","seedId":"prod_0047"},
   {"code":"THO-001","name":"Thermal Oil - XXX MW","category":"Thermal Oil","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TO00XXX","notes":"","seedId":"prod_0010"},
   {"code":"TOR-001","name":"Torreactor-16x080-CHIPS Carbon Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR16x080-CHIPS_CS","notes":"","seedId":"prod_0105"},
   {"code":"TOR-002","name":"TorreactorSystem-14x120-Pellets Low Temp","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 14x120-PEL-LT","notes":"","seedId":"prod_0106"},
@@ -11334,21 +11335,27 @@ const PRODUCTS_SEED = [
   {"code":"TS-001","name":"Torrefaction Sample","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product Family","parentCode":"","legacyPn":"TS-00000","notes":"","seedId":"prod_0007"},
   {"code":"TS-002","name":"TorrSample","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS0000","notes":"","seedId":"prod_0009"},
   {"code":"TS-003","name":"Torreactor Samples - General","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000GEN","notes":"","seedId":"prod_0115"},
-  {"code":"TS-004","name":"Torrefaction Sample - Chips - Customer Supplied","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000CUST","notes":"","seedId":"prod_0116"},
+  {"code":"TS-004","name":"Torrefaction Sample - Chips - Customer Supplied","category":"Torrefaction Samples","price":812,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000CUST","notes":"Customer-supplied basis; $10,000 minimum. Extra costs for running customer material included.","seedId":"prod_0116"},
   {"code":"TS-005","name":"Torrefaction Sample - Pellets - Customer Supplied","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000CUST-P","notes":"","seedId":"prod_0117"},
   {"code":"TS-006","name":"Torrefaction Sample - Pellets - High - TAP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000PH-TAP","notes":"","seedId":"prod_0118"},
   {"code":"TS-007","name":"Torrefaction Sample - Pellets - Low - TAP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000LP-TAP","notes":"","seedId":"prod_0119"},
   {"code":"TS-008","name":"Torrefaction Sample - Pellets - Customer Supplied-TAP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000CUST-P-TAP","notes":"","seedId":"prod_0120"},
-  {"code":"TS-009","name":"Torrefaction Sample - Chips - Low","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000LC","notes":"","seedId":"prod_0121"},
-  {"code":"TS-010","name":"Torrefaction Sample - Chips - Medium","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000MC","notes":"","seedId":"prod_0122"},
-  {"code":"TS-011","name":"Torrefaction Sample - Chips - High","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000HC","notes":"","seedId":"prod_0123"},
+  {"code":"TS-009","name":"Torrefaction Sample - Chips - Low","category":"Torrefaction Samples","price":654,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000LC","notes":"","seedId":"prod_0121"},
+  {"code":"TS-010","name":"Torrefaction Sample - Chips - Medium","category":"Torrefaction Samples","price":812,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000MC","notes":"","seedId":"prod_0122"},
+  {"code":"TS-011","name":"Torrefaction Sample - Chips - High","category":"Torrefaction Samples","price":1910,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000HC","notes":"","seedId":"prod_0123"},
   {"code":"TS-012","name":"Torrefaction Sample - Pellets - High - TBP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000PH-TBP","notes":"","seedId":"prod_0124"},
-  {"code":"TS-013","name":"Torrefaction Sample - Pellets - Medium - TBP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000MP","notes":"","seedId":"prod_0125"},
+  {"code":"TS-013","name":"Torrefaction Sample - Pellets - Medium - TBP","category":"Torrefaction Samples","price":873,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000MP","notes":"","seedId":"prod_0125"},
   {"code":"TS-014","name":"Torrefaction Sample - Pellets - Low - TBP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000LP-TBP","notes":"","seedId":"prod_0126"},
   {"code":"WESP-001","name":"Wet ESP - 4x207 (828)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP04x207","notes":"","seedId":"prod_0127"},
   {"code":"WESP-002","name":"Wet ESP - 3x243 (729)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP03x243","notes":"","seedId":"prod_0128"},
   {"code":"WESP-003","name":"Wet ESP - 2x250","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP02x250","notes":"","seedId":"prod_0129"},
-  {"code":"WESP-004","name":"Wet ESP - 3x2 (752)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP03x752","notes":"","seedId":"prod_0130"}
+  {"code":"WESP-004","name":"Wet ESP - 3x2 (752)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP03x752","notes":"","seedId":"prod_0130"},
+  {"code":"TS-015","name":"Torrefaction Sample - Pellets - Low","category":"Torrefaction Samples","price":712,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000LP","notes":"","seedId":"prod_pl_TS000LP"},
+  {"code":"TS-016","name":"Torrefaction Sample - Pellets - High","category":"Torrefaction Samples","price":2010,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000HP","notes":"","seedId":"prod_pl_TS000HP"},
+  {"code":"TS-017","name":"Torrefaction Sample - Chips - Ultra","category":"Torrefaction Samples","price":null,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000UC","notes":"Price TBD","seedId":"prod_pl_TS000UC"},
+  {"code":"TS-018","name":"Torrefaction Sample - Pellets - Ultra","category":"Torrefaction Samples","price":null,"unit":"st","structure":"Product","parentCode":"","legacyPn":"TS-000UP","notes":"Price TBD","seedId":"prod_pl_TS000UP"},
+  {"code":"PKG-008","name":"Bulk packaging","category":"Packaging","price":null,"unit":"—","structure":"Product","parentCode":"","legacyPn":"BULK-TBD","notes":"N/A — not currently available","seedId":"prod_pl_BULKTBD"},
+  {"code":"3P-013","name":"Self Heating Test (3rd party)-100x100x100 at 120C","category":"Testing & Analysis (3rd Party)","price":583,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"3P-SHT-100-120","notes":"","seedId":"prod_pl_3PSHT100120"}
 ];
 
 /* ── PRODUCTS TAB LOGIC ─────────────────────────────────────────────
@@ -11558,6 +11565,37 @@ function exportProductsXLSX(){
   XLSX.utils.book_append_sheet(wb, ws, 'Products');
   XLSX.writeFile(wb, 'TSI_Products_'+prodDateStr()+'.xlsx');
   prodSetDirty(false);
+}
+
+// Customer-ready price list: grouped by category, title + date header, only the
+// customer-facing columns (Code / Description / Unit / Price). Blank prices render
+// as 'TBD'; a note of 'N/A ...' renders the price cell as 'N/A'. XLSX for v1.
+function exportPriceList(){
+  if (typeof XLSX === 'undefined'){ alert('XLSX library not loaded.'); return; }
+  const money = v => (v==null || v==='') ? 'TBD'
+    : '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:2});
+  const priceCell = p => /^n\/a/i.test(p.notes||'') ? 'N/A' : money(p.price);
+
+  const aoa = [];
+  aoa.push(['Teal Sales Inc. / Biocarbon — Price List']);
+  aoa.push(['Generated ' + prodDateStr() + ' · prices in USD · TBD = to be determined']);
+  aoa.push([]);
+  // group by category (sorted); within a category sort by code
+  const cats = [...new Set(PRODUCTS.map(p=>p.category))].sort();
+  cats.forEach(cat => {
+    const rows = PRODUCTS.filter(p=>p.category===cat).sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+    if (!rows.length) return;
+    aoa.push([cat]);                              // category band
+    aoa.push(['Code','Description','Unit','Price']); // column header
+    rows.forEach(p => aoa.push([p.code||'', p.name||'', p.unit||'', priceCell(p)]));
+    aoa.push([]);                                 // spacer
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:12},{wch:46},{wch:10},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Price List');
+  XLSX.writeFile(wb, 'TSI_PriceList_'+prodDateStr()+'.xlsx');
 }
 
 function importProductsJSON(ev){
