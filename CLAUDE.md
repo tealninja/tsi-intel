@@ -1,15 +1,16 @@
 # TSI Intel — project notes for Claude
 
 ## Running backlog (important)
-The **master** cross-session/cross-project backlog is the Google Doc
-**"TSI — Notes & Backlog"** (Drive id `1hwaW6UWV8QG3D8abJVHxex9VrpXnpiP__i5GNtXX8oQ`,
-owner teal.john@gmail.com). When the user raises future work — in any session —
-**update that Doc via the Google Drive connector** (read it, append/tick the item,
-write it back), and do the same when work is finished. The in-session task tool is
-ephemeral; the Doc is what survives.
+The human-readable master backlog is the Google Doc **"TSI — Notes & Backlog"**
+(Drive id `1hwaW6UWV8QG3D8abJVHxex9VrpXnpiP__i5GNtXX8oQ`, owner teal.john@gmail.com).
+`read_file_content` it at the start of a session for context / items the user added
+there. NOTE: the Drive connector is **read + create only — it can't edit a Doc in
+place**, so you cannot tick items directly in the Doc.
 
-If the Google Drive connector isn't available in a given session, fall back to the
-repo `BACKLOG.md` breadcrumb and reconcile into the Doc later.
+Therefore: keep `BACKLOG.md` (repo root) as the Claude-maintained working list —
+edit it via commits when the user raises or finishes work. When asked (or at a good
+checkpoint), refresh the Google Doc from BACKLOG.md by re-generating it via the
+connector. The in-session task tool is ephemeral; BACKLOG.md + the Doc are what survive.
 
 ## What this repo is
 A single-page operations app, `tsi-intel.html` (data embedded as JS constants,
