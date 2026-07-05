@@ -4432,16 +4432,64 @@ document.addEventListener('click', e => {
 
 
 // ── BUG REGISTER ─────────────────────────────────────────────
-const BUGS_KEY = 'tsi_pipeline_bugs_v1';
+const BUGS_KEY = 'tsi_pipeline_bugs_v1';   // legacy localStorage key (pre-Store)
 
-function loadBugs() {
-  try { return JSON.parse(localStorage.getItem(BUGS_KEY) || '[]'); }
-  catch { return []; }
+// ── Generic extensible store ────────────────────────────────────────────────
+// D1-backed (via the worker's /api/store/:collection) with localStorage as an
+// offline cache. Any feature persists by picking a collection name — no bespoke
+// table needed. First user: the bug register; next: saved views, follows, prefs.
+async function storeApi(method, path, body){
+  if (!API_WORKER_URL) return { ok:false };
+  try {
+    const opt = { method, headers: workerHeaders() };
+    if (body != null) opt.body = JSON.stringify(body);
+    const res = await fetch(API_WORKER_URL + '/api/store/' + path, opt);
+    if (!res.ok) return { ok:false, status:res.status };
+    return { ok:true, data: await res.json().catch(()=>({})) };
+  } catch (e) { return { ok:false, error:e.message }; }
+}
+function Store(collection){
+  const cacheKey = 'tsi_store_' + collection + '_v1';
+  let items = []; try { items = JSON.parse(localStorage.getItem(cacheKey) || '[]'); } catch {}
+  let mode = 'local';
+  const writeCache = () => { try { localStorage.setItem(cacheKey, JSON.stringify(items)); } catch {} };
+  return {
+    all(){ return items; },
+    setAll(next){ items = Array.isArray(next) ? next : []; writeCache(); },
+    mode(){ return mode; },
+    async pull(){                         // load authoritative copy from D1
+      const r = await storeApi('GET', collection);
+      if (r.ok && r.data && Array.isArray(r.data.items)) { items = r.data.items; writeCache(); mode = 'db'; return true; }
+      mode = 'local'; return false;
+    },
+    async put(obj){                       // upsert one object (cache first, then D1)
+      const i = items.findIndex(x => x.id === obj.id);
+      if (i >= 0) items[i] = obj; else items.unshift(obj);
+      writeCache();
+      const r = await storeApi('PUT', collection + '/' + encodeURIComponent(obj.id), obj);
+      mode = r.ok ? 'db' : 'local'; return r.ok;
+    },
+    async remove(id){
+      items = items.filter(x => x.id !== id); writeCache();
+      const r = await storeApi('DELETE', collection + '/' + encodeURIComponent(id));
+      mode = r.ok ? 'db' : 'local'; return r.ok;
+    }
+  };
 }
 
-function saveBugs(bugs) {
-  try { localStorage.setItem(BUGS_KEY, JSON.stringify(bugs)); } catch {}
-}
+// One-time: carry any existing localStorage bugs into the Store's cache so
+// nothing is lost on the cut-over to the D1-backed store.
+try {
+  if (!localStorage.getItem('tsi_store_bugs_v1')) {
+    const legacy = localStorage.getItem(BUGS_KEY);
+    if (legacy) localStorage.setItem('tsi_store_bugs_v1', legacy);
+  }
+} catch {}
+
+// Bug register — persisted in D1 collection 'bugs'; localStorage is offline cache.
+const bugStore = Store('bugs');
+function loadBugs(){ return bugStore.all(); }
+function saveBugs(bugs){ bugStore.setAll(bugs); }   // cache write; mutations below persist to D1
 
 function submitBug() {
   const title    = document.getElementById('bug-title').value.trim();
@@ -4457,14 +4505,12 @@ function submitBug() {
     return;
   }
 
-  const bugs = loadBugs();
-  const id   = 'BUG-' + String(bugs.length + 1).padStart(3, '0');
-  bugs.unshift({
+  const id = 'BUG-' + String(bugStore.all().length + 1).padStart(3, '0');
+  bugStore.put({
     id, title, desc, sev, cat, reporter, env,
     status: 'open',
     created: new Date().toISOString(),
   });
-  saveBugs(bugs);
 
   // Reset form
   ['bug-title','bug-desc','bug-reporter','bug-env'].forEach(id => {
@@ -4486,14 +4532,13 @@ function submitBug() {
 }
 
 function setBugStatus(id, status) {
-  const bugs = loadBugs();
-  const bug  = bugs.find(b => b.id === id);
-  if (bug) { bug.status = status; bug.resolved = new Date().toISOString(); saveBugs(bugs); renderBugs(); }
+  const bug = bugStore.all().find(b => b.id === id);
+  if (bug) { bug.status = status; bug.resolved = new Date().toISOString(); bugStore.put(bug); renderBugs(); }
 }
 
 function deleteBug(id) {
   showConfirm('Delete bug report?', `${id} will be permanently removed.`, () => {
-    saveBugs(loadBugs().filter(b => b.id !== id));
+    bugStore.remove(id);
     renderBugs();
   });
 }
@@ -4524,7 +4569,12 @@ function renderBugs() {
   if (filterCat)    bugs = bugs.filter(b => b.cat    === filterCat);
 
   const countEl = document.getElementById('bug-count');
-  if (countEl) countEl.textContent = `${bugs.length} issue${bugs.length !== 1 ? 's' : ''}`;
+  if (countEl) {
+    const offline = API_WORKER_URL && bugStore.mode() === 'local';
+    countEl.textContent = `${bugs.length} issue${bugs.length !== 1 ? 's' : ''}`
+      + (offline ? ' · ⚠ offline — saved to this browser' : (bugStore.mode() === 'db' ? ' · synced' : ''));
+    countEl.style.color = offline ? 'var(--tsi-coral)' : '';
+  }
 
   const list = document.getElementById('bug-list');
   if (!list) return;
@@ -10188,7 +10238,7 @@ if(API_WORKER_URL) {
       showToast('✓ Pipeline loaded from cloud', 'var(--tsi-succ-green)');
     }
   });
-  loadBugsFromWorker();
+  bugStore.pull().then(() => renderBugs());   // authoritative bugs from D1 (localStorage is cache)
   startAdminPoll();
 }
 usageLog('session_start');

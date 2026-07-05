@@ -24,14 +24,16 @@ diff applies cleanly there.
 
 ```bash
 git checkout feature/db-seed-and-auth
-git apply docs/quote-api-for-db-branch.patch    # worker.js endpoints + migrations/004
-# (migrations/004 is already applied to the live D1 — re-running is safe: IF NOT EXISTS / INSERT OR REPLACE)
+git apply docs/worker-d1-for-db-branch.patch    # worker.js endpoints + migrations/004 + 005
+# (migrations 004/005 are already applied to the live D1 — re-running is safe: IF NOT EXISTS / INSERT OR REPLACE)
 wrangler deploy                                  # deploys tsi-intel-api
 ```
 
 Endpoints added: `GET /api/prices`, `PUT /api/prices/:seedId`,
-`GET/POST/PUT/DELETE /api/quotes(/:id)` — all D1-backed, totals recomputed
-server-side.
+`GET/POST/PUT/DELETE /api/quotes(/:id)`, and the generic collection store
+`GET/POST /api/store/:collection` + `PUT/DELETE /api/store/:collection/:id`
+(backs the bug register and future collections) — all D1-backed, totals
+recomputed server-side.
 
 ## 2. Client API key (so the app leaves OFFLINE mode)
 

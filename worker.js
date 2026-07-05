@@ -425,6 +425,60 @@ export default {
       return json({ success: true, id }, 200, origin);
     }
 
+    // ══════════════════════════════════════════════════════════
+    //  GENERIC COLLECTION STORE (D1) — extensible entity storage.
+    //  One row per object in `collections(collection,id,data JSON)`.
+    //  Backs the app's Store(collection) client (bugs, saved views,
+    //  follows, prefs, …) so features persist without a bespoke table.
+    // ══════════════════════════════════════════════════════════
+    const collMatch = path.match(/^\/api\/store\/([A-Za-z0-9_-]+)$/);
+    const collItemMatch = path.match(/^\/api\/store\/([A-Za-z0-9_-]+)\/(.+)$/);
+
+    // GET /api/store/:collection — list all objects in the collection
+    if (collMatch && request.method === 'GET') {
+      const { results } = await env.DB.prepare(
+        `SELECT data FROM collections WHERE collection=? ORDER BY updated_at DESC`
+      ).bind(collMatch[1]).all();
+      const items = results.map(r => { try { return JSON.parse(r.data); } catch { return null; } }).filter(Boolean);
+      return json({ success: true, items }, 200, origin);
+    }
+
+    // POST /api/store/:collection — bulk replace the whole collection
+    // Body: { items: [ {id, ...}, ... ] }
+    if (collMatch && request.method === 'POST') {
+      let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
+      const coll = collMatch[1];
+      const items = Array.isArray(body.items) ? body.items : [];
+      const now = new Date().toISOString();
+      const stmts = [ env.DB.prepare(`DELETE FROM collections WHERE collection=?`).bind(coll) ];
+      for (const it of items) {
+        if (it == null || it.id == null) continue;
+        stmts.push(env.DB.prepare(
+          `INSERT OR REPLACE INTO collections (collection, id, data, updated_at, updated_by) VALUES (?,?,?,?,?)`
+        ).bind(coll, String(it.id), JSON.stringify(it), now, user));
+      }
+      await env.DB.batch(stmts);
+      return json({ success: true, count: stmts.length - 1 }, 200, origin);
+    }
+
+    // PUT /api/store/:collection/:id — upsert one object
+    if (collItemMatch && request.method === 'PUT') {
+      let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
+      const [, coll, id] = collItemMatch;
+      const obj = { ...body, id };
+      await env.DB.prepare(
+        `INSERT OR REPLACE INTO collections (collection, id, data, updated_at, updated_by) VALUES (?,?,?,?,?)`
+      ).bind(coll, id, JSON.stringify(obj), new Date().toISOString(), user).run();
+      return json({ success: true, id }, 200, origin);
+    }
+
+    // DELETE /api/store/:collection/:id
+    if (collItemMatch && request.method === 'DELETE') {
+      const [, coll, id] = collItemMatch;
+      await env.DB.prepare(`DELETE FROM collections WHERE collection=? AND id=?`).bind(coll, id).run();
+      return json({ success: true, id }, 200, origin);
+    }
+
     // ── GET /api/health ───────────────────────────────────────
     if (path === '/api/health') {
       return json({ status: 'ok', ts: new Date().toISOString() }, 200, origin);

@@ -42,17 +42,20 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   get the lighter tier. Gate model/features by role.
 
 ## 🧱 Architecture & design system (roadmap)
-- [ ] **Remove localStorage as the store of record** — bug register, quotes
-  local-fallback, user identity/initials, and in-memory product edits currently
-  live in the browser. Move persistence to D1 via the worker; keep localStorage
-  only as an offline cache. Design the storage layer so **new entity types plug in**
-  (extensible — one pattern for pipeline / bugs / quotes / prices / future objects).
+- [~] **Remove localStorage as the store of record** — built an extensible
+  `Store(collection)` client + generic D1 `collections` table + `/api/store/*`
+  worker endpoints (localStorage is now just an offline cache). **Bug register
+  migrated.** Remaining: accounts (`tsi_accounts_v1`), saved opp views
+  (`tsi_opp_views`), user identity/initials — migrate onto the same `Store`.
+  (Device prefs like compact-mode / onboarding flag stay local by design.)
 - [ ] **TSI component library (in git)** — factor the app's repeated UI into a
   reusable component set (tabs, editable tables, drawers, KPI cards, chips, toasts,
   mode badges, tree grid, sub-tabs…) as part of the **design system / style set**,
   so features compose consistently. Ties into the extensibility work above.
 
 ## ✅ Recently done
+- [x] Extensible **D1 `Store`** (generic `collections` table + `/api/store/*`) and
+  migrated the **bug register** off localStorage-as-record (cache/offline only).
 - [x] Mobile: tab bar collapses to a **hamburger menu** (<768px).
 - [x] Products: **family/tree view** (Category → Family → members, collapsible) +
   fixed the sticky column header.
