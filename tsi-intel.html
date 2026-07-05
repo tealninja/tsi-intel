@@ -116,6 +116,8 @@ body{font-family:var(--font-ui);background:var(--color-bg);color:var(--color-tex
 
 /* ── TABS ──────────────────────────────────────────────────── */
 .tab-bar{display:flex;height:39px;padding:0 var(--sp-4);gap:2px;margin-top:0;background:var(--tsi-deep-slate,#121A24);border-top:1px solid rgba(255,255,255,.08);box-sizing:border-box}
+.tab-items{display:flex;gap:2px;flex:1;min-width:0}
+.tab-hamburger{display:none} /* desktop: tabs shown inline; hamburger appears ≤768px */
 .tab{padding:9px 16px;font-size:12px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:rgba(255,255,255,0.55);transition:all var(--transition);white-space:nowrap}
 .tab:hover:not(.active){color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.06)}
 .tab.active{color:#fff;border-bottom-color:var(--tsi-teal);background:rgba(0,146,159,0.18)}
@@ -1126,15 +1128,34 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   .kpi-row { grid-template-columns:repeat(2,1fr); gap:8px; padding:10px 12px 0; }
   .kpi-value { font-size:1.4rem; }
 
-  /* Tabs — scroll horizontally */
-  .tab-bar {
-    overflow-x:auto; overflow-y:hidden;
-    scrollbar-width:none; -ms-overflow-style:none;
-    flex-wrap:nowrap; padding:10px 12px 0;
-    gap:0;
+  /* Tabs — collapse into a hamburger menu */
+  .tab-bar { position:relative; height:39px; padding:0; gap:0; }
+  .tab-hamburger {
+    display:flex; align-items:center; gap:9px; width:100%; height:39px;
+    padding:0 14px; background:none; border:none; color:#fff; cursor:pointer;
+    font-family:var(--font-ui); text-align:left;
   }
-  .tab-bar::-webkit-scrollbar { display:none; }
-  .tab { padding:6px 12px; font-size:11px; white-space:nowrap; flex-shrink:0; }
+  .tab-ham-icon { font-size:18px; line-height:1; }
+  .tab-current { font-size:13px; font-weight:500; opacity:.92; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* fixed → escapes the header/KPI stacking contexts and pins under the header */
+  .tab-items {
+    display:none; position:fixed; top:var(--header-h); left:0; right:0;
+    flex-direction:column; gap:0; background:var(--tsi-deep-slate,#121A24);
+    border-top:1px solid rgba(255,255,255,.08); box-shadow:0 10px 24px rgba(0,0,0,.45);
+    z-index:9000; max-height:calc(100vh - var(--header-h)); overflow-y:auto;
+  }
+  .tab-bar.menu-open .tab-items { display:flex; }
+  .tab-backdrop { display:none; }
+  .tab-bar.menu-open .tab-backdrop {
+    display:block; position:fixed; left:0; right:0; top:var(--header-h); bottom:0;
+    background:rgba(0,0,0,.35); z-index:8999;
+  }
+  .tab-items .tab {
+    width:100%; padding:12px 16px; font-size:13px;
+    border-bottom:1px solid rgba(255,255,255,.05); border-left:3px solid transparent;
+  }
+  .tab-items .tab.active { border-bottom-color:rgba(255,255,255,.05); border-left-color:var(--tsi-teal); }
+  [data-theme="dark"] .tab-items .tab.active { border-left-color:var(--tsi-teal-dark); }
 
   /* Views */
   .view { padding:10px 12px 24px; }
@@ -2557,7 +2578,11 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     </div>
   </div>
   </div><!-- /header-top -->
-  <div class="tab-bar">
+  <div class="tab-bar" id="tab-bar">
+  <button class="tab-hamburger" onclick="toggleTabMenu()" aria-label="Menu" aria-expanded="false">
+    <span class="tab-ham-icon">☰</span><span class="tab-current" id="tab-current">All Pipeline</span>
+  </button>
+  <div class="tab-items" id="tab-items">
   <div class="tab active" onclick="showTab('pipeline')">All Pipeline</div>
   <div class="tab" onclick="showTab('won')">📁 Closed</div>
   <div class="tab" onclick="showTab('summary')">📊 Summary</div>
@@ -2569,7 +2594,9 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <div class="tab" onclick="showTab('usage')">📊 Usage</div>
   <div class="tab" onclick="showTab('products')">📦 Products</div>
   <div class="tab" onclick="showTab('quotes')">🧾 Quotes</div>
-  <div class="tab mgmt-tab" onclick="enterMgmt()">⚙ MGMT</div>
+  <div class="tab mgmt-tab" onclick="enterMgmt();closeTabMenu()">⚙ MGMT</div>
+  </div>
+  <div class="tab-backdrop" onclick="closeTabMenu()"></div>
 </div>
 </header>
 
@@ -3574,6 +3601,23 @@ function showTab(name) {
   if(name==='summary')   renderSummary();
   if(name==='products' && typeof renderProducts==='function') renderProducts();
   if(name==='quotes'   && typeof renderQuotesTab==='function') renderQuotesTab();
+
+  // Mobile hamburger: reflect the active tab in the collapsed label + close the menu.
+  const curEl = document.getElementById('tab-current');
+  const activeTab = document.querySelector('.tab-items .tab.active');
+  if (curEl && activeTab) curEl.textContent = activeTab.textContent.trim();
+  closeTabMenu();
+}
+
+function toggleTabMenu(){
+  const bar = document.getElementById('tab-bar'); if(!bar) return;
+  const open = bar.classList.toggle('menu-open');
+  const h = bar.querySelector('.tab-hamburger'); if(h) h.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeTabMenu(){
+  const bar = document.getElementById('tab-bar'); if(!bar || !bar.classList.contains('menu-open')) return;
+  bar.classList.remove('menu-open');
+  const h = bar.querySelector('.tab-hamburger'); if(h) h.setAttribute('aria-expanded', 'false');
 }
 
 function toggleDark() {
