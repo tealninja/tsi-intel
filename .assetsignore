@@ -11,6 +11,10 @@ node_modules/
 migrations/
 scripts/
 docs/
+mcp/
+
+# TypeScript sources (the MCP server) — never serve as public assets
+*.ts
 
 # Wrangler + Worker config and server code (never serve as public assets)
 wrangler.jsonc

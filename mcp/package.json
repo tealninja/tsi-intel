@@ -1,0 +1,22 @@
+{
+  "name": "tsi-intel-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remote MCP server for TSI Quotes — build quotes by chatting with Claude (claude.ai custom connector), backed by the shared D1 database.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.0.5",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "agents": "^0.2.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250601.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^4.20.0"
+  }
+}
