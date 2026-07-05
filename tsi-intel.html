@@ -2516,6 +2516,9 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 }
 .views-menu-empty { padding:8px 9px; font-size:11px; color:var(--color-text-muted); font-style:italic; }
 .views-menu-user { padding:4px 9px 7px; font-size:10px; color:var(--color-text-muted); border-bottom:1px solid var(--color-border); margin-bottom:4px; }
+.follow-btn { background:none; border:none; cursor:pointer; font-size:11px; padding:0 1px; margin-left:2px; opacity:.45; line-height:1; transition:opacity var(--transition); vertical-align:middle; }
+.follow-btn:hover { opacity:.85; }
+.follow-btn.on { opacity:1; }
 
 .quotes-empty { text-align:center; padding:48px 20px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-lg); }
 .q-status-pill { display:inline-block; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.04em; }
@@ -2781,6 +2784,10 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <button class="select views-btn" id="views-btn" onclick="toggleViewsMenu(event)" title="Your saved views">⭐ Views ▾</button>
       <div class="views-menu" id="views-menu" style="display:none"></div>
     </div>
+    <div class="views-wrap">
+      <button class="select views-btn" id="cols-btn" onclick="toggleColsMenu(event)" title="Show / hide columns">▦ Columns ▾</button>
+      <div class="views-menu" id="cols-menu" style="display:none"></div>
+    </div>
     <span class="toolbar-count" id="pip-count"></span>
     <button class="btn-add-opp" onclick="addNewOpp()">+ New Opportunity</button>
     <button class="btn-discard" id="clear-col-filters-btn" onclick="clearAllColFilters()" style="display:none" title="Clear all column filters">✕ Clear filters</button>
@@ -2803,6 +2810,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <div class="close-chips" style="margin-top:4px">
       <span class="chip-label">Show:</span>
       <span class="chip" id="chip-starred" onclick="toggleStarredFilter(this)">⭐ Starred only</span>
+      <span class="chip" id="chip-following" onclick="toggleFollowingFilter(this)">🔔 Following only</span>
     </div>
   </div>
   <div class="tbl-wrap" id="pip-table-wrap">
@@ -3089,6 +3097,7 @@ function monthsFromNow(date) {
 // ── CLOSE CHIP FILTER ─────────────────────────────────────────
 let activeCloseChip = null;
 let starredOnly = false;
+let followingOnly = false;   // personal "following" filter (per-user)
 
 function toggleStarredFilter(el) {
   starredOnly = !starredOnly;
@@ -3264,13 +3273,21 @@ function discardChanges() {
 
 function makeStarCell(o) {
   const td = document.createElement("td");
-  td.style.cssText = "width:28px;padding:0 4px;text-align:center;";
+  td.style.cssText = "width:44px;padding:0 4px;text-align:center;white-space:nowrap;";
   const btn = document.createElement("button");
   btn.className = "star-btn";
-  btn.title = "Star to highlight";
+  btn.title = "Star to highlight (team)";
   btn.textContent = starredIds.has(o.id) ? '★' : '☆';
   btn.onclick = (e) => { e.stopPropagation(); toggleStar(o.id); };
   td.appendChild(btn);
+  // Personal follow (per-user) — bell. Distinct from the team star.
+  const fb = document.createElement("button");
+  const following = (typeof isFollowing === 'function') && isFollowing(o.id);
+  fb.className = "follow-btn" + (following ? " on" : "");
+  fb.title = following ? "Following — click to unfollow" : "Follow (personal)";
+  fb.textContent = following ? '🔔' : '🔕';
+  fb.onclick = (e) => { e.stopPropagation(); if (typeof toggleFollow === 'function') toggleFollow(o.id); };
+  td.appendChild(fb);
   return td;
 }
 
@@ -3397,6 +3414,7 @@ function renderPipeline() {
 
   let f = open().filter(o =>
     (!starredOnly || starredIds.has(o.id)) &&
+    (!followingOnly || (typeof isFollowing === 'function' && isFollowing(o.id))) &&
     (!q || [o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q)) &&
     (!cat  || o.cat===cat) &&
     (!loc  || o.loc===loc) &&
@@ -10259,8 +10277,10 @@ function capturePipelineView(){
     search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), ftag:g('ftag'), fprob:g('fprob'),
     closeChip: (typeof activeCloseChip !== 'undefined') ? activeCloseChip : null,
     starredOnly: (typeof starredOnly !== 'undefined') ? !!starredOnly : false,
+    followingOnly: (typeof followingOnly !== 'undefined') ? !!followingOnly : false,
     sort: activeSort['pip-table'] ? { ...activeSort['pip-table'] } : null,
-    colFilters: cf
+    colFilters: cf,
+    hiddenCols: [..._hiddenCols]
   };
 }
 function applyPipelineView(st){
@@ -10269,12 +10289,15 @@ function applyPipelineView(st){
   setv('flead',st.flead); setv('ftag',st.ftag); setv('fprob',st.fprob);
   if (typeof starredOnly !== 'undefined') starredOnly = !!st.starredOnly;
   const starChip=document.getElementById('chip-starred'); if(starChip) starChip.classList.toggle('active', !!st.starredOnly);
+  if (typeof followingOnly !== 'undefined') followingOnly = !!st.followingOnly;
+  const folChip=document.getElementById('chip-following'); if(folChip) folChip.classList.toggle('active', !!st.followingOnly);
   if (typeof activeCloseChip !== 'undefined') activeCloseChip = st.closeChip || null;
   document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c =>
     c.classList.toggle('active', st.closeChip != null && c.dataset.mo === String(st.closeChip)));
   if (st.sort) activeSort['pip-table'] = { ...st.sort }; else delete activeSort['pip-table'];
   Object.keys(colFilters).forEach(k => delete colFilters[k]);
   Object.keys(st.colFilters || {}).forEach(k => { colFilters[k] = new Set(st.colFilters[k]); });
+  if (st.hiddenCols) { _hiddenCols = new Set(st.hiddenCols); applyColumnVisibility(); }
   if (typeof updateColFilterIndicators === 'function') updateColFilterIndicators();
   renderPipeline();
 }
@@ -10309,6 +10332,70 @@ function toggleViewsMenu(ev){
 function closeViewsMenu(){ const m=document.getElementById('views-menu'); if(m) m.style.display='none'; document.removeEventListener('click', _closeViewsOutside); }
 function _closeViewsOutside(e){ const w=document.querySelector('.views-wrap'); if(w && !w.contains(e.target)) closeViewsMenu(); }
 viewStore.pull().then(() => renderViewsMenu());
+
+// ── PERSONAL FOLLOWS (per-user faves; soft identity) ───────────────────────
+const followStore = Store('follows');
+function _followId(oppId){ return currentUserId() + '::opp::' + oppId; }
+function isFollowing(oppId){ return followStore.all().some(f => f.id === _followId(oppId)); }
+function toggleFollow(oppId){
+  const id=_followId(oppId);
+  if (isFollowing(oppId)) followStore.remove(id);
+  else followStore.put({ id, owner:currentUserId(), entityType:'opp', entityId:oppId, created:new Date().toISOString() });
+  renderPipeline();
+}
+function toggleFollowingFilter(el){
+  followingOnly = !followingOnly;
+  if (el) el.classList.toggle('active', followingOnly);
+  renderPipeline();
+}
+
+// ── COLUMN PICKER (show/hide pipeline columns; per-user) ───────────────────
+// Columns are positional, so we hide by nth-child rather than tagging cells.
+const PIP_COLS_KEY = 'tsi_pip_hidden_cols_v1';
+let _hiddenCols = new Set();
+try { _hiddenCols = new Set(JSON.parse(localStorage.getItem(PIP_COLS_KEY) || '[]')); } catch {}
+// Toggleable data columns → their 1-based column index in #pip-table.
+// (1 = star/follow, 16 = detail ⤢, 17 = delete are fixed controls, not listed.)
+const PIP_COL_DEFS = [
+  {i:2,label:'ID'},{i:3,label:'Category'},{i:4,label:'Account'},{i:5,label:'Location'},
+  {i:6,label:'Project'},{i:7,label:'Scope Tags'},{i:8,label:'Value'},{i:9,label:'Prob'},
+  {i:10,label:'Wtd'},{i:11,label:'Stage'},{i:12,label:'Close'},{i:13,label:'Lead'},
+  {i:14,label:'Notes'},{i:15,label:'Last Update'}
+];
+function applyColumnVisibility(){
+  let style=document.getElementById('pip-col-style');
+  if(!style){ style=document.createElement('style'); style.id='pip-col-style'; document.head.appendChild(style); }
+  style.textContent = [..._hiddenCols].map(i =>
+    `#pip-table th:nth-child(${i}),#pip-table td:nth-child(${i}){display:none}`).join('');
+  const btn=document.getElementById('cols-btn');
+  if(btn) btn.textContent = _hiddenCols.size ? `▦ Columns (${PIP_COL_DEFS.length - _hiddenCols.size}) ▾` : '▦ Columns ▾';
+}
+function toggleColumn(i){
+  _hiddenCols.has(i) ? _hiddenCols.delete(i) : _hiddenCols.add(i);
+  try { localStorage.setItem(PIP_COLS_KEY, JSON.stringify([..._hiddenCols])); } catch {}
+  applyColumnVisibility(); renderColsMenu();
+}
+function renderColsMenu(){
+  const menu=document.getElementById('cols-menu'); if(!menu) return;
+  menu.innerHTML =
+    `<div class="views-menu-user">Show / hide columns</div>` +
+    PIP_COL_DEFS.map(c =>
+      `<label class="views-menu-item" style="cursor:pointer">
+        <input type="checkbox" ${_hiddenCols.has(c.i)?'':'checked'} onchange="toggleColumn(${c.i})" style="accent-color:var(--tsi-teal)">
+        <span class="vm-name">${c.label}</span></label>`).join('') +
+    `<div class="views-menu-save"><button style="flex:1;background:transparent;border:1px solid var(--color-border-mid);color:var(--color-text-secondary)" onclick="resetColumns()">Show all</button></div>`;
+}
+function resetColumns(){ _hiddenCols.clear(); try{localStorage.setItem(PIP_COLS_KEY,'[]');}catch{} applyColumnVisibility(); renderColsMenu(); }
+function toggleColsMenu(ev){
+  if(ev) ev.stopPropagation();
+  const m=document.getElementById('cols-menu'); if(!m) return;
+  if(m.style.display==='none'){ renderColsMenu(); m.style.display=''; setTimeout(()=>document.addEventListener('click', _closeColsOutside),0); }
+  else closeColsMenu();
+}
+function closeColsMenu(){ const m=document.getElementById('cols-menu'); if(m) m.style.display='none'; document.removeEventListener('click', _closeColsOutside); }
+function _closeColsOutside(e){ const w=document.getElementById('cols-menu')?.parentElement; if(w && !w.contains(e.target)) closeColsMenu(); }
+followStore.pull().then(() => renderPipeline());
+applyColumnVisibility();
 
 // ── INIT ──────────────────────────────────────────────────────
 populateFilters();

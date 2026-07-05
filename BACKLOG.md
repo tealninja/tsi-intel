@@ -54,8 +54,9 @@ Roles (cumulative ladder):
   (⭐ Views dropdown captures/applies search + filters + close-chip + starred + sort +
   column filters, tagged to the soft identity). TODO: extend to accounts/quotes tabs;
   optional shared/team views.
-- [ ] Phase 3 — **Follows / faves** on Store('follows'): ★/Follow toggle on opps /
-  quotes / accounts, scoped per user (fold the existing global `starred` into it).
+- [~] Phase 3 — **Follows / faves** on Store('follows'): **pipeline done** — per-user
+  🔔 follow toggle per opp (distinct from the team ⭐ star) + a "🔔 Following only"
+  filter, captured in saved views. TODO: extend follow to quotes / accounts.
 - [ ] Later — **Activity feed** ("what changed on my stuff"): needs audit logging on
   worker writes; "My activity" = events on followed/led items. Deferred (keep simple).
 
@@ -72,8 +73,11 @@ Roles (cumulative ladder):
   so features compose consistently. Ties into the extensibility work above.
 
 ## ✅ Recently done
+- [x] **Follows** (pipeline) — per-user 🔔 follow per opp + "Following only" filter.
+- [x] **Column picker** — ▦ Columns dropdown shows/hides pipeline columns
+  (nth-child, per-user, persisted + captured in saved views).
 - [x] **Saved views** (pipeline) — per-user ⭐ Views dropdown (soft identity),
-  persisted via Store('saved_views'); captures/applies the full filter+sort state.
+  persisted via Store('saved_views'); captures the full filter+sort+columns+follow state.
 - [x] Extensible **D1 `Store`** (generic `collections` table + `/api/store/*`) and
   migrated the **bug register** off localStorage-as-record (cache/offline only).
 - [x] Mobile: tab bar collapses to a **hamburger menu** (<768px).
