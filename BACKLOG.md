@@ -30,16 +30,32 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 - [ ] Proper quote revisioning (R0 → R1) with history.
 - [ ] Offline resilience: queue local quote saves, push to D1 on reconnect.
 
-## 🔐 Accounts, roles & personalization (roadmap)
-- [ ] **User login & management** — authenticated users; admin UI to manage
-  users and roles.
-  - [ ] **Saved user views** — per-user saved filters / column layouts / tab states.
-  - [ ] **Follow / subscribe** to individual opportunities, quotes (and other items).
-  - [ ] **Personalized activity view** — a feed of updates/changes on the items a
-    user follows ("what changed on my stuff").
-- [ ] **Power-user / role tiers** — privileged users (e.g. the CEO) get access to
-  top-tier Claude models for on-demand chart & analysis generation; standard users
-  get the lighter tier. Gate model/features by role.
+## 🔐 Accounts, roles & personalization (design LOCKED — see below)
+Decisions: auth = **Cloudflare Access (SSO)** — not roll-our-own; IdP = **Microsoft
+365 / Entra** (already in use via SharePoint); roles = **lean 3-tier**; personalization
+= **follows/faves first, activity feed later**. Enforcement is **server-side** in the
+worker (reads the Access JWT → email → role in D1); client role checks are UX only.
+
+Roles (cumulative ladder):
+- **member** — edit pipeline/quotes, view.
+- **power** — member + MGMT + top-tier "power AI" (chart/analysis gen). The CEO.
+- **admin** — power + user management.
+(viewer/read-only is an easy add later if guests are needed.)
+
+- [!] **PREREQ (yours):** enable Cloudflare Zero Trust, add Microsoft as the IdP, and
+  put the `tsi-intel-api` worker (and ideally the app) behind an Access application.
+  Nothing below identifies users until this is live.
+- [ ] Phase 1 — **Auth + users/roles**: extend D1 `users` (email, role, ai_tier,
+  active); worker validates the Access JWT + `/api/me`; role-gate mutations & MGMT
+  (replaces the `initials==='JT'` hack). Admin UI to manage users.
+- [ ] Phase 4 — **Power AI tiering**: `/api/ai` picks the Claude model by the caller's
+  ai_tier (power → top/chart model, standard → lighter). Server-side.
+- [ ] Phase 2 — **Saved views** (per-user) on Store('saved_views'): save/apply filter
+  + sort + column + chip state per tab; optional shared/team views.
+- [ ] Phase 3 — **Follows / faves** on Store('follows'): ★/Follow toggle on opps /
+  quotes / accounts, scoped per user (fold the existing global `starred` into it).
+- [ ] Later — **Activity feed** ("what changed on my stuff"): needs audit logging on
+  worker writes; "My activity" = events on followed/led items. Deferred (keep simple).
 
 ## 🧱 Architecture & design system (roadmap)
 - [~] **Remove localStorage as the store of record** — built an extensible
