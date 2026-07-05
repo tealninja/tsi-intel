@@ -2409,6 +2409,77 @@ table.prod-grid td.editable:focus-within::after { content:none; }
 .prod-empty { padding:40px; text-align:center; color:var(--color-text-muted); font-size:13px; }
 .prod-price-tbd { color:var(--color-text-muted); font-style:italic; }
 
+/* ── QUOTES & PRICE BOOK ────────────────────────────────────── */
+.q-subtabs { display:flex; gap:4px; margin-bottom:var(--sp-3); border-bottom:1px solid var(--color-border); }
+.q-subtab { padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; color:var(--color-text-muted); border-bottom:2px solid transparent; margin-bottom:-1px; transition:all var(--transition); }
+.q-subtab:hover { color:var(--color-text-primary); }
+.q-subtab.active { color:var(--tsi-teal); border-bottom-color:var(--tsi-teal); }
+.q-subpanel { display:none; }
+.q-subpanel.active { display:block; }
+.q-mode-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.04em; }
+.q-mode-badge.db { background:rgba(110,140,52,0.18); color:var(--tsi-succ-green); }
+.q-mode-badge.local { background:rgba(196,162,48,0.18); color:var(--tsi-amber); }
+.q-mode-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+.prod-pn, .q-cell-pn, .pb-code { font-family:var(--font-mono); font-size:11px; color:var(--color-text-secondary); }
+.pb-price-input { width:88px; padding:4px 6px; border:1px solid var(--color-border-mid); border-radius:4px; font-family:var(--font-mono); font-size:12px; text-align:right; background:var(--color-surface); color:var(--color-text-primary); outline:none; }
+.pb-price-input:focus { border-color:var(--tsi-teal); box-shadow:0 0 0 2px rgba(0,146,159,.12); }
+.pb-price-input.dirty { border-color:var(--tsi-amber); background:rgba(196,162,48,0.08); }
+.pb-margin { font-family:var(--font-mono); font-size:11px; }
+.pb-unpriced td { opacity:.5; }
+
+.quotes-empty { text-align:center; padding:48px 20px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-lg); }
+.q-status-pill { display:inline-block; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.04em; }
+.q-status-Draft { background:rgba(100,100,100,0.15); color:var(--color-text-secondary); }
+.q-status-Sent { background:rgba(196,162,48,0.18); color:var(--tsi-amber); }
+.q-status-Accepted { background:rgba(110,140,52,0.2); color:var(--tsi-succ-green); }
+.q-status-Declined { background:rgba(139,26,10,0.15); color:var(--tsi-crit-red); }
+.q-status-Expired { background:rgba(100,100,100,0.12); color:var(--color-text-muted); }
+.q-row-action { background:none; border:none; cursor:pointer; font-size:13px; padding:2px 5px; color:var(--color-text-muted); transition:color var(--transition); }
+.q-row-action:hover { color:var(--tsi-teal); }
+.q-row-action.del:hover { color:var(--tsi-coral); }
+.btn-prod-quote { padding:3px 9px; font-size:11px; font-weight:500; cursor:pointer; border:1px solid var(--tsi-teal); border-radius:var(--radius-sm); background:transparent; color:var(--tsi-teal); font-family:var(--font-ui); transition:all var(--transition); white-space:nowrap; }
+.btn-prod-quote:hover { background:var(--tsi-teal); color:white; }
+
+/* Quote builder drawer (wider than opp drawer) */
+.quote-drawer { width:min(940px,100vw); }
+.quote-num-badge { font-family:var(--font-mono); font-size:12px; color:rgba(255,255,255,0.75); background:rgba(255,255,255,0.12); padding:2px 10px; border-radius:99px; }
+.btn-q-add { padding:7px 12px; font-size:12px; font-weight:500; cursor:pointer; border:1px dashed var(--tsi-teal); border-radius:var(--radius-md); background:rgba(0,146,159,0.06); color:var(--tsi-teal); font-family:var(--font-ui); transition:all var(--transition); }
+.btn-q-add:hover { background:rgba(0,146,159,0.14); }
+.btn-q-add.ghost { border-style:solid; border-color:var(--color-border-mid); color:var(--color-text-secondary); background:transparent; }
+.btn-q-add.ghost:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+.q-quickadd { margin-top:12px; }
+.q-quickadd-label { font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--color-text-muted); margin-bottom:7px; }
+.q-quickadd-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.q-quickadd-chip { font-size:11px; padding:4px 10px; border-radius:99px; cursor:pointer; border:1px solid var(--color-border-mid); background:var(--color-surface); color:var(--color-text-secondary); transition:all var(--transition); white-space:nowrap; }
+.q-quickadd-chip:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); background:rgba(0,146,159,0.06); }
+.q-quickadd-chip .qc-price { font-family:var(--font-mono); opacity:.7; margin-left:4px; }
+
+.q-lines-wrap { border:1px solid var(--color-border); border-radius:var(--radius-md); overflow:hidden; background:var(--color-surface); }
+.q-lines-table { width:100%; border-collapse:collapse; font-size:12px; }
+.q-lines-table thead th { text-align:left; font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--color-text-muted); padding:7px 8px; border-bottom:1px solid var(--color-border); background:var(--color-bg); }
+.q-lines-table tbody td { padding:5px 8px; border-bottom:1px solid var(--color-border); vertical-align:middle; }
+.q-lines-table tbody tr:last-child td { border-bottom:none; }
+.q-lines-table input { width:100%; padding:4px 6px; border:1px solid transparent; border-radius:4px; font-size:12px; font-family:var(--font-ui); background:transparent; color:var(--color-text-primary); outline:none; transition:border-color var(--transition); }
+.q-lines-table input:focus { border-color:var(--tsi-teal); background:var(--color-bg); }
+.q-lines-table input.q-num { text-align:right; font-family:var(--font-mono); }
+.q-line-total { text-align:right; font-family:var(--font-mono); font-weight:500; color:var(--color-heading); white-space:nowrap; }
+.q-line-src { font-size:9px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-text-muted); }
+.q-line-src.custom { color:var(--tsi-amber); }
+.q-line-del { background:none; border:none; color:var(--color-text-muted); cursor:pointer; font-size:13px; padding:0 2px; }
+.q-line-del:hover { color:var(--tsi-coral); }
+.q-lines-empty { padding:18px; text-align:center; font-size:12px; color:var(--color-text-muted); }
+.q-line-count { font-size:10px; color:var(--color-text-muted); font-weight:400; text-transform:none; letter-spacing:0; }
+
+.q-adjust-row { display:flex; gap:6px; }
+.q-adjust-mode { width:74px; flex-shrink:0; }
+.q-totals { margin-top:12px; padding:12px 14px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-md); }
+.q-total-line { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; color:var(--color-text-secondary); }
+.q-total-line .q-total-val { font-family:var(--font-mono); }
+.q-total-line.grand { margin-top:6px; padding-top:9px; border-top:1px solid var(--color-border-mid); font-size:15px; font-weight:600; color:var(--color-heading); }
+.q-total-line.grand .q-total-val { font-size:16px; color:var(--tsi-teal); }
+.q-total-line.discount .q-total-val { color:var(--tsi-succ-green); }
+
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -2460,6 +2531,7 @@ table.prod-grid td.editable:focus-within::after { content:none; }
   <div class="tab" onclick="showTab('imminent')">⚡ Imminent</div>
   <div class="tab" onclick="showTab('usage')">📊 Usage</div>
   <div class="tab" onclick="showTab('products')">📦 Products</div>
+  <div class="tab" onclick="showTab('quotes')">🧾 Quotes</div>
   <div class="tab mgmt-tab" onclick="enterMgmt()">⚙ MGMT</div>
 </div>
 </header>
@@ -3431,7 +3503,7 @@ function renderWon() {
 function showTab(name) {
   // Order matches the visible tab-bar exactly: pipeline, won, summary, accounts,
   // ai, parser, bugs, imminent, usage. 'mgmt' has its own tab (.mgmt-tab) handled separately.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products"].forEach((t,i)=>{
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes"].forEach((t,i)=>{
     const tabEl  = document.querySelectorAll(".tab")[i];
     const viewEl = document.getElementById("view-"+t);
     if (tabEl)  tabEl.classList.toggle("active", t===name);
@@ -3464,6 +3536,7 @@ function showTab(name) {
   if(name==='accounts')  renderAcctSidebar();
   if(name==='summary')   renderSummary();
   if(name==='products' && typeof renderProducts==='function') renderProducts();
+  if(name==='quotes'   && typeof renderQuotesTab==='function') renderQuotesTab();
 }
 
 function toggleDark() {
@@ -11216,6 +11289,193 @@ startAdminPoll();
   </div>
 </div>
 
+<!-- ══ QUOTES + PRICE BOOK ══ -->
+<div id="view-quotes" class="view">
+  <div class="view-header">
+    <div class="view-title">Quotes &amp; Price Book
+      <span id="q-mode-badge" class="q-mode-badge local" title="Where quotes &amp; prices persist"><span class="q-mode-dot"></span><span id="q-mode-text">local</span></span>
+    </div>
+    <div class="view-desc">Biocarbon quotations · prices pulled from the D1 price book (seeded from the sample price list) · editable per quote · custom line items supported</div>
+  </div>
+
+  <div class="q-subtabs">
+    <div class="q-subtab active" id="q-subtab-quotes" onclick="showQuoteSub('quotes')">🧾 Quotes</div>
+    <div class="q-subtab" id="q-subtab-pricebook" onclick="showQuoteSub('pricebook')">💲 Price Book</div>
+  </div>
+
+  <!-- Quotes list -->
+  <div class="q-subpanel active" id="q-panel-quotes">
+    <div class="toolbar">
+      <div class="toolbar-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="quote-search" type="text" placeholder="Search quote #, customer, project…" oninput="renderQuotesList()">
+      </div>
+      <select class="select" id="quote-fstatus" onchange="renderQuotesList()">
+        <option value="">All Statuses</option>
+        <option value="Draft">Draft</option><option value="Sent">Sent</option>
+        <option value="Accepted">Accepted</option><option value="Declined">Declined</option><option value="Expired">Expired</option>
+      </select>
+      <span class="toolbar-count" id="quote-count"></span>
+      <button class="btn-add-opp" onclick="openQuoteBuilder(null)">+ New Quote</button>
+    </div>
+    <div id="quotes-empty" class="quotes-empty" style="display:none">
+      <div style="font-size:32px;margin-bottom:10px">🧾</div>
+      <div style="font-weight:500;color:var(--color-heading);margin-bottom:6px">No quotes yet</div>
+      <div style="font-size:12px;color:var(--color-text-muted);margin-bottom:16px">Build your first quote — Biocarbon / Torrefaction samples &amp; services, priced from the price book.</div>
+      <button class="btn-add-opp" onclick="openQuoteBuilder(null)">+ New Quote</button>
+    </div>
+    <div class="tbl-wrap" id="quotes-table-wrap">
+      <table class="tbl-editable" id="quote-table">
+        <thead><tr>
+          <th style="width:140px">Quote #</th><th>Customer</th><th style="width:150px">Project</th>
+          <th style="width:56px">Items</th><th style="width:120px">Total</th>
+          <th style="width:90px">Status</th><th style="width:96px">Date</th><th style="width:120px"></th>
+        </tr></thead>
+        <tbody id="quotes-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Price book -->
+  <div class="q-subpanel" id="q-panel-pricebook">
+    <div class="toolbar">
+      <div class="toolbar-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="pb-search" type="text" placeholder="Search code, name, category…" oninput="renderPriceBook()">
+      </div>
+      <select class="select" id="pb-fcat" onchange="renderPriceBook()"><option value="">All Categories</option></select>
+      <label style="font-size:11px;color:var(--color-text-secondary);display:flex;align-items:center;gap:5px">
+        <input type="checkbox" id="pb-onlypriced" onchange="renderPriceBook()" checked style="accent-color:var(--tsi-teal)"> Priced only
+      </label>
+      <span class="toolbar-count" id="pb-count"></span>
+      <button class="btn-add-opp" id="pb-save-btn" onclick="savePriceBookChanges()" style="display:none">💾 Save price changes</button>
+    </div>
+    <div style="font-size:11px;color:var(--color-text-muted);margin:-4px 0 10px">
+      Source: <em>TE3T Sample Price List R2y</em> · edit a price/cost and click Save to persist to the D1 price book. Blank price = unpriced (quote to be filled manually).
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl-editable" id="pb-table">
+        <thead><tr>
+          <th style="width:110px">Code</th><th>Name</th><th style="width:190px">Category</th>
+          <th style="width:60px">Unit</th><th style="width:100px">Cost</th><th style="width:100px">Price</th><th style="width:70px">Margin</th>
+        </tr></thead>
+        <tbody id="pb-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUOTE BUILDER DRAWER ══ -->
+<div class="opp-drawer-overlay" id="quote-drawer-overlay" onclick="closeQuoteBuilder()"></div>
+<div class="opp-drawer quote-drawer" id="quote-drawer">
+  <div class="drawer-header">
+    <h2 id="quote-drawer-title">New Quote</h2>
+    <span id="quote-drawer-num" class="quote-num-badge"></span>
+    <button class="drawer-close" onclick="closeQuoteBuilder()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="dsec">
+      <div class="dsec-title">Customer &amp; Quote Details</div>
+      <div class="drow">
+        <label>Customer (legal entity)</label>
+        <input class="dinput" id="q-customer" list="q-account-options" placeholder="Account or company name" autocomplete="off" oninput="onQuoteCustomerInput(this.value)">
+        <datalist id="q-account-options"></datalist>
+        <input type="hidden" id="q-customer-org">
+      </div>
+      <div class="drow"><label>Customer Address</label><input class="dinput" id="q-customer-address" placeholder="Street, city, country"></div>
+      <div class="drow-3">
+        <div><label>Contact Name</label><input class="dinput" id="q-contact-name" placeholder="Contact"></div>
+        <div><label>Contact Email</label><input class="dinput" id="q-contact-email" placeholder="email@…"></div>
+        <div><label>Contact Phone</label><input class="dinput" id="q-contact-phone" placeholder="+…"></div>
+      </div>
+      <div class="drow-2">
+        <div><label>Project / Title</label><input class="dinput" id="q-project" placeholder="e.g. EFB Pilot Study — TAP"></div>
+        <div><label>Reference</label><input class="dinput" id="q-rev" placeholder="R0" value="R0"></div>
+      </div>
+      <div class="drow-3">
+        <div><label>Quote Date</label><input class="dinput" id="q-date" type="date"></div>
+        <div><label>Valid Until</label><input class="dinput" id="q-valid" type="date"></div>
+        <div><label>Prepared By</label><input class="dinput" id="q-preparer" placeholder="Initials" maxlength="4"></div>
+      </div>
+      <div class="drow-3">
+        <div><label>Status</label>
+          <select class="dselect" id="q-status">
+            <option value="Draft">Draft</option><option value="Sent">Sent</option>
+            <option value="Accepted">Accepted</option><option value="Declined">Declined</option><option value="Expired">Expired</option>
+          </select>
+        </div>
+        <div><label>Currency</label>
+          <select class="dselect" id="q-currency" onchange="onQuoteCurrencyChange()">
+            <option value="USD">USD $</option><option value="EUR">EUR €</option><option value="GBP">GBP £</option><option value="CAD">CAD $</option>
+          </select>
+        </div>
+        <div><label>Tax / VAT %</label><input class="dinput" id="q-tax" type="number" min="0" step="0.1" value="0" oninput="recalcQuoteTotals()"></div>
+      </div>
+    </div>
+
+    <div class="dsec">
+      <div class="dsec-title">Add Line Items <span class="q-line-count">— prices auto-fill from the price book; edit any field</span></div>
+      <div class="drow-2" style="margin-bottom:8px">
+        <div><label>Category</label><select class="dselect" id="q-add-cat" onchange="onQuoteAddCatChange()"></select></div>
+        <div><label>Product</label><select class="dselect" id="q-add-prod"></select></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-q-add" onclick="addQuoteLineFromPicker()">+ Add selected product</button>
+        <button class="btn-q-add ghost" onclick="addQuoteCustomLine()">+ Custom line item</button>
+      </div>
+      <div class="q-quickadd" id="q-quickadd">
+        <div class="q-quickadd-label">Quick add — Biocarbon / Torrefaction samples &amp; services:</div>
+        <div class="q-quickadd-chips" id="q-quickadd-chips"></div>
+      </div>
+    </div>
+
+    <div class="dsec">
+      <div class="dsec-title">Line Items <span id="q-line-count" class="q-line-count"></span></div>
+      <div class="q-lines-wrap">
+        <table class="q-lines-table" id="q-lines-table">
+          <thead><tr>
+            <th style="width:108px">Part #</th><th>Description</th>
+            <th style="width:52px">Qty</th><th style="width:58px">Unit</th>
+            <th style="width:92px">Unit Price</th><th style="width:96px">Line Total</th><th style="width:22px"></th>
+          </tr></thead>
+          <tbody id="q-lines-body"></tbody>
+        </table>
+        <div id="q-lines-empty" class="q-lines-empty">No line items yet — add products above or use a quick-add chip.</div>
+      </div>
+    </div>
+
+    <div class="dsec">
+      <div class="dsec-title">Totals &amp; Adjustments</div>
+      <div class="drow-2">
+        <div><label>Discount</label>
+          <div class="q-adjust-row">
+            <input class="dinput" id="q-discount" type="number" min="0" step="0.01" value="0" oninput="recalcQuoteTotals()">
+            <select class="dselect q-adjust-mode" id="q-discount-mode" onchange="recalcQuoteTotals()"><option value="pct">%</option><option value="abs">flat</option></select>
+          </div>
+        </div>
+        <div><label>Freight / Shipping</label><input class="dinput" id="q-freight" type="number" min="0" step="0.01" value="0" oninput="recalcQuoteTotals()"></div>
+      </div>
+      <div class="q-totals" id="q-totals"></div>
+    </div>
+
+    <div class="dsec">
+      <div class="dsec-title">Proposal Text &amp; Terms</div>
+      <div class="drow"><label>Scope of Supply</label><textarea class="dtextarea" id="q-scope" placeholder="Description of what we are supplying…"></textarea></div>
+      <div class="drow"><label>Assumptions &amp; Clarifications</label><textarea class="dtextarea" id="q-assumptions"></textarea></div>
+      <div class="drow-2">
+        <div><label>Payment Terms</label><textarea class="dtextarea" id="q-payment" style="min-height:48px"></textarea></div>
+        <div><label>Delivery Terms</label><textarea class="dtextarea" id="q-delivery" style="min-height:48px"></textarea></div>
+      </div>
+      <div class="drow"><label>Notes</label><textarea class="dtextarea" id="q-notes" style="min-height:48px"></textarea></div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn-cancel-drawer" onclick="closeQuoteBuilder()">Cancel</button>
+    <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable proposal (PDF)">🖨 Print / PDF</button>
+    <button class="btn-save-opp" onclick="saveQuote()">Save Quote</button>
+  </div>
+</div><!-- /quote-drawer -->
+
 <script>
 const PRODUCTS_SEED = [
   {"code":"AMS-001","name":"AMS","category":"AMS Services","price":null,"unit":"service","structure":"Product Family","parentCode":"","legacyPn":"AMS-XXXXX","notes":"","seedId":"prod_0011"},
@@ -11591,6 +11851,477 @@ function prodDownload(blob, name){
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
 function prodDateStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   QUOTES + PRICE BOOK  (D1-backed, with local fallback)
+   - Price book: product_prices in D1 (seeded from "TE3T Sample Price
+     List R2y"). Auto-pulled into the quote builder; editable per line;
+     the canonical price is editable in the Price Book sub-tab.
+   - Quotes: persisted to D1 (quotes + quote_lines) via the Worker API
+     when reachable; otherwise saved to localStorage and rendered the
+     same way. The mode badge shows which store is active.
+   Uses main-app globals: PRODUCTS, showToast, getAccounts,
+   getUserInitials, showConfirm, API_WORKER_URL, workerHeaders.
+   ══════════════════════════════════════════════════════════════════ */
+
+// ── helpers ──
+function qesc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function qattr(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const Q_CUR_SYM = { USD:'$', EUR:'€', GBP:'£', CAD:'$' };
+function qmoney(n, cur){ const v=(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); return (Q_CUR_SYM[cur||'USD']||'$')+v; }
+function qToday(){ return new Date().toISOString().slice(0,10); }
+function qPlusDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function qNewId(pfx){ return (pfx||'x_')+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+// ── embedded price-book fallback (seedId → {price,cost}); mirrors migrations/004 ──
+const PRICEBOOK_SEED = {
+  prod_0121:{price:654},prod_0122:{price:812},prod_0123:{price:1910},
+  prod_0126:{price:712},prod_0119:{price:712},prod_0125:{price:873},
+  prod_0124:{price:2010},prod_0118:{price:2010},prod_0116:{price:812},
+  prod_0117:{price:812},prod_0120:{price:812},
+  prod_0031:{price:25},prod_0032:{price:40},prod_0033:{price:600},prod_0034:{price:20},
+  prod_0035:{price:102,cost:85},prod_0036:{price:216,cost:180},prod_0037:{price:216,cost:180},
+  prod_0038:{price:48,cost:40},prod_0039:{price:75,cost:50},prod_0040:{price:60,cost:50},prod_0041:{price:66,cost:55},
+  prod_0020:{price:583,cost:530},prod_0021:{price:583,cost:530},prod_0022:{price:583,cost:530},
+  prod_0042:{price:65},prod_0043:{price:30},prod_0044:{price:30},prod_0045:{price:30},prod_0046:{price:20},prod_0047:{price:50}
+};
+const PB_OVERRIDES_KEY = 'tsi_pricebook_overrides_v1';
+const QUOTES_KEY       = 'tsi_quotes_v1';
+
+// Seller identity + template defaults (from "Quote with Terms and Conditions").
+const BIOCARBON_SELLER = {
+  name:'Biocarbon, LLC', addr:'19 Farmer Street, Hazlehurst, GA 31539 USA', ein:'99-4862672',
+  facility:'Telfair Forest Products, 11 Industrial Blvd, Lumber City, GA 31549 USA'
+};
+const Q_DEFAULT_ASSUMPTIONS =
+`Pricing is on a bone-dry output mass basis.
+Material produced at Seller's facility in Lumber City, GA using Seller's torrefaction process.
+Estimated production lead time is thirty (30) days from receipt of Purchase Order and required deposit; subject to feedstock availability.
+Packaging materials are estimated; final invoice will be adjusted as necessary.
+Buyer is responsible for all freight, logistics, and unloading from Seller's facility (EX WORKS).
+Yield and output characteristics are indicative only and subject to natural feedstock variability.
+Quote based on a single production run unless otherwise stated.`;
+const Q_DEFAULT_PAYMENT  = `50% With Purchase Order\n50% Net 30 from sample ready-to-ship, following invoice`;
+const Q_DEFAULT_DELIVERY = `Freight by customer, EX-WORKS:\nBiocarbon / Telfair Forest Products, 11 Industrial Blvd, Lumber City, GA 31549, USA`;
+const Q_TERMS = `These Terms and Conditions are incorporated into and form part of the foregoing quotation. Seller shall supply the materials and/or services in the volume, at the time, and in the manner described in this quotation ("Goods"). This quotation is issued exclusively to the named legal entity; Purchase Orders issued by other entities require written approval prior to acceptance. Pricing excludes all local, state, federal and other fees or taxes unless stated. Yield and output characteristics are indicative only and subject to natural feedstock variability.`;
+
+// "Biocarbon / Torrefaction samples & services" categories — surfaced first.
+const QUOTE_FOCUS_CATS = ['Torrefaction Samples','Biocarbon Services','Testing & Analysis (3rd Party)',
+  'Testing & Analysis (Internal)','Packaging','Reports & Custom Services','AMS Services','Engineering / PM Hours'];
+const QUICKADD_SEEDS = ['prod_0121','prod_0122','prod_0123','prod_0126','prod_0125','prod_0124',
+  'prod_0030','prod_0026','prod_0042','prod_0043','prod_0035','prod_0038','prod_0031','prod_0034','prod_0073','prod_0074'];
+
+// ── runtime state ──
+let PRICEBOOK = {};          // seedId → {price, cost, currency}
+let _pbDirty = {};           // seedId → {price,cost} pending save
+let _qMode = 'local';        // 'db' | 'local'
+let _qWorking = null;
+let _qExisting = false;
+let _qSub = 'quotes';
+const _prodBySeed = {};      // seedId → product (built lazily)
+function prodBySeed(id){ if(!Object.keys(_prodBySeed).length){ PRODUCTS.forEach(p=>_prodBySeed[p.seedId]=p); } return _prodBySeed[id]; }
+function pbPrice(seedId){ const e=PRICEBOOK[seedId]; return e && e.price!=null ? e.price : null; }
+
+// ── API plumbing ──
+function qApiOn(){ return !!API_WORKER_URL; }
+async function qApi(method, path, body){
+  if(!API_WORKER_URL) return { ok:false };
+  try{
+    const opt={ method, headers: workerHeaders() };
+    if(body!=null) opt.body=JSON.stringify(body);
+    const res=await fetch(API_WORKER_URL+path, opt);
+    if(!res.ok) return { ok:false, status:res.status };
+    const data=await res.json().catch(()=>({}));
+    return { ok:true, data };
+  }catch(e){ return { ok:false, error:e.message }; }
+}
+function setQMode(m){
+  _qMode=m;
+  const b=document.getElementById('q-mode-badge'), t=document.getElementById('q-mode-text');
+  if(b){ b.className='q-mode-badge '+(m==='db'?'db':'local'); }
+  if(t){ t.textContent = m==='db'?'D1 database':'local (browser)'; }
+  if(b) b.title = m==='db' ? 'Quotes & prices persist to the D1 database via the API' : 'API not reachable — quotes & price edits saved in this browser only';
+}
+
+// ── PRICE BOOK ──
+function pbLocalOverrides(){ try{ return JSON.parse(localStorage.getItem(PB_OVERRIDES_KEY)||'{}'); }catch{ return {}; } }
+async function loadPriceBook(){
+  // base = embedded seed, then local overrides, then (if reachable) authoritative D1.
+  PRICEBOOK={};
+  Object.keys(PRICEBOOK_SEED).forEach(k=>PRICEBOOK[k]={ price:PRICEBOOK_SEED[k].price ?? null, cost:PRICEBOOK_SEED[k].cost ?? null, currency:'USD' });
+  const ov=pbLocalOverrides(); Object.keys(ov).forEach(k=>PRICEBOOK[k]={ ...(PRICEBOOK[k]||{currency:'USD'}), ...ov[k] });
+  const r=await qApi('GET','/api/prices');
+  if(r.ok && r.data && Array.isArray(r.data.prices)){
+    const m={}; r.data.prices.forEach(p=>m[p.seedId]={ price:p.price, cost:p.cost, currency:p.currency||'USD' });
+    PRICEBOOK=m; setQMode('db');
+  } else { setQMode('local'); }
+}
+function pbCategories(){ return [...new Set(PRODUCTS.map(p=>p.category).filter(Boolean))].sort(); }
+function populatePbCatFilter(){
+  const sel=document.getElementById('pb-fcat'); if(!sel||sel._filled) return;
+  pbCategories().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+  sel._filled=true;
+}
+function renderPriceBook(){
+  populatePbCatFilter();
+  const q=(document.getElementById('pb-search').value||'').toLowerCase().trim();
+  const fc=document.getElementById('pb-fcat').value;
+  const onlyPriced=document.getElementById('pb-onlypriced').checked;
+  const rows=PRODUCTS.filter(p=>{
+    const e=PRICEBOOK[p.seedId];
+    if(onlyPriced && !(e && e.price!=null) && !_pbDirty[p.seedId]) return false;
+    if(fc && p.category!==fc) return false;
+    if(q && !((p.code+' '+p.name+' '+p.category).toLowerCase().includes(q))) return false;
+    return true;
+  }).sort((a,b)=> a.category===b.category ? a.code.localeCompare(b.code) : a.category.localeCompare(b.category));
+  document.getElementById('pb-tbody').innerHTML = rows.map(p=>{
+    const e=PRICEBOOK[p.seedId]||{}; const d=_pbDirty[p.seedId]||{};
+    const price=('price' in d)? d.price : (e.price ?? '');
+    const cost =('cost'  in d)? d.cost  : (e.cost  ?? '');
+    const margin=(price!=='' && cost!=='' && cost!=null && Number(cost)>0) ? Math.round((1-Number(cost)/Number(price))*100)+'%' : '—';
+    const unpriced=(price===''||price==null);
+    return `<tr class="${unpriced?'pb-unpriced':''}">
+      <td><span class="pb-code">${qesc(p.code)}</span></td>
+      <td>${qesc(p.name)}</td>
+      <td style="font-size:11px">${qesc(p.category)}</td>
+      <td style="font-size:11px;color:var(--color-text-muted)">${qesc(p.unit||'')}</td>
+      <td><input class="pb-price-input ${'cost' in d?'dirty':''}" type="number" min="0" step="0.01" value="${cost}" placeholder="—" oninput="editPb('${p.seedId}','cost',this.value)"></td>
+      <td><input class="pb-price-input ${'price' in d?'dirty':''}" type="number" min="0" step="0.01" value="${price}" placeholder="—" oninput="editPb('${p.seedId}','price',this.value)"></td>
+      <td class="pb-margin">${margin}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pb-count').textContent = rows.length+' items · '+Object.values(PRICEBOOK).filter(e=>e.price!=null).length+' priced';
+}
+function editPb(seedId, field, val){
+  _pbDirty[seedId]=_pbDirty[seedId]||{};
+  _pbDirty[seedId][field]= (val===''? null : Number(val));
+  document.getElementById('pb-save-btn').style.display='';
+}
+async function savePriceBookChanges(){
+  const ids=Object.keys(_pbDirty); if(!ids.length) return;
+  let dbOk=0, localOk=0;
+  const ov=pbLocalOverrides();
+  for(const seedId of ids){
+    const cur=PRICEBOOK[seedId]||{currency:'USD'};
+    const next={ price: ('price' in _pbDirty[seedId])? _pbDirty[seedId].price : (cur.price ?? null),
+                 cost:  ('cost'  in _pbDirty[seedId])? _pbDirty[seedId].cost  : (cur.cost  ?? null),
+                 currency: cur.currency||'USD' };
+    const r=await qApi('PUT','/api/prices/'+encodeURIComponent(seedId), next);
+    PRICEBOOK[seedId]=next;
+    if(r.ok){ dbOk++; delete ov[seedId]; } else { ov[seedId]=next; localOk++; }
+  }
+  localStorage.setItem(PB_OVERRIDES_KEY, JSON.stringify(ov));
+  _pbDirty={};
+  document.getElementById('pb-save-btn').style.display='none';
+  renderPriceBook();
+  showToast(dbOk?('✓ Saved '+dbOk+' price'+(dbOk!==1?'s':'')+' to D1'):('✓ Saved '+localOk+' price'+(localOk!==1?'s':'')+' locally'), dbOk?'var(--tsi-succ-green)':'var(--tsi-amber)');
+}
+
+// ── QUOTES: storage ──
+function localQuotes(){ try{ return JSON.parse(localStorage.getItem(QUOTES_KEY)||'[]'); }catch{ return []; } }
+function saveLocalQuotes(qs){ try{ localStorage.setItem(QUOTES_KEY, JSON.stringify(qs)); }catch{} }
+async function fetchQuotes(){
+  if(_qMode==='db'){ const r=await qApi('GET','/api/quotes'); if(r.ok && r.data && Array.isArray(r.data.quotes)) return r.data.quotes.map(normalizeQuoteRow); setQMode('local'); }
+  return localQuotes();
+}
+function normalizeQuoteRow(q){ q.n_lines = q.n_lines!=null ? q.n_lines : (q.lines?q.lines.length:0); return q; }
+function nextQuoteNum(list){
+  let max=0; (list||[]).forEach(q=>{ const s=q.seq!=null?q.seq:(/QUO-(\d+)/.exec(q.id||'')||[])[1]; if(s) max=Math.max(max,Number(s)); });
+  const seq=max+1;
+  const suf=Math.random().toString(36).slice(2,8).toUpperCase();
+  return { id:'QUO-'+String(seq).padStart(5,'0')+'-'+suf, seq };
+}
+
+// ── QUOTES: sub-tabs + tab entry ──
+let _pbLoaded=false;
+async function renderQuotesTab(){
+  if(!_pbLoaded){ await loadPriceBook(); _pbLoaded=true; }
+  showQuoteSub(_qSub);
+}
+function showQuoteSub(name){
+  _qSub=name;
+  document.getElementById('q-subtab-quotes').classList.toggle('active', name==='quotes');
+  document.getElementById('q-subtab-pricebook').classList.toggle('active', name==='pricebook');
+  document.getElementById('q-panel-quotes').classList.toggle('active', name==='quotes');
+  document.getElementById('q-panel-pricebook').classList.toggle('active', name==='pricebook');
+  if(name==='quotes') renderQuotesList();
+  if(name==='pricebook') renderPriceBook();
+}
+
+// ── QUOTES: list ──
+async function renderQuotesList(){
+  const qs=await fetchQuotes();
+  window._quotesCache=qs;
+  const search=(document.getElementById('quote-search').value||'').toLowerCase().trim();
+  const fs=document.getElementById('quote-fstatus').value;
+  const rows=qs.filter(q=>{
+    if(fs && q.status!==fs) return false;
+    if(search && !(((q.id||'')+' '+(q.customer_name||'')+' '+(q.project||'')).toLowerCase().includes(search))) return false;
+    return true;
+  });
+  const empty=document.getElementById('quotes-empty'), wrap=document.getElementById('quotes-table-wrap'), cnt=document.getElementById('quote-count');
+  if(!qs.length){ empty.style.display=''; wrap.style.display='none'; cnt.textContent=''; return; }
+  empty.style.display='none'; wrap.style.display='';
+  document.getElementById('quotes-body').innerHTML = rows.map(q=>`
+    <tr>
+      <td><span class="prod-pn">${qesc(q.id)}</span>${q.rev&&q.rev!=='R0'?` <span style="font-size:9px;color:var(--color-text-muted)">${qesc(q.rev)}</span>`:''}</td>
+      <td>${qesc(q.customer_name||'—')}${q.contact_name?`<div style="font-size:10px;color:var(--color-text-muted)">${qesc(q.contact_name)}</div>`:''}</td>
+      <td style="font-size:11px">${qesc(q.project||'—')}</td>
+      <td style="text-align:center">${q.n_lines!=null?q.n_lines:((q.lines||[]).length)}</td>
+      <td style="font-family:var(--font-mono);font-weight:500">${qmoney(q.total,q.currency)}</td>
+      <td><span class="q-status-pill q-status-${qattr(q.status||'Draft')}">${qesc(q.status||'Draft')}</span></td>
+      <td style="font-size:11px;color:var(--color-text-muted)">${qesc(q.quote_date||'')}</td>
+      <td style="white-space:nowrap">
+        <button class="q-row-action" onclick="openQuoteBuilder('${qattr(q.id)}')" title="Edit">✎</button>
+        <button class="q-row-action" onclick="duplicateQuote('${qattr(q.id)}')" title="Duplicate">⧉</button>
+        <button class="q-row-action" onclick="printQuoteById('${qattr(q.id)}')" title="Print / PDF">🖨</button>
+        <button class="q-row-action del" onclick="deleteQuote('${qattr(q.id)}')" title="Delete">🗑</button>
+      </td>
+    </tr>`).join('');
+  cnt.textContent = rows.length+' quote'+(rows.length!==1?'s':'')+(_qMode==='db'?' · D1':' · local');
+}
+async function loadOneQuote(id){
+  if(_qMode==='db'){ const r=await qApi('GET','/api/quotes/'+encodeURIComponent(id)); if(r.ok && r.data && r.data.quote){ const q=r.data.quote; q.lines=r.data.lines||[]; return q; } }
+  return (window._quotesCache||localQuotes()).find(q=>q.id===id) || localQuotes().find(q=>q.id===id);
+}
+async function deleteQuote(id){
+  const q=(window._quotesCache||[]).find(x=>x.id===id);
+  showConfirm('Delete quote?', 'Delete '+id+' for '+((q&&q.customer_name)||'—')+'? This cannot be undone.', async ()=>{
+    if(_qMode==='db'){ await qApi('DELETE','/api/quotes/'+encodeURIComponent(id)); }
+    saveLocalQuotes(localQuotes().filter(x=>x.id!==id));
+    renderQuotesList(); showToast('Quote deleted','var(--tsi-coral)');
+  });
+}
+async function duplicateQuote(id){
+  const orig=await loadOneQuote(id); if(!orig) return;
+  const copy=JSON.parse(JSON.stringify(orig));
+  const num=nextQuoteNum(window._quotesCache||localQuotes());
+  copy.id=num.id; copy.seq=num.seq; copy.rev='R0'; copy.status='Draft';
+  copy.created_at=copy.updated_at=new Date().toISOString();
+  (copy.lines||[]).forEach(l=>{ l.id=null; l.quote_id=copy.id; });
+  await persistQuote(copy, /*isNew*/true);
+  renderQuotesList(); showToast('✓ Duplicated as '+copy.id,'var(--tsi-teal)');
+}
+
+// ── QUOTE BUILDER ──
+function populateQuoteAccounts(){
+  const dl=document.getElementById('q-account-options'); if(!dl) return;
+  try{ dl.innerHTML=getAccounts().accounts.map(a=>`<option value="${qattr(a.name)}">`).join(''); }catch{ dl.innerHTML=''; }
+}
+function onQuoteCustomerInput(name){
+  const hid=document.getElementById('q-customer-org'); const addr=document.getElementById('q-customer-address');
+  let match=null; try{ match=getAccounts().accounts.find(a=>a.name===name.trim()); }catch{}
+  hid.value = match ? (match.seedId||match.id||'') : '';
+  if(match && !addr.value){ const parts=[match.address_street||match.city, match.state, match.country].filter(Boolean); if(parts.length) addr.value=parts.join(', '); }
+}
+function populateQuoteCatPicker(){
+  const sel=document.getElementById('q-add-cat');
+  const all=[...new Set(PRODUCTS.map(p=>p.category))];
+  const focus=QUOTE_FOCUS_CATS.filter(c=>all.includes(c));
+  const others=all.filter(c=>!focus.includes(c)).sort();
+  sel.innerHTML='<optgroup label="Samples &amp; Services">'+focus.map(c=>`<option value="${qattr(c)}">${qesc(c)}</option>`).join('')+'</optgroup>'+
+    '<optgroup label="All Other Categories">'+others.map(c=>`<option value="${qattr(c)}">${qesc(c)}</option>`).join('')+'</optgroup>';
+  onQuoteAddCatChange();
+}
+function onQuoteAddCatChange(){
+  const cat=document.getElementById('q-add-cat').value;
+  document.getElementById('q-add-prod').innerHTML=PRODUCTS.filter(p=>p.category===cat)
+    .map(p=>{ const pr=pbPrice(p.seedId); return `<option value="${p.seedId}">${qesc(p.name)} · ${qesc(p.code)}${pr!=null?' — '+qmoney(pr,'USD'):''}</option>`; }).join('');
+}
+function renderQuickAdd(){
+  const wrap=document.getElementById('q-quickadd-chips');
+  wrap.innerHTML=QUICKADD_SEEDS.map(id=>{ const p=prodBySeed(id); if(!p) return '';
+    const pr=pbPrice(id);
+    const short=p.name.replace(/^Torrefaction Sample - /,'').replace(/ \(internal\)/,' (int)').replace(/ \(3rd party\)/,' (3P)').replace(/^Super Sack - /,'Sack ').replace(/^Hours - /,'');
+    return `<span class="q-quickadd-chip" onclick="addQuoteLine('${id}')" title="${qattr(p.name+' · '+p.code)}">+ ${qesc(short)}${pr!=null?`<span class="qc-price">${qmoney(pr,'USD')}</span>`:''}</span>`;
+  }).join('');
+}
+function blankQuote(){
+  const num=nextQuoteNum(window._quotesCache||localQuotes());
+  return { id:num.id, seq:num.seq, rev:'R0',
+    customer_org_seed_id:'', customer_name:'', customer_address:'',
+    contact_name:'', contact_email:'', contact_phone:'', project:'',
+    status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
+    prepared_by:(getUserInitials()||''),
+    scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'',
+    discount:0, discount_mode:'pct', freight:0, tax_pct:0, subtotal:0, total:0, lines:[] };
+}
+async function openQuoteBuilder(id){
+  populateQuoteAccounts(); populateQuoteCatPicker(); renderQuickAdd();
+  if(id){ const q=await loadOneQuote(id); if(!q){ showToast('Quote not found','var(--tsi-coral)'); return; }
+    _qWorking=JSON.parse(JSON.stringify(q)); _qWorking.lines=_qWorking.lines||[]; _qExisting=true;
+    document.getElementById('quote-drawer-title').textContent='Edit Quote';
+  } else { _qWorking=blankQuote(); _qExisting=false; document.getElementById('quote-drawer-title').textContent='New Quote'; }
+  fillQuoteForm(); renderQuoteLines(); recalcQuoteTotals();
+  document.getElementById('quote-drawer-overlay').classList.add('open');
+  document.getElementById('quote-drawer').classList.add('open');
+}
+function closeQuoteBuilder(){
+  document.getElementById('quote-drawer-overlay').classList.remove('open');
+  document.getElementById('quote-drawer').classList.remove('open');
+}
+function fillQuoteForm(){
+  const q=_qWorking; const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v==null?'':v; };
+  document.getElementById('quote-drawer-num').textContent=q.id;
+  S('q-customer',q.customer_name); document.getElementById('q-customer-org').value=q.customer_org_seed_id||'';
+  S('q-customer-address',q.customer_address); S('q-contact-name',q.contact_name); S('q-contact-email',q.contact_email); S('q-contact-phone',q.contact_phone);
+  S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
+  S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
+  S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
+  S('q-scope',q.scope); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
+}
+function onQuoteCurrencyChange(){ if(_qWorking){ _qWorking.currency=document.getElementById('q-currency').value; renderQuoteLines(); recalcQuoteTotals(); } }
+function addQuoteLine(seedId){
+  if(!_qWorking) return; const p=prodBySeed(seedId); if(!p) return;
+  const pr=pbPrice(seedId);
+  _qWorking.lines.push({ id:null, product_seed_id:seedId, code:p.code, description:p.name, qty:1, unit:p.unit||'ea', unit_price: pr!=null?pr:0 });
+  renderQuoteLines(); recalcQuoteTotals();
+}
+function addQuoteLineFromPicker(){ const id=document.getElementById('q-add-prod').value; if(id) addQuoteLine(id); }
+function addQuoteCustomLine(){ if(!_qWorking) return; _qWorking.lines.push({ id:null, product_seed_id:null, code:'', description:'', qty:1, unit:'ea', unit_price:0 }); renderQuoteLines(); recalcQuoteTotals(); }
+function removeQuoteLine(i){ if(!_qWorking) return; _qWorking.lines.splice(i,1); renderQuoteLines(); recalcQuoteTotals(); }
+function updateQuoteLine(i,field,val){
+  const l=_qWorking&&_qWorking.lines[i]; if(!l) return;
+  l[field]=(field==='qty'||field==='unit_price')?(parseFloat(val)||0):val;
+  const lt=document.querySelector('#q-lines-body tr[data-i="'+i+'"] .q-line-total');
+  if(lt) lt.textContent=qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0), _qWorking.currency);
+  recalcQuoteTotals();
+}
+function renderQuoteLines(){
+  const body=document.getElementById('q-lines-body'), empty=document.getElementById('q-lines-empty');
+  const lines=_qWorking?_qWorking.lines:[]; const lc=document.getElementById('q-line-count');
+  if(lc) lc.textContent=lines.length?'· '+lines.length+' line'+(lines.length!==1?'s':''):'';
+  if(!lines.length){ body.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none'; const cur=_qWorking.currency;
+  body.innerHTML=lines.map((l,i)=>`
+    <tr data-i="${i}">
+      <td><input value="${qattr(l.code||'')}" oninput="updateQuoteLine(${i},'code',this.value)" placeholder="${l.product_seed_id?'':'custom'}" style="font-family:var(--font-mono);font-size:10px"><div class="q-line-src ${l.product_seed_id?'':'custom'}">${l.product_seed_id?'catalog':'custom'}</div></td>
+      <td><input value="${qattr(l.description)}" oninput="updateQuoteLine(${i},'description',this.value)" placeholder="Description"></td>
+      <td><input class="q-num" type="number" min="0" step="1" value="${l.qty}" oninput="updateQuoteLine(${i},'qty',this.value)"></td>
+      <td><input value="${qattr(l.unit)}" oninput="updateQuoteLine(${i},'unit',this.value)"></td>
+      <td><input class="q-num" type="number" min="0" step="0.01" value="${l.unit_price}" oninput="updateQuoteLine(${i},'unit_price',this.value)"></td>
+      <td class="q-line-total">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</td>
+      <td><button class="q-line-del" onclick="removeQuoteLine(${i})" title="Remove">✕</button></td>
+    </tr>`).join('');
+}
+function qTotals(q){
+  const sub=(q.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unit_price)||0),0);
+  let disc=q.discount_mode==='pct'?sub*((Number(q.discount)||0)/100):(Number(q.discount)||0);
+  disc=Math.min(Math.max(disc,0),sub);
+  const freight=Number(q.freight)||0; const taxable=(sub-disc)+freight;
+  const tax=taxable*((Number(q.tax_pct)||0)/100);
+  return { sub, disc, freight, tax, grand:taxable+tax };
+}
+function recalcQuoteTotals(){
+  if(!_qWorking) return; const q=_qWorking;
+  q.discount=parseFloat(document.getElementById('q-discount').value)||0;
+  q.discount_mode=document.getElementById('q-discount-mode').value;
+  q.freight=parseFloat(document.getElementById('q-freight').value)||0;
+  q.tax_pct=parseFloat(document.getElementById('q-tax').value)||0;
+  q.currency=document.getElementById('q-currency').value;
+  const cur=q.currency, t=qTotals(q);
+  const rows=[`<div class="q-total-line"><span>Subtotal</span><span class="q-total-val">${qmoney(t.sub,cur)}</span></div>`];
+  if(t.disc>0) rows.push(`<div class="q-total-line discount"><span>Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</span><span class="q-total-val">−${qmoney(t.disc,cur)}</span></div>`);
+  if(t.freight>0) rows.push(`<div class="q-total-line"><span>Freight / Shipping</span><span class="q-total-val">${qmoney(t.freight,cur)}</span></div>`);
+  if(q.tax_pct>0) rows.push(`<div class="q-total-line"><span>Tax / VAT (${q.tax_pct}%)</span><span class="q-total-val">${qmoney(t.tax,cur)}</span></div>`);
+  rows.push(`<div class="q-total-line grand"><span>Total (${cur})</span><span class="q-total-val">${qmoney(t.grand,cur)}</span></div>`);
+  document.getElementById('q-totals').innerHTML=rows.join('');
+  q.subtotal=t.sub; q.total=t.grand;
+}
+function readQuoteForm(){
+  const q=_qWorking; const V=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+  q.customer_name=V('q-customer').trim(); q.customer_org_seed_id=V('q-customer-org')||null;
+  q.customer_address=V('q-customer-address').trim(); q.contact_name=V('q-contact-name').trim();
+  q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
+  q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
+  q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
+  q.status=V('q-status'); q.scope=V('q-scope').trim(); q.assumptions=V('q-assumptions').trim();
+  q.payment_terms=V('q-payment').trim(); q.delivery_terms=V('q-delivery').trim(); q.notes=V('q-notes').trim();
+  recalcQuoteTotals();
+}
+async function persistQuote(q, isNew){
+  if(_qMode==='db' || (qApiOn() && _qMode!=='local')){
+    const r=await qApi(isNew?'POST':'PUT', isNew?'/api/quotes':'/api/quotes/'+encodeURIComponent(q.id), { quote:q, lines:q.lines });
+    if(r.ok){ if(r.data){ q.subtotal=r.data.subtotal; q.total=r.data.total; } setQMode('db');
+      // keep a local mirror for offline/list resilience
+      const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'db'; }
+    setQMode('local');
+  }
+  const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'local';
+}
+async function saveQuote(){
+  if(!_qWorking) return; readQuoteForm(); const q=_qWorking;
+  if(!q.customer_name){ const c=document.getElementById('q-customer'); c.focus(); c.style.borderColor='var(--tsi-coral)'; setTimeout(()=>c.style.borderColor='',1500); showToast('Add a customer name','var(--tsi-coral)'); return; }
+  if(!q.lines.length){ showToast('Add at least one line item','var(--tsi-coral)'); return; }
+  q.updated_at=new Date().toISOString(); if(!q.created_at) q.created_at=q.updated_at;
+  const where=await persistQuote(q, !_qExisting);
+  closeQuoteBuilder(); renderQuotesList();
+  showToast('✓ Quote '+q.id+' saved'+(where==='db'?' to D1':' locally'), where==='db'?'var(--tsi-succ-green)':'var(--tsi-amber)');
+}
+
+// ── PRINT / PDF (Biocarbon LLC proposal) ──
+function exportQuotePrint(){ if(_qWorking){ readQuoteForm(); printQuote(_qWorking); } }
+async function printQuoteById(id){ const q=await loadOneQuote(id); if(q) printQuote(q); }
+function printQuote(q){
+  const cur=q.currency||'USD'; const t=qTotals(q);
+  const lines=(q.lines||[]).map((l,i)=>`<tr>
+    <td class="c">${i+1}</td><td class="pn">${qesc(l.code||'')}</td><td>${qesc(l.description||'')}</td>
+    <td class="c">${qesc(l.unit||'')}</td><td class="r">${qmoney(l.unit_price,cur)}</td>
+    <td class="r">${qesc(String(l.qty||0))}</td><td class="r">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</td></tr>`).join('');
+  const foot=[`<tr><td colspan="6" class="r lbl">Subtotal</td><td class="r">${qmoney(t.sub,cur)}</td></tr>`];
+  if(t.disc>0) foot.push(`<tr><td colspan="6" class="r lbl">Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</td><td class="r">−${qmoney(t.disc,cur)}</td></tr>`);
+  if(t.freight>0) foot.push(`<tr><td colspan="6" class="r lbl">Freight / Shipping</td><td class="r">${qmoney(t.freight,cur)}</td></tr>`);
+  if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" class="r lbl">Tax / VAT (${q.tax_pct}%)</td><td class="r">${qmoney(t.tax,cur)}</td></tr>`);
+  foot.push(`<tr class="grand"><td colspan="6" class="r lbl">Total (${cur})</td><td class="r">${qmoney(t.grand,cur)}</td></tr>`);
+  const blk=s=>qesc(s||'').replace(/\n/g,'<br>');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title><style>
+    *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#333;margin:0;padding:40px;font-size:12.5px;line-height:1.5}
+    .head{display:flex;justify-content:space-between;border-bottom:3px solid #6E8C34;padding-bottom:14px;margin-bottom:18px}
+    .co{font-size:20px;font-weight:700;color:#2f5233} .co small{display:block;font-size:10.5px;font-weight:400;color:#777;margin-top:3px}
+    .qt{text-align:right} .qt .qn{font-size:18px;font-weight:700;color:#6E8C34;font-family:'Courier New',monospace}
+    .qt .qs{display:inline-block;margin-top:5px;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 9px;border-radius:99px;background:#eef;color:#556}
+    h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6E8C34;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:18px 0 8px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px} .grid2 b{color:#2f5233}
+    table.items{width:100%;border-collapse:collapse;margin-top:6px}
+    .items thead th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#888;border-bottom:2px solid #ddd;padding:7px 7px}
+    .items tbody td{padding:7px 7px;border-bottom:1px solid #eee;vertical-align:top}
+    .items td.r,.items th.r{text-align:right}.items td.c,.items th.c{text-align:center}.items td.pn{font-family:'Courier New',monospace;font-size:10.5px;color:#666;white-space:nowrap}
+    tfoot td{padding:4px 7px}tfoot .lbl{color:#666}tfoot .grand td{border-top:2px solid #2f5233;font-size:15px;font-weight:700;color:#2f5233;padding-top:9px}
+    .prose{white-space:pre-wrap;font-size:11.5px;color:#444}
+    .terms{margin-top:20px;font-size:9.5px;color:#888;line-height:1.5;border-top:1px solid #eee;padding-top:10px}
+    @media print{body{padding:0}}
+  </style></head><body>
+    <div class="head">
+      <div class="co">${qesc(BIOCARBON_SELLER.name)}<small>${qesc(BIOCARBON_SELLER.addr)} · EIN ${qesc(BIOCARBON_SELLER.ein)}</small></div>
+      <div class="qt"><div class="qn">${qesc(q.id)}</div><div style="font-size:10px;color:#999;font-family:'Courier New',monospace">Rev ${qesc(q.rev||'R0')}</div><div class="qs">${qesc(q.status||'Draft')}</div></div>
+    </div>
+    <h3>Proposal${q.project?' — '+qesc(q.project):''}</h3>
+    <div class="grid2">
+      <div><b>Issued to:</b> ${qesc(q.customer_name||'—')}</div><div><b>Quote Date:</b> ${qesc(q.quote_date||'—')}</div>
+      <div><b>Address:</b> ${qesc(q.customer_address||'—')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
+      <div><b>Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</div><div><b>Prepared By:</b> ${qesc(q.prepared_by||'—')}</div>
+    </div>
+    ${q.scope?`<h3>Scope of Supply</h3><div class="prose">${blk(q.scope)}</div>`:''}
+    ${q.assumptions?`<h3>Assumptions &amp; Clarifications</h3><div class="prose">${blk(q.assumptions)}</div>`:''}
+    <h3>Pricing Summary</h3>
+    <table class="items"><thead><tr><th class="c">#</th><th>PN</th><th>Product</th><th class="c">Unit</th><th class="r">Price</th><th class="r">Qty</th><th class="r">Extended</th></tr></thead>
+      <tbody>${lines}</tbody><tfoot>${foot.join('')}</tfoot></table>
+    ${q.delivery_terms?`<h3>Delivery Terms</h3><div class="prose">${blk(q.delivery_terms)}</div>`:''}
+    ${q.payment_terms?`<h3>Payment Terms</h3><div class="prose">${blk(q.payment_terms)}</div>`:''}
+    ${q.notes?`<h3>Notes</h3><div class="prose">${blk(q.notes)}</div>`:''}
+    <div class="terms"><b>Terms &amp; Conditions.</b> ${qesc(Q_TERMS)}</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+  </body></html>`;
+  const w=window.open('','_blank'); if(!w){ showToast('Pop-up blocked — allow pop-ups to print','var(--tsi-coral)'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+// Products-tab "+ Quote" hook (if the Products table exposes it later).
+function quoteFromSeed(seedId){ openQuoteBuilder(null).then(()=>addQuoteLine(seedId)); }
+
+// Warm the price book on load so quick-adds show prices immediately.
+loadPriceBook().then(()=>{ _pbLoaded=true; });
 
 </script>
 </body>
