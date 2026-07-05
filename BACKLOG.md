@@ -56,6 +56,8 @@ possible from a Claude Code web session).
 
 ## ✅ Recently done (this workstream)
 
+- Products tab: **family/tree view** (Category → Family → members, collapsible)
+  and fixed the **sticky column header** (was scrolling off).
 - Products catalog page (main) + **Quotes** tab: list, editable **Price Book**
   (D1), and **Quote Builder** (Biocarbon LLC proposal template, QUO-#####-######
   numbering, auto-filled prices, custom lines, printable PDF).

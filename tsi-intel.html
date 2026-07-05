@@ -2371,13 +2371,17 @@ table.compact { min-width:720px!important; }
 .prod-count { font-size:11px; color:var(--color-text-muted); }
 .prod-dirty { font-size:11px; color:var(--tsi-coral); font-weight:500; }
 
-.prod-grid-wrap { overflow-x:auto; }
-table.prod-grid { table-layout:auto; width:100%; min-width:900px; border-collapse:collapse; font-size:12px; }
+/* Scroll region: capping the height makes THIS the scroll container, so the
+   sticky header (top:0) pins to the top of the table instead of scrolling away
+   with the page. (overflow-x:auto alone silently made overflow-y a scroll box
+   with no height cap, defeating the old top:var(--header-h) sticky.) */
+.prod-grid-wrap { overflow:auto; max-height:calc(100vh - var(--header-h) - 66px); }
+table.prod-grid { table-layout:auto; width:100%; min-width:900px; border-collapse:separate; border-spacing:0; font-size:12px; }
 table.prod-grid thead th {
-  position:sticky; top:var(--header-h); z-index:140;
+  position:sticky; top:0; z-index:140;
   background:var(--tsi-deep-blue); color:#fff; text-align:left; white-space:nowrap;
   padding:8px 10px; font-size:11px; font-weight:500; user-select:none;
-  border-bottom:1px solid var(--color-border);
+  box-shadow:inset 0 -1px 0 var(--color-border);
 }
 table.prod-grid thead th.sortable { cursor:pointer; }
 table.prod-grid thead th.sortable:hover { background:rgb(15,40,65); }
@@ -2408,6 +2412,24 @@ table.prod-grid td.editable:hover::after {
 table.prod-grid td.editable:focus-within::after { content:none; }
 .prod-empty { padding:40px; text-align:center; color:var(--color-text-muted); font-size:13px; }
 .prod-price-tbd { color:var(--color-text-muted); font-style:italic; }
+/* Tree / family view */
+table.prod-grid tr.prod-cat-row td {
+  position:sticky; top:33px; z-index:130; /* pins just under the column header */
+  background:var(--color-bg); cursor:pointer; padding:6px 10px;
+  font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--color-heading);
+  box-shadow:inset 0 -1px 0 var(--color-border);
+}
+table.prod-grid tr.prod-cat-row:hover td { background:rgba(0,146,159,0.06); }
+.prod-cat-count { display:inline-block; margin-left:6px; font-size:10px; font-weight:600; color:var(--color-text-muted);
+  background:var(--color-border); border-radius:99px; padding:0 7px; text-transform:none; letter-spacing:0; }
+.prod-caret { flex:0 0 auto; width:14px; color:var(--tsi-teal); cursor:pointer; user-select:none; font-size:10px; text-align:center; }
+/* keep the caret / child-tick inline with the code input (input is width:100%) */
+table.prod-grid td.prod-code { display:flex; align-items:center; flex-wrap:wrap; gap:0 2px; }
+table.prod-grid td.prod-code .cell-input { flex:1 1 60px; width:auto; min-width:50px; }
+table.prod-grid td.prod-code.prod-indent { padding-left:28px; }
+table.prod-grid tr.prod-child-row td { background:rgba(0,0,0,0.015); }
+[data-theme="dark"] table.prod-grid tr.prod-child-row td { background:rgba(255,255,255,0.02); }
+table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); margin-right:5px; }
 
 /* ── QUOTES & PRICE BOOK ────────────────────────────────────── */
 .q-subtabs { display:flex; gap:4px; margin-bottom:var(--sp-3); border-bottom:1px solid var(--color-border); }
@@ -11274,6 +11296,8 @@ startAdminPoll();
     <input type="text" id="prod-search" placeholder="🔍 Search code, name, legacy PN…" oninput="renderProducts()">
     <select id="prod-cat-filter" onchange="renderProducts()"><option value="">All categories</option></select>
     <button class="prod-btn" onclick="addProductRow()">+ Add product</button>
+    <button class="prod-btn" id="prod-view-toggle" onclick="toggleProdView()" title="Group products by family, collapsible">🌲 Tree</button>
+    <button class="prod-btn ghost" id="prod-collapse-all" onclick="prodToggleAll()" style="display:none">Collapse all</button>
     <label class="prod-legacy-lbl"><input type="checkbox" id="prod-show-legacy" onchange="renderProducts()"> Legacy&nbsp;PN</label>
     <span class="prod-count" id="prod-count"></span>
     <span class="prod-dirty" id="prod-dirty" style="display:none">● unsaved</span>
@@ -11646,6 +11670,8 @@ let PRODUCTS = PRODUCTS_SEED.map(p => ({ ...p }));
 let prodSort = { key: 'code', dir: 1 };      // dir: 1 asc, -1 desc
 let prodDirty = false;
 let _prodNewCounter = 0;
+let prodViewMode = 'flat';                   // 'flat' | 'tree'
+const _prodCollapsed = { cats: new Set(), fams: new Set() };
 
 // Category → SKU prefix legend (matches the approved scheme). Used to allocate
 // a code for a brand-new product from its category.
@@ -11777,28 +11803,11 @@ function renderProducts(){
     const tr=document.createElement('tr'); const td=document.createElement('td');
     td.colSpan=9; td.className='prod-empty'; td.textContent = PRODUCTS.length ? 'No products match the filter.' : 'No products.';
     tr.appendChild(td); tbody.appendChild(tr);
+  } else if (prodViewMode==='tree'){
+    renderProductsTree(rows, showLegacy, tbody);
+  } else {
+    rows.forEach(p=> tbody.appendChild(buildProdRow(p, showLegacy)));
   }
-  rows.forEach(p=>{
-    const tr=document.createElement('tr');
-    // Code (+ family badge)
-    const codeTd = prodCell(p,'code',{cls:'prod-code', placeholder:'CAT-NNN'});
-    if (p.structure==='Product Family'){ const b=document.createElement('span'); b.className='prod-fam-badge'; b.textContent='family'; b.title='Product Family'; codeTd.appendChild(b); }
-    tr.appendChild(codeTd);
-    tr.appendChild(prodCell(p,'name',{placeholder:'Product name'}));
-    tr.appendChild(prodCell(p,'category',{list:'prod-cat-list', placeholder:'Category'}));
-    tr.appendChild(prodCell(p,'price',{cls:'prod-price', placeholder:'TBD'}));
-    tr.appendChild(prodCell(p,'unit',{placeholder:'ea'}));
-    tr.appendChild(prodCell(p,'parentCode',{list:'prod-code-list', placeholder:'—'}));
-    tr.appendChild(prodCell(p,'notes',{placeholder:'—'}));
-    const legacyTd = prodCell(p,'legacyPn',{cls:'prod-legacy prod-legacy-col', placeholder:'—'});
-    legacyTd.style.display = showLegacy ? '' : 'none';
-    tr.appendChild(legacyTd);
-    const delTd=document.createElement('td');
-    const del=document.createElement('button'); del.className='prod-btn danger'; del.textContent='✕';
-    del.title='Delete product'; del.onclick=()=>deleteProductRow(p.seedId);
-    delTd.appendChild(del); tr.appendChild(delTd);
-    tbody.appendChild(tr);
-  });
 
   // Count + sort icons.
   const cnt=document.getElementById('prod-count');
@@ -11808,6 +11817,94 @@ function renderProducts(){
     const ic=th.querySelector('.sort-icon');
     ic.textContent = th.dataset.sort===prodSort.key ? (prodSort.dir>0?'▲':'▼') : '';
   });
+}
+
+// Build one editable product row. opts: {caret:bool, collapsed:bool, onCaret, indent:bool, child:bool}
+function buildProdRow(p, showLegacy, opts){
+  opts = opts || {};
+  const tr = document.createElement('tr');
+  if (opts.child) tr.className = 'prod-child-row';
+  const codeTd = prodCell(p,'code',{cls:'prod-code', placeholder:'CAT-NNN'});
+  if (opts.caret){
+    const car=document.createElement('span'); car.className='prod-caret';
+    car.textContent = opts.collapsed ? '▸' : '▾';
+    car.onclick=(e)=>{ e.stopPropagation(); if(opts.onCaret) opts.onCaret(); };
+    codeTd.insertBefore(car, codeTd.firstChild);
+  } else if (opts.indent){
+    codeTd.classList.add('prod-indent');
+    const tick=document.createElement('span'); tick.className='prod-child-tick'; tick.textContent='└';
+    codeTd.insertBefore(tick, codeTd.firstChild);
+  }
+  if (p.structure==='Product Family'){ const b=document.createElement('span'); b.className='prod-fam-badge'; b.textContent='family'; b.title='Product Family'; codeTd.appendChild(b); }
+  tr.appendChild(codeTd);
+  tr.appendChild(prodCell(p,'name',{placeholder:'Product name'}));
+  tr.appendChild(prodCell(p,'category',{list:'prod-cat-list', placeholder:'Category'}));
+  tr.appendChild(prodCell(p,'price',{cls:'prod-price', placeholder:'TBD'}));
+  tr.appendChild(prodCell(p,'unit',{placeholder:'ea'}));
+  tr.appendChild(prodCell(p,'parentCode',{list:'prod-code-list', placeholder:'—'}));
+  tr.appendChild(prodCell(p,'notes',{placeholder:'—'}));
+  const legacyTd = prodCell(p,'legacyPn',{cls:'prod-legacy prod-legacy-col', placeholder:'—'});
+  legacyTd.style.display = showLegacy ? '' : 'none';
+  tr.appendChild(legacyTd);
+  const delTd=document.createElement('td');
+  const del=document.createElement('button'); del.className='prod-btn danger'; del.textContent='✕';
+  del.title='Delete product'; del.onclick=()=>deleteProductRow(p.seedId);
+  delTd.appendChild(del); tr.appendChild(delTd);
+  return tr;
+}
+
+// Tree view: Category → Family → member products, all collapsible. Reuses the
+// same editable cells so editing works in either mode.
+function renderProductsTree(rows, showLegacy, tbody){
+  const COLS = 9;
+  const childrenBy = {};
+  rows.forEach(p=>{ if(p.parentCode){ (childrenBy[p.parentCode]=childrenBy[p.parentCode]||[]).push(p); } });
+  const byCat = {};
+  rows.forEach(p=>{ const c=p.category||'—'; (byCat[c]=byCat[c]||[]).push(p); });
+  const rendered = new Set();
+  Object.keys(byCat).sort().forEach(cat=>{
+    const catRows = byCat[cat];
+    const catCollapsed = _prodCollapsed.cats.has(cat);
+    const hr = document.createElement('tr'); hr.className='prod-cat-row';
+    const htd = document.createElement('td'); htd.colSpan = COLS;
+    htd.innerHTML = `<span class="prod-caret">${catCollapsed?'▸':'▾'}</span> <strong>${qesc(cat)}</strong><span class="prod-cat-count">${catRows.length}</span>`;
+    hr.onclick = ()=>toggleProdCat(cat);
+    hr.appendChild(htd); tbody.appendChild(hr);
+    if (catCollapsed) { catRows.forEach(p=>rendered.add(p.seedId)); return; }
+    const byCode = (a,b)=>(a.code||'').localeCompare(b.code||'');
+    const tops = catRows.filter(p=>!p.parentCode).sort(byCode);
+    tops.forEach(p=>{
+      const kids = (childrenBy[p.code]||[]).slice().sort(byCode);
+      const isFam = kids.length>0;
+      const famCollapsed = _prodCollapsed.fams.has(p.code);
+      tbody.appendChild(buildProdRow(p, showLegacy, isFam ? { caret:true, collapsed:famCollapsed, onCaret:()=>toggleProdFam(p.code) } : {}));
+      rendered.add(p.seedId);
+      kids.forEach(k=>{ rendered.add(k.seedId); if(isFam && !famCollapsed) tbody.appendChild(buildProdRow(k, showLegacy, { indent:true, child:true })); });
+    });
+    // Any rows not placed (e.g. a child whose parent was filtered out) — show flat.
+    catRows.filter(p=>!rendered.has(p.seedId)).sort(byCode).forEach(p=>{
+      tbody.appendChild(buildProdRow(p, showLegacy, p.parentCode ? { indent:true } : {})); rendered.add(p.seedId);
+    });
+  });
+}
+
+function toggleProdView(){
+  prodViewMode = (prodViewMode==='tree') ? 'flat' : 'tree';
+  const btn=document.getElementById('prod-view-toggle');
+  if(btn) btn.textContent = prodViewMode==='tree' ? '☰ Flat' : '🌲 Tree';
+  const ca=document.getElementById('prod-collapse-all');
+  if(ca) ca.style.display = prodViewMode==='tree' ? '' : 'none';
+  renderProducts();
+}
+function toggleProdCat(cat){ _prodCollapsed.cats.has(cat) ? _prodCollapsed.cats.delete(cat) : _prodCollapsed.cats.add(cat); renderProducts(); }
+function toggleProdFam(code){ _prodCollapsed.fams.has(code) ? _prodCollapsed.fams.delete(code) : _prodCollapsed.fams.add(code); renderProducts(); }
+function prodToggleAll(){
+  const btn=document.getElementById('prod-collapse-all');
+  const collapsing = !btn || btn.textContent.indexOf('Collapse')>=0;
+  _prodCollapsed.cats.clear(); _prodCollapsed.fams.clear();
+  if(collapsing){ prodCategories().forEach(c=>_prodCollapsed.cats.add(c)); }
+  if(btn) btn.textContent = collapsing ? 'Expand all' : 'Collapse all';
+  renderProducts();
 }
 
 // Shared datalists for the category + parent-code autocomplete inputs.
