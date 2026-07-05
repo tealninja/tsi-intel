@@ -2,7 +2,7 @@
 
 ## Running backlog (important)
 The human-readable master backlog is the Google Doc **"TSI — Notes & Backlog"**
-(Drive id `1hwaW6UWV8QG3D8abJVHxex9VrpXnpiP__i5GNtXX8oQ`, owner teal.john@gmail.com).
+(Drive id `1k87MEc1fns4ZjXODu9XChH-mE_M82fMcJe0fNmiDXUk`, owner teal.john@gmail.com).
 `read_file_content` it at the start of a session for context / items the user added
 there. NOTE: the Drive connector is **read + create only — it can't edit a Doc in
 place**, so you cannot tick items directly in the Doc.
