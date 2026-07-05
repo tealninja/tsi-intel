@@ -2345,6 +2345,70 @@ table.compact { min-width:720px!important; }
   isolation: isolate;
 }
 
+/* ── PRODUCTS TAB ─────────────────────────────────────────── */
+.prod-toolbar {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:10px var(--sp-4); background:var(--color-surface);
+  border-bottom:1px solid var(--color-border);
+}
+.prod-toolbar input[type="text"], .prod-toolbar select {
+  font-family:var(--font-ui); font-size:12px; padding:6px 10px;
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  background:var(--color-bg); color:var(--color-text-primary); outline:none;
+}
+.prod-toolbar input[type="text"]:focus, .prod-toolbar select:focus { border-color:var(--tsi-teal); }
+.prod-toolbar #prod-search { min-width:220px; }
+.prod-btn {
+  padding:6px 12px; background:var(--tsi-teal); color:#fff; border:none;
+  border-radius:var(--radius-md); font-size:12px; font-weight:500; cursor:pointer;
+  font-family:var(--font-ui);
+}
+.prod-btn.ghost { background:transparent; color:var(--tsi-teal); border:1px solid var(--tsi-teal); }
+.prod-btn.danger { background:transparent; color:var(--tsi-coral); border:1px solid var(--tsi-coral);
+  padding:2px 8px; font-size:14px; line-height:1; }
+.prod-legacy-lbl { display:flex; align-items:center; gap:5px; font-size:11px;
+  color:var(--color-text-secondary); cursor:pointer; user-select:none; }
+.prod-count { font-size:11px; color:var(--color-text-muted); }
+.prod-dirty { font-size:11px; color:var(--tsi-coral); font-weight:500; }
+
+.prod-grid-wrap { overflow-x:auto; }
+table.prod-grid { table-layout:auto; width:100%; min-width:900px; border-collapse:collapse; font-size:12px; }
+table.prod-grid thead th {
+  position:sticky; top:var(--header-h); z-index:140;
+  background:var(--tsi-deep-blue); color:#fff; text-align:left; white-space:nowrap;
+  padding:8px 10px; font-size:11px; font-weight:500; user-select:none;
+  border-bottom:1px solid var(--color-border);
+}
+table.prod-grid thead th.sortable { cursor:pointer; }
+table.prod-grid thead th.sortable:hover { background:rgb(15,40,65); }
+table.prod-grid thead th .sort-icon { margin-left:4px; opacity:.5; font-size:10px; }
+table.prod-grid tbody td {
+  padding:0 4px; border-bottom:1px solid var(--color-border);
+  color:var(--color-text-primary); vertical-align:middle;
+}
+table.prod-grid tbody tr:hover td { background:rgba(0,146,159,0.04); }
+table.prod-grid td.editable { position:relative; }
+table.prod-grid td.prod-code .cell-input { font-family:var(--font-mono); font-weight:500; color:var(--tsi-teal); }
+table.prod-grid td.prod-price .cell-input { font-family:var(--font-mono); text-align:right; }
+table.prod-grid td.prod-legacy { font-family:var(--font-mono); font-size:11px; color:var(--color-text-muted); white-space:nowrap; padding:0 10px; }
+table.prod-grid .prod-fam-badge { font-size:9px; font-weight:600; letter-spacing:.04em;
+  padding:1px 5px; border-radius:99px; background:rgba(0,146,159,0.15); color:var(--tsi-teal);
+  text-transform:uppercase; }
+table.prod-grid .cell-input {
+  width:100%; border:none; outline:none; background:transparent;
+  font-family:var(--font-ui); font-size:12px; color:var(--color-text-primary);
+  padding:7px 6px; margin:0;
+}
+table.prod-grid .cell-input:focus { background:var(--color-surface); box-shadow:inset 0 0 0 1px var(--tsi-teal); border-radius:3px; }
+table.prod-grid select.cell-input { cursor:pointer; }
+table.prod-grid td.editable:hover::after {
+  content:'✎'; position:absolute; right:5px; top:50%; transform:translateY(-50%);
+  font-size:10px; color:var(--tsi-teal); opacity:.5; pointer-events:none;
+}
+table.prod-grid td.editable:focus-within::after { content:none; }
+.prod-empty { padding:40px; text-align:center; color:var(--color-text-muted); font-size:13px; }
+.prod-price-tbd { color:var(--color-text-muted); font-style:italic; }
+
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -2395,6 +2459,7 @@ table.compact { min-width:720px!important; }
   <div class="tab" onclick="showTab('bugs')">🐛 Bug Register</div>
   <div class="tab" onclick="showTab('imminent')">⚡ Imminent</div>
   <div class="tab" onclick="showTab('usage')">📊 Usage</div>
+  <div class="tab" onclick="showTab('products')">📦 Products</div>
   <div class="tab mgmt-tab" onclick="enterMgmt()">⚙ MGMT</div>
 </div>
 </header>
@@ -3366,7 +3431,7 @@ function renderWon() {
 function showTab(name) {
   // Order matches the visible tab-bar exactly: pipeline, won, summary, accounts,
   // ai, parser, bugs, imminent, usage. 'mgmt' has its own tab (.mgmt-tab) handled separately.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage"].forEach((t,i)=>{
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products"].forEach((t,i)=>{
     const tabEl  = document.querySelectorAll(".tab")[i];
     const viewEl = document.getElementById("view-"+t);
     if (tabEl)  tabEl.classList.toggle("active", t===name);
@@ -3398,6 +3463,7 @@ function showTab(name) {
   if(name==='usage')     renderUsage();
   if(name==='accounts')  renderAcctSidebar();
   if(name==='summary')   renderSummary();
+  if(name==='products' && typeof renderProducts==='function') renderProducts();
 }
 
 function toggleDark() {
@@ -11114,5 +11180,418 @@ startAdminPoll();
 
   </div>
 </div>
+<!-- ══ PRODUCTS TAB ══ (client-side only; in-memory until exported) -->
+<div id="view-products" class="view" style="padding:0">
+  <div class="prod-toolbar">
+    <input type="text" id="prod-search" placeholder="🔍 Search code, name, legacy PN…" oninput="renderProducts()">
+    <select id="prod-cat-filter" onchange="renderProducts()"><option value="">All categories</option></select>
+    <button class="prod-btn" onclick="addProductRow()">+ Add product</button>
+    <label class="prod-legacy-lbl"><input type="checkbox" id="prod-show-legacy" onchange="renderProducts()"> Legacy&nbsp;PN</label>
+    <span class="prod-count" id="prod-count"></span>
+    <span class="prod-dirty" id="prod-dirty" style="display:none">● unsaved</span>
+    <span style="flex:1"></span>
+    <button class="prod-btn ghost" onclick="exportProductsJSON()">Export JSON</button>
+    <button class="prod-btn ghost" onclick="exportProductsXLSX()">Export XLSX</button>
+    <label class="prod-btn ghost" style="cursor:pointer;margin:0">Import JSON
+      <input type="file" accept="application/json,.json" onchange="importProductsJSON(event)" style="display:none">
+    </label>
+  </div>
+  <div class="prod-grid-wrap">
+    <table class="prod-grid tbl-editable" id="prod-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="code" onclick="sortProducts('code')">Code (SKU)<span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="name" onclick="sortProducts('name')">Name / Description<span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="category" onclick="sortProducts('category')">Category<span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="price" onclick="sortProducts('price')">Price (USD)<span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="unit" onclick="sortProducts('unit')">Unit<span class="sort-icon"></span></th>
+          <th class="sortable" data-sort="parentCode" onclick="sortProducts('parentCode')">Family / Parent<span class="sort-icon"></span></th>
+          <th>Notes</th>
+          <th class="prod-legacy-col sortable" data-sort="legacyPn" onclick="sortProducts('legacyPn')" style="display:none">Legacy PN<span class="sort-icon"></span></th>
+          <th style="width:34px"></th>
+        </tr>
+      </thead>
+      <tbody id="prod-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const PRODUCTS_SEED = [
+  {"code":"AMS-001","name":"AMS","category":"AMS Services","price":null,"unit":"service","structure":"Product Family","parentCode":"","legacyPn":"AMS-XXXXX","notes":"","seedId":"prod_0011"},
+  {"code":"AMS-002","name":"AMS Service - Inspections","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-I","notes":"","seedId":"prod_0012"},
+  {"code":"AMS-003","name":"AMS Service - Engineering","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-E","notes":"","seedId":"prod_0013"},
+  {"code":"AMS-004","name":"AMS Service - Energy Audit","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-EA","notes":"","seedId":"prod_0014"},
+  {"code":"AMS-005","name":"AMS Service - Process Optimization","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-PO","notes":"","seedId":"prod_0015"},
+  {"code":"AMS-006","name":"AMS Service - Site Support","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-SS","notes":"","seedId":"prod_0016"},
+  {"code":"AMS-007","name":"AMS Service - Training","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-T","notes":"","seedId":"prod_0017"},
+  {"code":"AMS-008","name":"AMS Service - Maintenance","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-M","notes":"","seedId":"prod_0018"},
+  {"code":"AMS-009","name":"AMS Service - Replacement","category":"AMS Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"ANS-0000-R","notes":"","seedId":"prod_0019"},
+  {"code":"BCS-001","name":"Biocarbon Services","category":"Biocarbon Services","price":null,"unit":"service","structure":"Product Family","parentCode":"","legacyPn":"BS000XX","notes":"","seedId":"prod_0008"},
+  {"code":"BCS-002","name":"Services - General","category":"Biocarbon Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"BS000GEN","notes":"","seedId":"prod_0030"},
+  {"code":"CMB-001","name":"Reciprocating Grate Furnace","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"RG00000","notes":"","seedId":"prod_0052"},
+  {"code":"CMB-002","name":"Register Burner","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"RB00000","notes":"","seedId":"prod_0053"},
+  {"code":"CMB-003","name":"Suspension Burner","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"SB00000","notes":"","seedId":"prod_0054"},
+  {"code":"CMB-004","name":"Gas Burner","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"GB00000","notes":"","seedId":"prod_0131"},
+  {"code":"CMB-005","name":"Granular Suspension Burner - 3.75MW","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-003","legacyPn":"GSB00375","notes":"","seedId":"prod_0051"},
+  {"code":"CMB-006","name":"Gas Burner - 30MMBtu/hr - LNG","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-004","legacyPn":"GB00030-LNG","notes":"","seedId":"prod_0055"},
+  {"code":"CMB-007","name":"Step Grate Furnace - 90m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0090","notes":"","seedId":"prod_0056"},
+  {"code":"CMB-008","name":"Step Grate Furnace - 75m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0075","notes":"","seedId":"prod_0057"},
+  {"code":"CMB-009","name":"Step Grate Furnace - 65m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0065","notes":"","seedId":"prod_0058"},
+  {"code":"CMB-010","name":"Step Grate Furnace - 80m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0080","notes":"","seedId":"prod_0059"},
+  {"code":"CMB-011","name":"Step Grate Furnace - 100m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0100","notes":"","seedId":"prod_0060"},
+  {"code":"CMB-012","name":"Step Grate Furnace - 45m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0045","notes":"","seedId":"prod_0061"},
+  {"code":"CMB-013","name":"Step Grate Furnace - 60m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0060","notes":"","seedId":"prod_0062"},
+  {"code":"CMB-014","name":"Step Grate Furnace - 55m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0055","notes":"","seedId":"prod_0063"},
+  {"code":"CMB-015","name":"Step Grate Furnace - 30m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0030","notes":"","seedId":"prod_0064"},
+  {"code":"CMB-016","name":"Step Grate Furnace - 35m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0035","notes":"","seedId":"prod_0065"},
+  {"code":"CMB-017","name":"Step Grate Furnace - 40m","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-001","legacyPn":"SGF0040","notes":"","seedId":"prod_0066"},
+  {"code":"CMB-018","name":"Register Burner - 50MMBtu/hr (15MW)","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-002","legacyPn":"RB00050","notes":"","seedId":"prod_0067"},
+  {"code":"CMB-019","name":"Register Burner - 135MMBtu/hr","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-002","legacyPn":"RB00135","notes":"","seedId":"prod_0068"},
+  {"code":"CMB-020","name":"Register Burner - 70MMBtu/hr (20MW)","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-002","legacyPn":"RB00070","notes":"","seedId":"prod_0069"},
+  {"code":"CMB-021","name":"Register Burner - 100MMBtu/hr (35MW)","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-002","legacyPn":"RB00100","notes":"","seedId":"prod_0070"},
+  {"code":"CMB-022","name":"Suspension Burner - 40MMBtu/hr","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-003","legacyPn":"SUS00040","notes":"","seedId":"prod_0071"},
+  {"code":"CMB-023","name":"Suspension Burner - 60MMBtu/hr","category":"Combustion / Burners","price":null,"unit":"ea","structure":"Product","parentCode":"CMB-003","legacyPn":"SUS00060","notes":"","seedId":"prod_0072"},
+  {"code":"CTR-001","name":"Controls","category":"Controls","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CTR0001","notes":"","seedId":"prod_0001"},
+  {"code":"CYC-001","name":"Cyclone - Ø12ft","category":"Cyclone","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CYC00012","notes":"","seedId":"prod_0048"},
+  {"code":"CYC-002","name":"Cyclone - Ø14ft","category":"Cyclone","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CYC00014","notes":"","seedId":"prod_0049"},
+  {"code":"CYC-003","name":"Cyclone - Generic","category":"Cyclone","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CYC000GEN","notes":"","seedId":"prod_0050"},
+  {"code":"DRY-001","name":"Dryer - 20x100 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY20x100-OSB","notes":"","seedId":"prod_0089"},
+  {"code":"DRY-002","name":"Dryer - 16x060 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY16x060-OSB","notes":"","seedId":"prod_0090"},
+  {"code":"DRY-003","name":"Dryer - 12x060 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY12x060-OSB","notes":"","seedId":"prod_0091"},
+  {"code":"DRY-004","name":"Dryer - 13x060 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY13x060-OSB","notes":"","seedId":"prod_0092"},
+  {"code":"DRY-005","name":"Dryer - 23x100 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY23x100-OSB","notes":"","seedId":"prod_0093"},
+  {"code":"DRY-006","name":"Dryer - 24x100 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY24x100-OSB","notes":"","seedId":"prod_0094"},
+  {"code":"DRY-007","name":"Dryer - 15x60 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY15x060-OSB","notes":"","seedId":"prod_0095"},
+  {"code":"DRY-008","name":"Dryer - 14x060 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY14x060-OSB","notes":"","seedId":"prod_0096"},
+  {"code":"DRY-009","name":"Dryer - 16x070 - OSB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY16x070-OSB","notes":"","seedId":"prod_0097"},
+  {"code":"DRY-010","name":"Dryer - 20x080-CHIPS","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY20x080-CHIP","notes":"","seedId":"prod_0098"},
+  {"code":"DRY-011","name":"Dryer - 23x100-CHIPS","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY23x100-CHIP","notes":"","seedId":"prod_0099"},
+  {"code":"DRY-012","name":"Dryer - 24x120-PEL-PB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY24x120-PEL-PB","notes":"","seedId":"prod_0100"},
+  {"code":"DRY-013","name":"Dryer - 18x080-PEL-PB","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY18x080-PEL-PB","notes":"","seedId":"prod_0101"},
+  {"code":"DRY-014","name":"Dryer - 14x060-CHIPS","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY14x060-CHIP","notes":"","seedId":"prod_0102"},
+  {"code":"DRY-015","name":"Dryer - 18x70 - Chips","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY18x070-CHIP","notes":"","seedId":"prod_0103"},
+  {"code":"DRY-016","name":"Dryer - 16x70 - Chips","category":"Dryers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"DRY16x070-CHIP","notes":"","seedId":"prod_0104"},
+  {"code":"EHS-001","name":"EHouse","category":"E-House","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"EHS0000","notes":"","seedId":"prod_0002"},
+  {"code":"ENG-001","name":"Hours","category":"Engineering / PM Hours","price":null,"unit":"hr","structure":"Product Family","parentCode":"","legacyPn":"ENG-XXXX","notes":"","seedId":"prod_0003"},
+  {"code":"ENG-002","name":"Hours - Engineering","category":"Engineering / PM Hours","price":null,"unit":"hr","structure":"Product","parentCode":"","legacyPn":"ENG0001","notes":"","seedId":"prod_0073"},
+  {"code":"ENG-003","name":"Hours - Project Management","category":"Engineering / PM Hours","price":null,"unit":"hr","structure":"Product","parentCode":"","legacyPn":"PM0001","notes":"","seedId":"prod_0074"},
+  {"code":"ENG-004","name":"Hours - Construction Management","category":"Engineering / PM Hours","price":null,"unit":"hr","structure":"Product","parentCode":"","legacyPn":"CM0001","notes":"","seedId":"prod_0075"},
+  {"code":"ENG-005","name":"Hours - Programming","category":"Engineering / PM Hours","price":null,"unit":"hr","structure":"Product","parentCode":"","legacyPn":"PRO00001","notes":"","seedId":"prod_0076"},
+  {"code":"HES-001","name":"Heat Energy System","category":"Heat Energy System","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"HE00000","notes":"","seedId":"prod_0005"},
+  {"code":"INS-001","name":"Install - Electrical","category":"Installation","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"INS0001-E","notes":"","seedId":"prod_0077"},
+  {"code":"INS-002","name":"Install - Mechanical","category":"Installation","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"INS0001-M","notes":"","seedId":"prod_0078"},
+  {"code":"OXI-001","name":"RCO - Regenerative Catalytic Oxidizer","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"RCO-00000","notes":"","seedId":"prod_0079"},
+  {"code":"OXI-002","name":"RTO - Regenerative Thermal Oxidizer","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"RTO-00001","notes":"","seedId":"prod_0080"},
+  {"code":"OXI-003","name":"CFL40-RTO","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CFL00040","notes":"","seedId":"prod_0081"},
+  {"code":"OXI-004","name":"CFL60-RTO","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CFL00060","notes":"","seedId":"prod_0082"},
+  {"code":"OXI-005","name":"CFL80-RTO","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CFL00080","notes":"","seedId":"prod_0083"},
+  {"code":"OXI-006","name":"CFL30-RTO","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CFL00030","notes":"","seedId":"prod_0084"},
+  {"code":"OXI-007","name":"CFL50-RTO","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CFL00050","notes":"","seedId":"prod_0085"},
+  {"code":"OXI-008","name":"CFL70-RTO","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"CFL00070","notes":"","seedId":"prod_0086"},
+  {"code":"OXI-009","name":"RTO Legacy","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"RTO00100","notes":"","seedId":"prod_0087"},
+  {"code":"OXI-010","name":"RCO Legacy","category":"Oxidizers","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"RCO00200","notes":"","seedId":"prod_0088"},
+  {"code":"PKG-001","name":"Super Sack - 42x42x44-[UN 13H4 PP FIBC]","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244-UN","notes":"","seedId":"prod_0023"},
+  {"code":"PKG-002","name":"Pallet, 42x42-ISPM","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"PAL-4242-ISPM","notes":"","seedId":"prod_0024"},
+  {"code":"PKG-003","name":"Super Sack - 35x35x48-[UN 13H4 PP FIBC]","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-353548-UN","notes":"","seedId":"prod_0025"},
+  {"code":"PKG-004","name":"Super Sack - 42x42x44","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244","notes":"","seedId":"prod_0031"},
+  {"code":"PKG-005","name":"Super Sack - Sealed 42x42x44","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-424244-202512051815227421","notes":"","seedId":"prod_0032"},
+  {"code":"PKG-006","name":"Super Sack Sealer - 1wk rental","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"SS-RENT","notes":"","seedId":"prod_0033"},
+  {"code":"PKG-007","name":"Pallet, 42x42","category":"Packaging","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"PAL-4242","notes":"","seedId":"prod_0034"},
+  {"code":"REF-001","name":"Refractory","category":"Refractory","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"REFR00000","notes":"","seedId":"prod_0006"},
+  {"code":"RPT-001","name":"Material Process Report","category":"Reports & Custom Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"BioC-RPT","notes":"","seedId":"prod_0026"},
+  {"code":"RPT-002","name":"Custom Material Handing","category":"Reports & Custom Services","price":null,"unit":"service","structure":"Product","parentCode":"","legacyPn":"CUST-MTL-HND","notes":"","seedId":"prod_0027"},
+  {"code":"ROT-001","name":"Rotary Drums","category":"Rotary Drums","price":null,"unit":"ea","structure":"Product Family","parentCode":"","legacyPn":"ROT 000000","notes":"","seedId":"prod_0004"},
+  {"code":"3P-001","name":"Self Heating Test (3rd party)-100x100x100 at 140C","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHT-100-14-","notes":"","seedId":"prod_0020"},
+  {"code":"3P-002","name":"Self Heating Test (3rd party)-25x25x25 at 140C","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHT-25-140","notes":"","seedId":"prod_0021"},
+  {"code":"3P-003","name":"Self Heating Test (3rd party)-25x25x25 at 120C","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHT-25-120","notes":"","seedId":"prod_0022"},
+  {"code":"3P-004","name":"Ash Fusion Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-ASH-FUS","notes":"","seedId":"prod_0028"},
+  {"code":"3P-005","name":"Ash Composition (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-ASH-COMP","notes":"","seedId":"prod_0029"},
+  {"code":"3P-006","name":"Proximate Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-PROX","notes":"","seedId":"prod_0035"},
+  {"code":"3P-007","name":"add S, Cl, F (3rd party proximate analysis)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SCLF","notes":"","seedId":"prod_0036"},
+  {"code":"3P-008","name":"Ultimate Analysis (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-ULT","notes":"","seedId":"prod_0037"},
+  {"code":"3P-009","name":"Calorific Value (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-CV","notes":"","seedId":"prod_0038"},
+  {"code":"3P-010","name":"Shipping & Handling, Test Sample","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-SHIP","notes":"","seedId":"prod_0039"},
+  {"code":"3P-011","name":"Mechanical Durability (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-DUR","notes":"","seedId":"prod_0040"},
+  {"code":"3P-012","name":"Particle Size Distribution (3rd party)","category":"Testing & Analysis (3rd Party)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"3P-PSD","notes":"","seedId":"prod_0041"},
+  {"code":"INT-001","name":"Proximate Analysis (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-PROX","notes":"","seedId":"prod_0042"},
+  {"code":"INT-002","name":"Calorific Value (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-CV","notes":"","seedId":"prod_0043"},
+  {"code":"INT-003","name":"Mechanical Durability (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-DUR","notes":"","seedId":"prod_0044"},
+  {"code":"INT-004","name":"Particle Size Distribution (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-PSD","notes":"","seedId":"prod_0045"},
+  {"code":"INT-005","name":"Bulk Density (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-BD","notes":"","seedId":"prod_0046"},
+  {"code":"INT-006","name":"Grindability / HGI (internal)","category":"Testing & Analysis (Internal)","price":null,"unit":"test","structure":"Product","parentCode":"","legacyPn":"INT-HGI","notes":"","seedId":"prod_0047"},
+  {"code":"THO-001","name":"Thermal Oil - XXX MW","category":"Thermal Oil","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TO00XXX","notes":"","seedId":"prod_0010"},
+  {"code":"TOR-001","name":"Torreactor-16x080-CHIPS Carbon Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR16x080-CHIPS_CS","notes":"","seedId":"prod_0105"},
+  {"code":"TOR-002","name":"TorreactorSystem-14x120-Pellets Low Temp","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 14x120-PEL-LT","notes":"","seedId":"prod_0106"},
+  {"code":"TOR-003","name":"TorreactorSystem-05x030-Chips Stainless Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 05x030-CH-SS","notes":"","seedId":"prod_0107"},
+  {"code":"TOR-004","name":"TorreactorSystem-14x080-Pellets Carbon Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 14x080-PEL-CS","notes":"","seedId":"prod_0108"},
+  {"code":"TOR-005","name":"TorreactorSystem-14x100-Chips Stainless Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 14x100-CH-CS","notes":"","seedId":"prod_0109"},
+  {"code":"TOR-006","name":"TorreactorSystem-14x070-Chips Stainless Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 14x070-CH-CS","notes":"","seedId":"prod_0110"},
+  {"code":"TOR-007","name":"TorreactorSystem-16x070-Chips Carbon Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 16x070-CHIP-CS","notes":"","seedId":"prod_0111"},
+  {"code":"TOR-008","name":"TorreactorSystem-07x040-Chips Low Temp","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 07x080-CHIP-LT","notes":"","seedId":"prod_0112"},
+  {"code":"TOR-009","name":"TorreactorSystem-07x040-Pellets Low Temp","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 07x080-PEL-LT","notes":"","seedId":"prod_0113"},
+  {"code":"TOR-010","name":"TorreactorSystem-14x080-Chips Carbon Steel","category":"Torreactor Systems","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"TOR-SYS 14x080-CHIP-CS","notes":"","seedId":"prod_0114"},
+  {"code":"TS-001","name":"Torrefaction Sample","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product Family","parentCode":"","legacyPn":"TS-00000","notes":"","seedId":"prod_0007"},
+  {"code":"TS-002","name":"TorrSample","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS0000","notes":"","seedId":"prod_0009"},
+  {"code":"TS-003","name":"Torreactor Samples - General","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000GEN","notes":"","seedId":"prod_0115"},
+  {"code":"TS-004","name":"Torrefaction Sample - Chips - Customer Supplied","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000CUST","notes":"","seedId":"prod_0116"},
+  {"code":"TS-005","name":"Torrefaction Sample - Pellets - Customer Supplied","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000CUST-P","notes":"","seedId":"prod_0117"},
+  {"code":"TS-006","name":"Torrefaction Sample - Pellets - High - TAP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000PH-TAP","notes":"","seedId":"prod_0118"},
+  {"code":"TS-007","name":"Torrefaction Sample - Pellets - Low - TAP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000LP-TAP","notes":"","seedId":"prod_0119"},
+  {"code":"TS-008","name":"Torrefaction Sample - Pellets - Customer Supplied-TAP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000CUST-P-TAP","notes":"","seedId":"prod_0120"},
+  {"code":"TS-009","name":"Torrefaction Sample - Chips - Low","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000LC","notes":"","seedId":"prod_0121"},
+  {"code":"TS-010","name":"Torrefaction Sample - Chips - Medium","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000MC","notes":"","seedId":"prod_0122"},
+  {"code":"TS-011","name":"Torrefaction Sample - Chips - High","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000HC","notes":"","seedId":"prod_0123"},
+  {"code":"TS-012","name":"Torrefaction Sample - Pellets - High - TBP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000PH-TBP","notes":"","seedId":"prod_0124"},
+  {"code":"TS-013","name":"Torrefaction Sample - Pellets - Medium - TBP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000MP","notes":"","seedId":"prod_0125"},
+  {"code":"TS-014","name":"Torrefaction Sample - Pellets - Low - TBP","category":"Torrefaction Samples","price":null,"unit":"sample","structure":"Product","parentCode":"","legacyPn":"TS-000LP-TBP","notes":"","seedId":"prod_0126"},
+  {"code":"WESP-001","name":"Wet ESP - 4x207 (828)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP04x207","notes":"","seedId":"prod_0127"},
+  {"code":"WESP-002","name":"Wet ESP - 3x243 (729)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP03x243","notes":"","seedId":"prod_0128"},
+  {"code":"WESP-003","name":"Wet ESP - 2x250","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP02x250","notes":"","seedId":"prod_0129"},
+  {"code":"WESP-004","name":"Wet ESP - 3x2 (752)","category":"Wet ESP","price":null,"unit":"ea","structure":"Product","parentCode":"","legacyPn":"WESP03x752","notes":"","seedId":"prod_0130"}
+];
+
+/* ── PRODUCTS TAB LOGIC ─────────────────────────────────────────────
+   Self-contained. Client-side only: PRODUCTS lives in memory, edits are not
+   written to the Worker/D1 — persistence is via Export/Import (matches the
+   app's "changes are in-memory until exported" model). PRODUCTS_SEED (above)
+   is the pristine embedded catalogue; PRODUCTS is the working copy.          */
+
+// Working copy (clone so the embedded seed stays pristine for reference/reset).
+let PRODUCTS = PRODUCTS_SEED.map(p => ({ ...p }));
+let prodSort = { key: 'code', dir: 1 };      // dir: 1 asc, -1 desc
+let prodDirty = false;
+let _prodNewCounter = 0;
+
+// Category → SKU prefix legend (matches the approved scheme). Used to allocate
+// a code for a brand-new product from its category.
+const PROD_PREFIX = {
+  "Combustion / Burners":"CMB","Dryers":"DRY","Torrefaction Samples":"TS","Testing & Analysis (3rd Party)":"3P",
+  "Oxidizers":"OXI","Torreactor Systems":"TOR","AMS Services":"AMS","Packaging":"PKG",
+  "Testing & Analysis (Internal)":"INT","Engineering / PM Hours":"ENG","Wet ESP":"WESP","Cyclone":"CYC",
+  "Biocarbon Services":"BCS","Reports & Custom Services":"RPT","Installation":"INS","Controls":"CTR",
+  "E-House":"EHS","Rotary Drums":"ROT","Heat Energy System":"HES","Refractory":"REF","Thermal Oil":"THO"
+};
+
+function prodSetDirty(v){ prodDirty = v; const d=document.getElementById('prod-dirty'); if(d) d.style.display = v ? '' : 'none'; }
+
+function prodCategories(){ return [...new Set(PRODUCTS.map(p=>p.category).filter(Boolean))].sort(); }
+
+// Next free SKU for a category: prefix + zero-padded (max existing number + 1).
+function nextProdCode(category){
+  const prefix = PROD_PREFIX[category] || (category||'NEW').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase() || 'NEW';
+  let max = 0;
+  PRODUCTS.forEach(p=>{
+    const m = (p.code||'').match(new RegExp('^'+prefix+'-(\\d+)$'));
+    if(m) max = Math.max(max, parseInt(m[1],10));
+  });
+  return prefix + '-' + String(max+1).padStart(3,'0');
+}
+
+// Format a price for display in an input (blank -> '' so the placeholder 'TBD' shows).
+function prodPriceStr(v){ return (v==null || v==='') ? '' : String(v); }
+
+// ── one editable cell (mirrors the pipeline table: input.cell-input, commit on input/blur) ──
+function prodCell(p, field, opts={}){
+  const td = document.createElement('td');
+  td.className = 'editable' + (opts.cls ? ' '+opts.cls : '');
+  let inp;
+  if (opts.list){
+    inp = document.createElement('input');
+    inp.setAttribute('list', opts.list);
+  } else {
+    inp = document.createElement('input');
+  }
+  inp.className = 'cell-input';
+  inp.placeholder = opts.placeholder || '—';
+  inp.value = field==='price' ? prodPriceStr(p.price) : (p[field]!=null ? p[field] : '');
+  const commit = () => {
+    if (field==='price'){
+      const raw = String(inp.value).replace(/[$,\s]/g,'');
+      const n = parseFloat(raw);
+      p.price = (inp.value.trim()==='' || isNaN(n)) ? null : n;
+    } else {
+      p[field] = inp.value;
+      // If the category changes and the code is still blank, auto-allocate a SKU.
+      if (field==='category' && (!p.code || p.code.trim()==='')) { p.code = nextProdCode(inp.value); }
+    }
+    prodSetDirty(true);
+  };
+  inp.oninput = commit;
+  inp.onblur = () => { commit(); if (field==='category' || field==='code' || field==='price') renderProducts(); };
+  td.appendChild(inp);
+  return td;
+}
+
+function sortProducts(key){
+  if (prodSort.key === key) prodSort.dir *= -1; else { prodSort.key = key; prodSort.dir = 1; }
+  renderProducts();
+}
+
+function addProductRow(){
+  const cat = document.getElementById('prod-cat-filter').value || '';
+  const p = { code: cat ? nextProdCode(cat) : '', name:'', category:cat, price:null,
+              unit: cat==='Engineering / PM Hours' ? 'hr' : 'ea', structure:'Product',
+              parentCode:'', legacyPn:'', notes:'', seedId:'prod_new_'+(++_prodNewCounter)+'_'+Date.now() };
+  PRODUCTS.unshift(p);
+  prodSetDirty(true);
+  renderProducts();
+  // focus the first cell of the new row
+  const first = document.querySelector('#prod-tbody tr .cell-input');
+  if (first) first.focus();
+}
+
+function deleteProductRow(seedId){
+  const p = PRODUCTS.find(x=>x.seedId===seedId);
+  if (!p) return;
+  if (!confirm('Delete product '+(p.code||p.name||'(blank)')+'? This only affects the in-memory list until you export.')) return;
+  PRODUCTS = PRODUCTS.filter(x=>x.seedId!==seedId);
+  prodSetDirty(true);
+  renderProducts();
+}
+
+function renderProducts(){
+  const tbody = document.getElementById('prod-tbody');
+  if (!tbody) return;
+
+  // Populate the category filter + shared datalists once (idempotent).
+  const catSel = document.getElementById('prod-cat-filter');
+  const cats = prodCategories();
+  if (catSel && catSel.options.length <= 1){
+    cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
+  }
+  ensureProdDatalists(cats);
+
+  // Legacy PN column show/hide.
+  const showLegacy = document.getElementById('prod-show-legacy').checked;
+  document.querySelectorAll('#prod-table .prod-legacy-col').forEach(el=>{ el.style.display = showLegacy ? '' : 'none'; });
+
+  // Filter.
+  const q = (document.getElementById('prod-search').value||'').trim().toLowerCase();
+  const fcat = catSel ? catSel.value : '';
+  let rows = PRODUCTS.filter(p=>{
+    if (fcat && p.category !== fcat) return false;
+    if (!q) return true;
+    return (p.code||'').toLowerCase().includes(q)
+        || (p.name||'').toLowerCase().includes(q)
+        || (p.legacyPn||'').toLowerCase().includes(q)
+        || (p.category||'').toLowerCase().includes(q);
+  });
+
+  // Sort.
+  const k = prodSort.key, dir = prodSort.dir;
+  rows.sort((a,b)=>{
+    let va=a[k], vb=b[k];
+    if (k==='price'){ va = va==null?-Infinity:va; vb = vb==null?-Infinity:vb; return (va-vb)*dir; }
+    va=(va==null?'':String(va)).toLowerCase(); vb=(vb==null?'':String(vb)).toLowerCase();
+    return va<vb ? -dir : va>vb ? dir : 0;
+  });
+
+  // Render.
+  tbody.innerHTML='';
+  if (!rows.length){
+    const tr=document.createElement('tr'); const td=document.createElement('td');
+    td.colSpan=9; td.className='prod-empty'; td.textContent = PRODUCTS.length ? 'No products match the filter.' : 'No products.';
+    tr.appendChild(td); tbody.appendChild(tr);
+  }
+  rows.forEach(p=>{
+    const tr=document.createElement('tr');
+    // Code (+ family badge)
+    const codeTd = prodCell(p,'code',{cls:'prod-code', placeholder:'CAT-NNN'});
+    if (p.structure==='Product Family'){ const b=document.createElement('span'); b.className='prod-fam-badge'; b.textContent='family'; b.title='Product Family'; codeTd.appendChild(b); }
+    tr.appendChild(codeTd);
+    tr.appendChild(prodCell(p,'name',{placeholder:'Product name'}));
+    tr.appendChild(prodCell(p,'category',{list:'prod-cat-list', placeholder:'Category'}));
+    tr.appendChild(prodCell(p,'price',{cls:'prod-price', placeholder:'TBD'}));
+    tr.appendChild(prodCell(p,'unit',{placeholder:'ea'}));
+    tr.appendChild(prodCell(p,'parentCode',{list:'prod-code-list', placeholder:'—'}));
+    tr.appendChild(prodCell(p,'notes',{placeholder:'—'}));
+    const legacyTd = prodCell(p,'legacyPn',{cls:'prod-legacy prod-legacy-col', placeholder:'—'});
+    legacyTd.style.display = showLegacy ? '' : 'none';
+    tr.appendChild(legacyTd);
+    const delTd=document.createElement('td');
+    const del=document.createElement('button'); del.className='prod-btn danger'; del.textContent='✕';
+    del.title='Delete product'; del.onclick=()=>deleteProductRow(p.seedId);
+    delTd.appendChild(del); tr.appendChild(delTd);
+    tbody.appendChild(tr);
+  });
+
+  // Count + sort icons.
+  const cnt=document.getElementById('prod-count');
+  if (cnt){ const priced=PRODUCTS.filter(p=>p.price!=null).length;
+    cnt.textContent = rows.length+' of '+PRODUCTS.length+' shown · '+priced+' priced'; }
+  document.querySelectorAll('#prod-table th.sortable').forEach(th=>{
+    const ic=th.querySelector('.sort-icon');
+    ic.textContent = th.dataset.sort===prodSort.key ? (prodSort.dir>0?'▲':'▼') : '';
+  });
+}
+
+// Shared datalists for the category + parent-code autocomplete inputs.
+function ensureProdDatalists(cats){
+  let cl=document.getElementById('prod-cat-list');
+  if(!cl){ cl=document.createElement('datalist'); cl.id='prod-cat-list'; document.body.appendChild(cl); }
+  cl.innerHTML = cats.map(c=>'<option value="'+c.replace(/"/g,'&quot;')+'">').join('');
+  let pl=document.getElementById('prod-code-list');
+  if(!pl){ pl=document.createElement('datalist'); pl.id='prod-code-list'; document.body.appendChild(pl); }
+  pl.innerHTML = PRODUCTS.map(p=>p.code).filter(Boolean).sort()
+    .map(c=>'<option value="'+c.replace(/"/g,'&quot;')+'">').join('');
+}
+
+// ── Export / Import (persistence = files, no backend) ──
+function exportProductsJSON(){
+  const blob = new Blob([JSON.stringify(PRODUCTS,null,2)], {type:'application/json'});
+  prodDownload(blob, 'TSI_Products_'+prodDateStr()+'.json');
+  prodSetDirty(false);
+}
+
+function exportProductsXLSX(){
+  if (typeof XLSX === 'undefined'){ alert('XLSX library not loaded.'); return; }
+  const cols = ['code','name','category','price','unit','parentCode','notes','legacyPn','structure'];
+  const head = ['Code (SKU)','Name / Description','Category','Price (USD)','Unit','Family / Parent','Notes','Legacy PN','Structure'];
+  const aoa = [head].concat(PRODUCTS.map(p=>cols.map(c=>{
+    if (c==='price') return p.price==null?'':p.price;
+    return p[c]==null?'':p[c];
+  })));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:11},{wch:38},{wch:26},{wch:12},{wch:9},{wch:14},{wch:26},{wch:14},{wch:15}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Products');
+  XLSX.writeFile(wb, 'TSI_Products_'+prodDateStr()+'.xlsx');
+  prodSetDirty(false);
+}
+
+function importProductsJSON(ev){
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('Expected a JSON array of products.');
+      PRODUCTS = data.map((p,i)=>({
+        code: p.code||'', name: p.name||'', category: p.category||'',
+        price: (p.price===''||p.price==null)?null:(isNaN(parseFloat(p.price))?null:parseFloat(p.price)),
+        unit: p.unit||'', structure: p.structure||'Product',
+        parentCode: p.parentCode||'', legacyPn: p.legacyPn||'', notes: p.notes||'',
+        seedId: p.seedId||('prod_imp_'+i+'_'+Date.now())
+      }));
+      prodSetDirty(true);
+      renderProducts();
+      alert('Imported '+PRODUCTS.length+' products.');
+    } catch(err){ alert('Import failed: '+err.message); }
+    ev.target.value=''; // allow re-importing the same file
+  };
+  reader.readAsText(file);
+}
+
+function prodDownload(blob, name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function prodDateStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+</script>
 </body>
 </html>
