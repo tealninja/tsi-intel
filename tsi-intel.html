@@ -2420,6 +2420,21 @@ table.prod-grid td.editable:focus-within::after { content:none; }
 .q-mode-badge.db { background:rgba(110,140,52,0.18); color:var(--tsi-succ-green); }
 .q-mode-badge.local { background:rgba(196,162,48,0.18); color:var(--tsi-amber); }
 .q-mode-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+.q-mode-badge.local { animation:qModePulse 1.6s ease-in-out infinite; }
+@keyframes qModePulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+/* Loud offline banner — quotes are NOT persisting to the DB */
+.q-mode-banner { display:flex; align-items:center; gap:12px; padding:11px 16px; margin-bottom:var(--sp-3);
+  background:rgba(196,162,48,0.14); border:1px solid var(--tsi-amber); border-left:4px solid var(--tsi-amber);
+  border-radius:var(--radius-md); color:var(--color-text-primary); }
+.q-mode-banner-icon { font-size:20px; line-height:1; color:var(--tsi-amber); flex-shrink:0; }
+.q-mode-banner-text { font-size:12px; line-height:1.45; flex:1; }
+.q-mode-banner-text strong { color:var(--tsi-coral); }
+.q-mode-retry { flex-shrink:0; padding:6px 12px; font-size:12px; font-weight:500; cursor:pointer;
+  border:1px solid var(--tsi-amber); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text-primary); }
+.q-mode-retry:hover { background:var(--tsi-amber); color:white; }
+.q-drawer-mode-warn { padding:8px 18px; background:var(--tsi-coral); color:white; font-size:12px; font-weight:500; text-align:center; }
+#q-save-btn.local-save { background:var(--tsi-coral); }
+#q-save-btn.local-save:hover { background:rgb(168,66,40); }
 
 .prod-pn, .q-cell-pn, .pb-code { font-family:var(--font-mono); font-size:11px; color:var(--color-text-secondary); }
 .pb-price-input { width:88px; padding:4px 6px; border:1px solid var(--color-border-mid); border-radius:4px; font-family:var(--font-mono); font-size:12px; text-align:right; background:var(--color-surface); color:var(--color-text-primary); outline:none; }
@@ -11298,6 +11313,12 @@ startAdminPoll();
     <div class="view-desc">Biocarbon quotations · prices pulled from the D1 price book (seeded from the sample price list) · editable per quote · custom line items supported</div>
   </div>
 
+  <div id="q-mode-banner" class="q-mode-banner" style="display:none">
+    <span class="q-mode-banner-icon">⚠</span>
+    <div class="q-mode-banner-text"><strong>Offline — NOT saving to the database.</strong> Quotes and price edits are stored only in <u>this browser</u>. They are not shared, and will be lost if you clear the browser or switch devices. <span id="q-mode-banner-detail"></span></div>
+    <button class="q-mode-retry" onclick="retryQuoteBackend()">↻ Retry connection</button>
+  </div>
+
   <div class="q-subtabs">
     <div class="q-subtab active" id="q-subtab-quotes" onclick="showQuoteSub('quotes')">🧾 Quotes</div>
     <div class="q-subtab" id="q-subtab-pricebook" onclick="showQuoteSub('pricebook')">💲 Price Book</div>
@@ -11469,10 +11490,13 @@ startAdminPoll();
       <div class="drow"><label>Notes</label><textarea class="dtextarea" id="q-notes" style="min-height:48px"></textarea></div>
     </div>
   </div>
+  <div id="q-drawer-mode-warn" class="q-drawer-mode-warn" style="display:none">
+    ⚠ Offline — this quote will save to <u>THIS BROWSER ONLY</u>, not the database.
+  </div>
   <div class="drawer-footer">
     <button class="btn-cancel-drawer" onclick="closeQuoteBuilder()">Cancel</button>
     <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable proposal (PDF)">🖨 Print / PDF</button>
-    <button class="btn-save-opp" onclick="saveQuote()">Save Quote</button>
+    <button class="btn-save-opp" id="q-save-btn" onclick="saveQuote()">Save Quote</button>
   </div>
 </div><!-- /quote-drawer -->
 
@@ -11938,10 +11962,22 @@ async function qApi(method, path, body){
 }
 function setQMode(m){
   _qMode=m;
+  const local = (m!=='db');
   const b=document.getElementById('q-mode-badge'), t=document.getElementById('q-mode-text');
-  if(b){ b.className='q-mode-badge '+(m==='db'?'db':'local'); }
-  if(t){ t.textContent = m==='db'?'D1 database':'local (browser)'; }
-  if(b) b.title = m==='db' ? 'Quotes & prices persist to the D1 database via the API' : 'API not reachable — quotes & price edits saved in this browser only';
+  if(b){ b.className='q-mode-badge '+(local?'local':'db'); b.title = local ? 'NOT saving to the database — this browser only' : 'Quotes & prices persist to the D1 database'; }
+  if(t){ t.textContent = local?'OFFLINE — local only':'D1 database'; }
+  const banner=document.getElementById('q-mode-banner'); if(banner) banner.style.display = local ? 'flex' : 'none';
+  const detail=document.getElementById('q-mode-banner-detail');
+  if(detail) detail.textContent = API_WORKER_URL ? '(The quotes API is unreachable — retry, or contact whoever deploys the worker.)' : '(No API is configured for this build.)';
+  const dw=document.getElementById('q-drawer-mode-warn'); if(dw) dw.style.display = local ? 'block' : 'none';
+  const sb=document.getElementById('q-save-btn');
+  if(sb){ sb.classList.toggle('local-save', local); sb.textContent = local ? 'Save (local only)' : 'Save to D1'; }
+}
+async function retryQuoteBackend(){
+  showToast('Checking connection…','var(--tsi-teal)');
+  _pbLoaded=false; await loadPriceBook(); _pbLoaded=true;
+  if(_qSub==='pricebook') renderPriceBook(); else renderQuotesList();
+  showToast(_qMode==='db' ? '✓ Connected — saving to D1' : 'Still offline — quotes stay in this browser', _qMode==='db'?'var(--tsi-succ-green)':'var(--tsi-coral)');
 }
 
 // ── PRICE BOOK ──
@@ -12154,6 +12190,7 @@ async function openQuoteBuilder(id){
     document.getElementById('quote-drawer-title').textContent='Edit Quote';
   } else { _qWorking=blankQuote(); _qExisting=false; document.getElementById('quote-drawer-title').textContent='New Quote'; }
   fillQuoteForm(); renderQuoteLines(); recalcQuoteTotals();
+  setQMode(_qMode);   // sync the offline warning + save-button state into the drawer
   document.getElementById('quote-drawer-overlay').classList.add('open');
   document.getElementById('quote-drawer').classList.add('open');
 }
@@ -12257,7 +12294,8 @@ async function saveQuote(){
   q.updated_at=new Date().toISOString(); if(!q.created_at) q.created_at=q.updated_at;
   const where=await persistQuote(q, !_qExisting);
   closeQuoteBuilder(); renderQuotesList();
-  showToast('✓ Quote '+q.id+' saved'+(where==='db'?' to D1':' locally'), where==='db'?'var(--tsi-succ-green)':'var(--tsi-amber)');
+  if(where==='db') showToast('✓ Quote '+q.id+' saved to the D1 database','var(--tsi-succ-green)');
+  else showToast('⚠ '+q.id+' saved to THIS BROWSER ONLY — not the database','var(--tsi-coral)');
 }
 
 // ── PRINT / PDF (Biocarbon LLC proposal) ──
