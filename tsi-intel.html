@@ -2486,6 +2486,37 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 .pb-margin { font-family:var(--font-mono); font-size:11px; }
 .pb-unpriced td { opacity:.5; }
 
+/* Saved views dropdown (per-user personalization) */
+.views-wrap { position:relative; display:inline-block; }
+.views-btn { cursor:pointer; white-space:nowrap; }
+.views-menu {
+  position:absolute; top:calc(100% + 4px); left:0; z-index:400; min-width:230px;
+  background:var(--color-surface); border:1px solid var(--color-border-mid);
+  border-radius:var(--radius-md); box-shadow:0 8px 24px rgba(0,0,0,.18); padding:5px;
+}
+.views-menu-item {
+  display:flex; align-items:center; gap:6px; padding:7px 9px; border-radius:var(--radius-sm);
+  font-size:12px; color:var(--color-text-primary); cursor:pointer;
+}
+.views-menu-item:hover { background:rgba(0,146,159,0.08); }
+.views-menu-item .vm-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.views-menu-item .vm-del { opacity:.5; cursor:pointer; font-size:12px; padding:0 2px; }
+.views-menu-item .vm-del:hover { opacity:1; color:var(--tsi-coral); }
+.views-menu-save {
+  display:flex; gap:5px; padding:6px; border-top:1px solid var(--color-border); margin-top:4px;
+}
+.views-menu-save input {
+  flex:1; min-width:0; padding:6px 8px; border:1px solid var(--color-border-mid);
+  border-radius:var(--radius-sm); font-size:12px; font-family:var(--font-ui);
+  background:var(--color-bg); color:var(--color-text-primary); outline:none;
+}
+.views-menu-save button {
+  padding:6px 10px; font-size:12px; font-weight:500; cursor:pointer; border:none;
+  border-radius:var(--radius-sm); background:var(--tsi-teal); color:#fff;
+}
+.views-menu-empty { padding:8px 9px; font-size:11px; color:var(--color-text-muted); font-style:italic; }
+.views-menu-user { padding:4px 9px 7px; font-size:10px; color:var(--color-text-muted); border-bottom:1px solid var(--color-border); margin-bottom:4px; }
+
 .quotes-empty { text-align:center; padding:48px 20px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-lg); }
 .q-status-pill { display:inline-block; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.04em; }
 .q-status-Draft { background:rgba(100,100,100,0.15); color:var(--color-text-secondary); }
@@ -2746,6 +2777,10 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <option value="lt50">&lt;50%</option>
       <option value="none">Unscored</option>
     </select>
+    <div class="views-wrap">
+      <button class="select views-btn" id="views-btn" onclick="toggleViewsMenu(event)" title="Your saved views">⭐ Views ▾</button>
+      <div class="views-menu" id="views-menu" style="display:none"></div>
+    </div>
     <span class="toolbar-count" id="pip-count"></span>
     <button class="btn-add-opp" onclick="addNewOpp()">+ New Opportunity</button>
     <button class="btn-discard" id="clear-col-filters-btn" onclick="clearAllColFilters()" style="display:none" title="Clear all column filters">✕ Clear filters</button>
@@ -10207,6 +10242,73 @@ function onOppAcctInput(typedName) {
 // approach (measuring .app-header's height while also using that same
 // measurement to SIZE elements inside .app-header, which fed back into
 // an infinite resize loop).
+
+// ── SAVED VIEWS (per-user personalization; soft identity) ──────────────────
+// Persists via the Store (D1 collection 'saved_views' + localStorage cache),
+// tagged with the current user (SharePoint email, else initials). Soft: it's a
+// personalization convenience, not a security boundary.
+const viewStore = Store('saved_views');
+const _vEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function currentUserId(){ return (getUserEmail() || getUserInitials() || 'anon').toLowerCase(); }
+
+function capturePipelineView(){
+  const g = id => { const el=document.getElementById(id); return el ? el.value : ''; };
+  const cf = {};
+  Object.keys(colFilters).forEach(k => { if (colFilters[k] instanceof Set && colFilters[k].size) cf[k] = [...colFilters[k]]; });
+  return {
+    search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), ftag:g('ftag'), fprob:g('fprob'),
+    closeChip: (typeof activeCloseChip !== 'undefined') ? activeCloseChip : null,
+    starredOnly: (typeof starredOnly !== 'undefined') ? !!starredOnly : false,
+    sort: activeSort['pip-table'] ? { ...activeSort['pip-table'] } : null,
+    colFilters: cf
+  };
+}
+function applyPipelineView(st){
+  const setv = (id,v) => { const el=document.getElementById(id); if(el) el.value = v || ''; };
+  setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc);
+  setv('flead',st.flead); setv('ftag',st.ftag); setv('fprob',st.fprob);
+  if (typeof starredOnly !== 'undefined') starredOnly = !!st.starredOnly;
+  const starChip=document.getElementById('chip-starred'); if(starChip) starChip.classList.toggle('active', !!st.starredOnly);
+  if (typeof activeCloseChip !== 'undefined') activeCloseChip = st.closeChip || null;
+  document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c =>
+    c.classList.toggle('active', st.closeChip != null && c.dataset.mo === String(st.closeChip)));
+  if (st.sort) activeSort['pip-table'] = { ...st.sort }; else delete activeSort['pip-table'];
+  Object.keys(colFilters).forEach(k => delete colFilters[k]);
+  Object.keys(st.colFilters || {}).forEach(k => { colFilters[k] = new Set(st.colFilters[k]); });
+  if (typeof updateColFilterIndicators === 'function') updateColFilterIndicators();
+  renderPipeline();
+}
+function myViews(){ const uid=currentUserId(); return viewStore.all().filter(v => v.scope==='pipeline' && (v.owner||'').toLowerCase()===uid); }
+function saveCurrentView(){
+  const inp=document.getElementById('views-name-input');
+  const name=(inp?inp.value:'').trim();
+  if(!name){ if(inp){ inp.focus(); inp.style.borderColor='var(--tsi-coral)'; setTimeout(()=>inp.style.borderColor='',1200); } return; }
+  viewStore.put({ id:'view_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    owner:currentUserId(), scope:'pipeline', name, state:capturePipelineView(), created:new Date().toISOString() });
+  renderViewsMenu();
+  showToast('✓ View "'+name+'" saved','var(--tsi-succ-green)');
+}
+function applyView(id){ const v=viewStore.all().find(x=>x.id===id); if(v){ applyPipelineView(v.state); closeViewsMenu(); showToast('View: '+v.name); } }
+function deleteView(id, ev){ if(ev) ev.stopPropagation(); const v=viewStore.all().find(x=>x.id===id); viewStore.remove(id); renderViewsMenu(); if(v) showToast('View "'+v.name+'" deleted','var(--tsi-coral)'); }
+function renderViewsMenu(){
+  const menu=document.getElementById('views-menu'); if(!menu) return;
+  const views=myViews(); const uid=currentUserId();
+  let html = `<div class="views-menu-user">Views for ${uid==='anon'?'this browser':_vEsc(uid)}${viewStore.mode()==='db'?'':' · local'}</div>`;
+  html += views.length
+    ? views.map(v=>`<div class="views-menu-item" onclick="applyView('${v.id}')"><span class="vm-name" title="${_vEsc(v.name)}">${_vEsc(v.name)}</span><span class="vm-del" onclick="deleteView('${v.id}',event)" title="Delete view">✕</span></div>`).join('')
+    : `<div class="views-menu-empty">No saved views yet — filter the pipeline, then save.</div>`;
+  html += `<div class="views-menu-save"><input id="views-name-input" placeholder="Name this view…" onkeydown="if(event.key==='Enter')saveCurrentView()"><button onclick="saveCurrentView()">Save</button></div>`;
+  menu.innerHTML=html;
+}
+function toggleViewsMenu(ev){
+  if(ev) ev.stopPropagation();
+  const m=document.getElementById('views-menu'); if(!m) return;
+  if(m.style.display==='none'){ renderViewsMenu(); m.style.display=''; setTimeout(()=>document.addEventListener('click', _closeViewsOutside),0); }
+  else closeViewsMenu();
+}
+function closeViewsMenu(){ const m=document.getElementById('views-menu'); if(m) m.style.display='none'; document.removeEventListener('click', _closeViewsOutside); }
+function _closeViewsOutside(e){ const w=document.querySelector('.views-wrap'); if(w && !w.contains(e.target)) closeViewsMenu(); }
+viewStore.pull().then(() => renderViewsMenu());
 
 // ── INIT ──────────────────────────────────────────────────────
 populateFilters();

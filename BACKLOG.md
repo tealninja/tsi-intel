@@ -50,8 +50,10 @@ Roles (cumulative ladder):
   (replaces the `initials==='JT'` hack). Admin UI to manage users.
 - [ ] Phase 4 — **Power AI tiering**: `/api/ai` picks the Claude model by the caller's
   ai_tier (power → top/chart model, standard → lighter). Server-side.
-- [ ] Phase 2 — **Saved views** (per-user) on Store('saved_views'): save/apply filter
-  + sort + column + chip state per tab; optional shared/team views.
+- [~] Phase 2 — **Saved views** (per-user) on Store('saved_views'): **pipeline done**
+  (⭐ Views dropdown captures/applies search + filters + close-chip + starred + sort +
+  column filters, tagged to the soft identity). TODO: extend to accounts/quotes tabs;
+  optional shared/team views.
 - [ ] Phase 3 — **Follows / faves** on Store('follows'): ★/Follow toggle on opps /
   quotes / accounts, scoped per user (fold the existing global `starred` into it).
 - [ ] Later — **Activity feed** ("what changed on my stuff"): needs audit logging on
@@ -70,6 +72,8 @@ Roles (cumulative ladder):
   so features compose consistently. Ties into the extensibility work above.
 
 ## ✅ Recently done
+- [x] **Saved views** (pipeline) — per-user ⭐ Views dropdown (soft identity),
+  persisted via Store('saved_views'); captures/applies the full filter+sort state.
 - [x] Extensible **D1 `Store`** (generic `collections` table + `/api/store/*`) and
   migrated the **bug register** off localStorage-as-record (cache/offline only).
 - [x] Mobile: tab bar collapses to a **hamburger menu** (<768px).
