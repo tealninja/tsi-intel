@@ -1118,8 +1118,13 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 
 /* ── MOBILE ───────────────────────────────────────────── */
 @media(max-width:768px) {
-  /* Header — compact */
-  .header-title { font-size:11px; }
+  /* Header — compact. The desktop logo is 105px tall (overflows the 48px bar by
+     design); on phones that overflowed onto the tab row and its 239px width
+     shoved the title + dark-mode toggle off-screen. Shrink it to fit the bar. */
+  .header-logo  { height:38px; margin-top:0; }
+  .header-title { font-size:12px; }
+  .header-sub   { font-size:10px; }
+  .header-top   { padding-left:10px; gap:8px; }
   .header-badge { display:none; }
   .tsi-intel    { display:none; }
   .dm-icon      { display:none; }

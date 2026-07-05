@@ -73,6 +73,8 @@ Roles (cumulative ladder):
   so features compose consistently. Ties into the extensibility work above.
 
 ## ✅ Recently done
+- [x] **Mobile header fix** — the 105px logo overflowed the 48px bar and shoved the
+  title/dark-toggle off-screen; shrunk it on ≤768px so nothing is cut off (to 320px).
 - [x] **Follows** (pipeline) — per-user 🔔 follow per opp + "Following only" filter.
 - [x] **Column picker** — ▦ Columns dropdown shows/hides pipeline columns
   (nth-child, per-user, persisted + captured in saved views).
