@@ -432,7 +432,7 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
   padding:9px var(--sp-4); background:var(--color-surface);
   cursor:pointer; user-select:none;
   border-bottom:1px solid var(--color-border);
-  position:sticky; top:calc(var(--header-h) + 43px); z-index:200; /* 43px = fixed height of one collapse-header row (hot-toggle), which sits directly above charts-toggle in the stack */
+  position:sticky; top:var(--header-h); z-index:200; /* pin flush directly under the app-header (--header-h). Only one section header is pinned at a time — the next section pushes the previous one up — so they share the same offset and swap cleanly with no gap. */
   transition:background var(--transition);
 }
 .collapse-header:hover { background:rgba(0,146,159,0.04); }
@@ -2505,7 +2505,7 @@ table.compact { min-width:720px!important; }
 
 <!-- ══ MAP SECTION ══ -->
 <div class="collapse-section" id="map-section">
-  <div class="collapse-header" id="map-toggle" style="top:calc(var(--header-h) + 86px)" onclick="toggleCollapse('map')">
+  <div class="collapse-header" id="map-toggle" style="top:var(--header-h)" onclick="toggleCollapse('map')">
     <span class="ch-title">🌍 Global Opportunities Map</span>
     <span class="ch-meta" id="map-meta"></span>
     <span class="ch-chevron">▾</span>
