@@ -1650,7 +1650,12 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 }
 @media(max-width:768px){
   .acct-layout{grid-template-columns:1fr;height:auto}
-  .acct-sidebar{max-height:200px;border-right:none;border-bottom:1px solid var(--color-border)}
+  .acct-sidebar{max-height:260px;border-right:none;border-bottom:1px solid var(--color-border)}
+  /* The detail/map panels are pinned to grid-column:2 for the desktop two-pane
+     layout; on mobile the grid is a single column, so force them back into
+     column 1 (row auto) to stack below the list instead of spilling into an
+     implicit second column that runs off-screen. */
+  .acct-main{grid-column:1;grid-row:auto;min-width:0}
 }
 
 
