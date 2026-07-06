@@ -11925,9 +11925,10 @@ startAdminPoll();
     </div>
 
     <div class="dsec">
-      <div class="dsec-title">Proposal Text &amp; Terms</div>
+      <div class="dsec-title">Quote Text &amp; Terms</div>
+      <div class="drow"><label>Description <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— shown under the customer info</span></label><textarea class="dtextarea" id="q-description" placeholder="Short overview of the offering / opportunity…"></textarea></div>
       <div class="drow"><label>Scope of Supply</label><textarea class="dtextarea" id="q-scope" placeholder="Description of what we are supplying…"></textarea></div>
-      <div class="drow"><label>Assumptions &amp; Clarifications</label><textarea class="dtextarea" id="q-assumptions"></textarea></div>
+      <div class="drow"><label>Assumptions &amp; Clarifications <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— printed after the pricing</span></label><textarea class="dtextarea" id="q-assumptions"></textarea></div>
       <div class="drow-2">
         <div><label>Payment Terms</label><textarea class="dtextarea" id="q-payment" style="min-height:48px"></textarea></div>
         <div><label>Delivery Terms</label><textarea class="dtextarea" id="q-delivery" style="min-height:48px"></textarea></div>
@@ -11940,8 +11941,8 @@ startAdminPoll();
   </div>
   <div class="drawer-footer">
     <button class="btn-cancel-drawer" onclick="closeQuoteBuilder()">Cancel</button>
-    <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable proposal (PDF)">🖨 Print / PDF</button>
-    <button class="btn-cancel-drawer" onclick="exportQuoteWordCurrent()" title="Download an editable Word (.doc) proposal">📄 Word</button>
+    <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable quote (PDF)">🖨 Print / PDF</button>
+    <button class="btn-cancel-drawer" onclick="exportQuoteWordCurrent()" title="Download an editable Word (.doc) quote">📄 Word</button>
     <button class="btn-cancel-drawer" id="q-save-btn" onclick="saveDraft()" title="Save without publishing">Save draft</button>
     <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Mark Sent; bumps the revision on re-publish">Publish ▸</button>
   </div>
@@ -12859,7 +12860,7 @@ function blankQuote(){
     contact_name:'', contact_email:'', contact_phone:'', project:'',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
-    scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'',
+    description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'',
     discount:0, discount_mode:'pct', freight:0, tax_pct:0, subtotal:0, total:0, lines:[] };
 }
 async function openQuoteBuilder(id){
@@ -12886,7 +12887,7 @@ function fillQuoteForm(){
   S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
-  S('q-scope',q.scope); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
+  S('q-description',q.description); S('q-scope',q.scope); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
 }
 function onQuoteCurrencyChange(){ if(_qWorking){ _qWorking.currency=document.getElementById('q-currency').value; renderQuoteLines(); recalcQuoteTotals(); } }
 function addQuoteLine(seedId){
@@ -12997,7 +12998,7 @@ function readQuoteForm(){
   q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
-  q.status=V('q-status'); q.scope=V('q-scope').trim(); q.assumptions=V('q-assumptions').trim();
+  q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.assumptions=V('q-assumptions').trim();
   q.payment_terms=V('q-payment').trim(); q.delivery_terms=V('q-delivery').trim(); q.notes=V('q-notes').trim();
   recalcQuoteTotals();
 }
@@ -13057,19 +13058,25 @@ function printQuote(q){
   if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" class="r lbl">Tax / VAT (${q.tax_pct}%)</td><td class="r">${qmoney(t.tax,cur)}</td></tr>`);
   foot.push(`<tr class="grand"><td colspan="6" class="r lbl">Total (${cur})</td><td class="r">${qmoney(t.grand,cur)}</td></tr>`);
   const blk=s=>qesc(s||'').replace(/\n/g,'<br>');
-  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title><style>
-    *{box-sizing:border-box} body{font-family:'Segoe UI',Arial,sans-serif;color:#333;margin:0;padding:40px;font-size:12.5px;line-height:1.5}
-    .head{display:flex;justify-content:space-between;border-bottom:3px solid #6E8C34;padding-bottom:14px;margin-bottom:18px}
-    .co{font-size:20px;font-weight:700;color:#2f5233} .co small{display:block;font-size:10.5px;font-weight:400;color:#777;margin-top:3px}
-    .qt{text-align:right} .qt .qn{font-size:18px;font-weight:700;color:#6E8C34;font-family:'Courier New',monospace}
-    .qt .qs{display:inline-block;margin-top:5px;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 9px;border-radius:99px;background:#eef;color:#556}
-    h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6E8C34;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:18px 0 8px}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px} .grid2 b{color:#2f5233}
+  // TSI theme tokens (matches the app's :root): deep-blue #19446C primary,
+  // teal #00929F accent, Inter (body) + DM Serif Display (headings).
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"><style>
+    *{box-sizing:border-box} body{font-family:'Inter','Segoe UI',Arial,sans-serif;color:#2b2b2b;margin:0;padding:40px;font-size:12.5px;line-height:1.55}
+    .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #00929F;padding-bottom:14px;margin-bottom:18px}
+    .co{font-family:'DM Serif Display',Georgia,serif;font-size:23px;font-weight:400;color:#19446C} .co small{display:block;font-family:'Inter',sans-serif;font-size:10.5px;font-weight:400;color:#777;margin-top:4px}
+    .qt{text-align:right} .qt .qn{font-size:18px;font-weight:700;color:#00929F;font-family:'Courier New',monospace}
+    .qt .qs{display:inline-block;margin-top:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:99px;background:rgba(0,146,159,.1);color:#19446C}
+    h3{font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#19446C;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:18px 0 8px}
+    .title{font-family:'DM Serif Display',Georgia,serif;font-size:20px;color:#19446C;margin:6px 0 12px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px} .grid2 b{color:#19446C}
     table.items{width:100%;border-collapse:collapse;margin-top:6px}
-    .items thead th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#888;border-bottom:2px solid #ddd;padding:7px 7px}
+    .items thead th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:#19446C;padding:8px 7px}
     .items tbody td{padding:7px 7px;border-bottom:1px solid #eee;vertical-align:top}
+    .items tbody tr:nth-child(even){background:#f7f9fb}
     .items td.r,.items th.r{text-align:right}.items td.c,.items th.c{text-align:center}.items td.pn{font-family:'Courier New',monospace;font-size:10.5px;color:#666;white-space:nowrap}
-    tfoot td{padding:4px 7px}tfoot .lbl{color:#666}tfoot .grand td{border-top:2px solid #2f5233;font-size:15px;font-weight:700;color:#2f5233;padding-top:9px}
+    tfoot td{padding:4px 7px}tfoot .lbl{color:#666}tfoot .grand td{border-top:2px solid #00929F;font-size:15px;font-weight:700;color:#19446C;padding-top:9px}
     .prose{white-space:pre-wrap;font-size:11.5px;color:#444}
     .terms{margin-top:20px;font-size:9.5px;color:#888;line-height:1.5;border-top:1px solid #eee;padding-top:10px}
     @media print{body{padding:0}}
@@ -13078,22 +13085,23 @@ function printQuote(q){
       <div class="co">${qesc(BIOCARBON_SELLER.name)}<small>${qesc(BIOCARBON_SELLER.addr)} · EIN ${qesc(BIOCARBON_SELLER.ein)}</small></div>
       <div class="qt"><div class="qn">${qesc(q.id)}</div><div style="font-size:10px;color:#999;font-family:'Courier New',monospace">Rev ${qesc(q.rev||'R0')}</div><div class="qs">${qesc(q.status||'Draft')}</div></div>
     </div>
-    <h3>Proposal${q.project?' — '+qesc(q.project):''}</h3>
+    <div class="title">Quote${q.project?' — '+qesc(q.project):''}</div>
     <div class="grid2">
       <div><b>Issued to:</b> ${qesc(q.customer_name||'—')}</div><div><b>Quote Date:</b> ${qesc(q.quote_date||'—')}</div>
       <div><b>Address:</b> ${qesc(q.customer_address||'—')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
       <div><b>Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</div><div><b>Prepared By:</b> ${qesc(q.prepared_by||'—')}</div>
     </div>
+    ${q.description?`<h3>Description</h3><div class="prose">${blk(q.description)}</div>`:''}
     ${q.scope?`<h3>Scope of Supply</h3><div class="prose">${blk(q.scope)}</div>`:''}
-    ${q.assumptions?`<h3>Assumptions &amp; Clarifications</h3><div class="prose">${blk(q.assumptions)}</div>`:''}
     <h3>Pricing Summary</h3>
     <table class="items"><thead><tr><th class="c">#</th><th>PN</th><th>Product</th><th class="c">Unit</th><th class="r">Price</th><th class="r">Qty</th><th class="r">Extended</th></tr></thead>
       <tbody>${lines}</tbody><tfoot>${foot.join('')}</tfoot></table>
+    ${q.assumptions?`<h3>Assumptions &amp; Clarifications</h3><div class="prose">${blk(q.assumptions)}</div>`:''}
     ${q.delivery_terms?`<h3>Delivery Terms</h3><div class="prose">${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3>Payment Terms</h3><div class="prose">${blk(q.payment_terms)}</div>`:''}
     ${q.notes?`<h3>Notes</h3><div class="prose">${blk(q.notes)}</div>`:''}
     <div class="terms"><b>Terms &amp; Conditions.</b> ${qesc(Q_TERMS)}</div>
-    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+    <script>window.onload=function(){setTimeout(function(){window.print();},450);};<\/script>
   </body></html>`;
   const w=window.open('','_blank'); if(!w){ showToast('Pop-up blocked — allow pop-ups to print','var(--tsi-coral)'); return; }
   w.document.open(); w.document.write(html); w.document.close();
@@ -13121,29 +13129,30 @@ function exportQuoteWord(q){
   if(t.disc>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</td><td ${ftd} align="right">−${qmoney(t.disc,cur)}</td></tr>`);
   if(t.freight>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Freight / Shipping</td><td ${ftd} align="right">${qmoney(t.freight,cur)}</td></tr>`);
   if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Tax / VAT (${q.tax_pct}%)</td><td ${ftd} align="right">${qmoney(t.tax,cur)}</td></tr>`);
-  foot.push(`<tr><td colspan="6" align="right" style="padding:8px 7px;border-top:2px solid #2f5233;font-size:13pt;font-weight:700;color:#2f5233">Total (${cur})</td><td align="right" style="padding:8px 7px;border-top:2px solid #2f5233;font-size:13pt;font-weight:700;color:#2f5233">${qmoney(t.grand,cur)}</td></tr>`);
-  const h3='style="font-size:11pt;text-transform:uppercase;letter-spacing:.5pt;color:#6E8C34;border-bottom:1px solid #e5e5e5;padding-bottom:3px;margin:16pt 0 6pt"';
+  foot.push(`<tr><td colspan="6" align="right" style="padding:8px 7px;border-top:2px solid #00929F;font-size:13pt;font-weight:700;color:#19446C">Total (${cur})</td><td align="right" style="padding:8px 7px;border-top:2px solid #00929F;font-size:13pt;font-weight:700;color:#19446C">${qmoney(t.grand,cur)}</td></tr>`);
+  const h3='style="font-size:11pt;text-transform:uppercase;letter-spacing:.5pt;color:#19446C;border-bottom:1px solid #e5e5e5;padding-bottom:3px;margin:16pt 0 6pt"';
   const prose='style="font-size:10.5pt;color:#444;white-space:pre-wrap"';
   const metaTd='style="padding:2px 0;font-size:10.5pt;width:50%"';
   const body=`
-    <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #6E8C34"><tr>
-      <td style="padding-bottom:10px"><div style="font-size:18pt;font-weight:700;color:#2f5233">${qesc(BIOCARBON_SELLER.name)}</div>
+    <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #00929F"><tr>
+      <td style="padding-bottom:10px"><div style="font-size:20pt;font-weight:700;color:#19446C">${qesc(BIOCARBON_SELLER.name)}</div>
         <div style="font-size:9pt;color:#777">${qesc(BIOCARBON_SELLER.addr)} · EIN ${qesc(BIOCARBON_SELLER.ein)}</div></td>
-      <td align="right" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#6E8C34;font-family:Consolas,monospace">${qesc(q.id)}</div>
+      <td align="right" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#00929F;font-family:Consolas,monospace">${qesc(q.id)}</div>
         <div style="font-size:9pt;color:#999">Rev ${qesc(q.rev||'R0')} · ${qesc(q.status||'Draft')}</div></td>
     </tr></table>
-    <h3 ${h3}>Proposal${q.project?' — '+qesc(q.project):''}</h3>
+    <div style="font-size:16pt;font-weight:700;color:#19446C;margin:8pt 0 6pt">Quote${q.project?' — '+qesc(q.project):''}</div>
     <table style="width:100%;border-collapse:collapse">
-      <tr><td ${metaTd}><b style="color:#2f5233">Issued to:</b> ${qesc(q.customer_name||'—')}</td><td ${metaTd}><b style="color:#2f5233">Quote Date:</b> ${qesc(q.quote_date||'—')}</td></tr>
-      <tr><td ${metaTd}><b style="color:#2f5233">Address:</b> ${qesc(q.customer_address||'—')}</td><td ${metaTd}><b style="color:#2f5233">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
-      <tr><td ${metaTd}><b style="color:#2f5233">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#2f5233">Prepared By:</b> ${qesc(q.prepared_by||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#19446C">Issued to:</b> ${qesc(q.customer_name||'—')}</td><td ${metaTd}><b style="color:#19446C">Quote Date:</b> ${qesc(q.quote_date||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#19446C">Address:</b> ${qesc(q.customer_address||'—')}</td><td ${metaTd}><b style="color:#19446C">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#19446C">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#19446C">Prepared By:</b> ${qesc(q.prepared_by||'—')}</td></tr>
     </table>
+    ${q.description?`<h3 ${h3}>Description</h3><div ${prose}>${blk(q.description)}</div>`:''}
     ${q.scope?`<h3 ${h3}>Scope of Supply</h3><div ${prose}>${blk(q.scope)}</div>`:''}
-    ${q.assumptions?`<h3 ${h3}>Assumptions &amp; Clarifications</h3><div ${prose}>${blk(q.assumptions)}</div>`:''}
     <h3 ${h3}>Pricing Summary</h3>
     <table style="width:100%;border-collapse:collapse">
-      <thead><tr>${['#','PN','Product','Unit','Price','Qty','Extended'].map((h,ix)=>`<th align="${ix===0||ix===3?'center':(ix>=4?'right':'left')}" style="font-size:9pt;text-transform:uppercase;color:#888;border-bottom:2px solid #ddd;padding:6px 7px">${h}</th>`).join('')}</tr></thead>
+      <thead><tr>${['#','PN','Product','Unit','Price','Qty','Extended'].map((h,ix)=>`<th align="${ix===0||ix===3?'center':(ix>=4?'right':'left')}" bgcolor="#19446C" style="font-size:9pt;text-transform:uppercase;color:#ffffff;padding:6px 7px">${h}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody><tfoot>${foot.join('')}</tfoot></table>
+    ${q.assumptions?`<h3 ${h3}>Assumptions &amp; Clarifications</h3><div ${prose}>${blk(q.assumptions)}</div>`:''}
     ${q.delivery_terms?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(q.payment_terms)}</div>`:''}
     ${q.notes?`<h3 ${h3}>Notes</h3><div ${prose}>${blk(q.notes)}</div>`:''}

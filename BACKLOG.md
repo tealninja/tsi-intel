@@ -32,13 +32,16 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   new seals, follow up") + the landing spot for **webform / email** requests.
 
 **Quote generator**
-- [ ] **Print/PDF** must use **theme colors + fonts** correctly (check the styles repo).
+- [x] **Print/PDF + Word** now use **theme colors + fonts** (deep-blue #19446C + teal
+  #00929F, Inter + DM Serif Display; deep-blue pricing header, teal accents).
+- [x] Rename **"proposal" → "quote"** in the builder, Print/PDF, and Word output.
+- [x] Add a **Description** section after the "issued to" info (new `q-description`
+  field + D1 `quotes.description` column + worker upsert).
+- [x] Move **Assumptions & Clarifications to after the pricing** (Print + Word).
 - [ ] **Rich-text** long fields (bold, bullets).
 - [ ] **Attach the T&Cs** doc (uploaded in git) — a box for the full terms.
-- [ ] Rename **"proposal" → "quote"** throughout.
-- [ ] Add a **Description** section after the "issued to" info.
-- [ ] Move **Assumptions & Clarifications to after the pricing**.
 - [ ] Import: allow **Excel / files / email** upload + **drag-and-drop**.
+- [ ] **Professional unique PN** on the quote/price list (customer-facing catalog #).
 
 **Decisions to talk through**
 - [?] **Part numbers** — abstract them? (how far, and why)

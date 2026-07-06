@@ -382,16 +382,16 @@ export default {
       const upsertQuote = env.DB.prepare(
         `INSERT OR REPLACE INTO quotes
           (id, rev, seq, customer_org_seed_id, customer_name, customer_address,
-           contact_name, contact_email, contact_phone, project, status, currency,
+           contact_name, contact_email, contact_phone, project, description, status, currency,
            quote_date, valid_until, prepared_by, scope, assumptions, payment_terms,
            delivery_terms, notes, discount, discount_mode, freight, tax_pct,
            subtotal, total, version, created_at, created_by, updated_at, updated_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).bind(
         id, q.rev || 'R0', q.seq == null ? null : Number(q.seq),
         q.customer_org_seed_id || null, q.customer_name, q.customer_address || null,
         q.contact_name || null, q.contact_email || null, q.contact_phone || null,
-        q.project || null, q.status || 'Draft', q.currency || 'USD',
+        q.project || null, q.description || null, q.status || 'Draft', q.currency || 'USD',
         q.quote_date || null, q.valid_until || null, q.prepared_by || null,
         q.scope || null, q.assumptions || null, q.payment_terms || null,
         q.delivery_terms || null, q.notes || null,
