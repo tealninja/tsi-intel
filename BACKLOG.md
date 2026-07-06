@@ -93,8 +93,11 @@ Roles (cumulative ladder):
   pipeline opps heuristic-classified; **Samples pulls from Biocarbon quotes**;
   **linked-stages ribbon** cross-refs siblings (Alfanar Stage 1/2, Idemitsu units).
   Keyboard ←/→/Esc, "Hide $" toggle, full-screen. Read-only.
-- [ ] **Stage 2 — curation builder** — hand-pick which opps are in the deck + fix section
-  assignment (override stored in `Store('preso_sections')`, heuristic-seeded); reorder.
+- [x] **Stage 2 — curation builder (drag & drop)** — "🗂 Arrange deck" opens a kanban board
+  (5 columns: the 4 business lines + "Not in deck"). Drag cards between lines to re-file, drag
+  within a line to reorder, drop into "Not in deck" to hide. Persists section/order/exclusion
+  per opp in `Store('preso_sections')` (local cache now; D1 when the worker deploys); "↺ Reset
+  to auto" clears overrides; "▶ Present" launches the deck in that exact arrangement.
 - [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
   richer sample-quote slides, PDF/Word export of the deck.
 
