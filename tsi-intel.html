@@ -4556,12 +4556,17 @@ function Store(collection){
   const writeCache = () => { try { localStorage.setItem(cacheKey, JSON.stringify(items)); } catch {} };
   return {
     all(){ return items; },
-    setAll(next){ items = Array.isArray(next) ? next : []; writeCache(); },
+    setAll(next){ items = Array.isArray(next) ? next : []; writeCache(); },   // cache-only
     mode(){ return mode; },
     async pull(){                         // load authoritative copy from D1
       const r = await storeApi('GET', collection);
       if (r.ok && r.data && Array.isArray(r.data.items)) { items = r.data.items; writeCache(); mode = 'db'; return true; }
       mode = 'local'; return false;
+    },
+    async saveAll(next){                  // replace whole collection: cache + D1 bulk (POST)
+      items = Array.isArray(next) ? next : []; writeCache();
+      const r = await storeApi('POST', collection, { items });
+      mode = r.ok ? 'db' : 'local'; return r.ok;
     },
     async put(obj){                       // upsert one object (cache first, then D1)
       const i = items.findIndex(x => x.id === obj.id);
@@ -11974,6 +11979,10 @@ startAdminPoll();
 .pb-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid #1e2a37;flex:0 0 auto;flex-wrap:wrap}
 .pb-title{font-weight:800;letter-spacing:.4px;font-size:15px}
 .pb-hint{color:#6b8093;font-size:12.5px}
+.pb-save{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid #2a3644;color:#6b8093}
+.pb-save.db{color:#8fd6a0;border-color:rgba(110,140,52,.5);background:rgba(110,140,52,.14)}
+.pb-save.local{color:#e0a97a;border-color:rgba(196,120,48,.4);background:rgba(196,120,48,.1)}
+.pb-save.saving{color:#8fa2b7}
 .pb-top .sp{margin-left:auto}
 .pb-btn{background:#161d27;color:#cdd8e4;border:1px solid #2a3644;border-radius:7px;padding:7px 13px;font-size:12.5px;cursor:pointer}
 .pb-btn:hover{background:#1d2632}
@@ -12004,6 +12013,7 @@ startAdminPoll();
   <div class="pb-top">
     <span class="pb-title">🗂 Build the deck</span>
     <span class="pb-hint">Drag cards between lines to re-file · drag within a line to reorder · drop in <b>Not in deck</b> to hide.</span>
+    <span class="pb-save" id="pb-save-state" title="Where this arrangement is saved"></span>
     <span class="sp"></span>
     <button class="pb-btn" onclick="presoResetCfg()" title="Clear all overrides — back to auto-classification">↺ Reset to auto</button>
     <button class="pb-btn" onclick="closePresoBuilder()">Close</button>
@@ -13400,8 +13410,14 @@ const PB_COLS = [...PRESO_SECTIONS.map(s=>({key:s.key,label:s.label,acc:s.acc}))
 async function openPresoBuilder(){
   const ov=document.getElementById('presob-overlay'); ov.classList.add('open');
   document.getElementById('pb-board').innerHTML='<div style="margin:auto;color:#6b8093">Loading opportunities…</div>';
-  await presoBuildBoard();
+  await presoBuildBoard();                       // presoLoadOverrides() pulls the authoritative copy from D1
+  pbSetSaveState(presoSectStore ? presoSectStore.mode() : 'local');
   pbRender();
+}
+function pbSetSaveState(state){
+  const el=document.getElementById('pb-save-state'); if(!el) return;
+  el.className='pb-save '+state;
+  el.textContent = state==='db' ? '☁ Saved to server' : state==='saving' ? '⟳ Saving…' : '⚠ Saved in this browser only';
 }
 function closePresoBuilder(){ document.getElementById('presob-overlay').classList.remove('open'); }
 
@@ -13465,25 +13481,33 @@ function pbDrop(e,col){
   if(overCard){ const bid=overCard.getAttribute('data-id'); const bi=_presoBoard[col].indexOf(bid);
     if(bi>=0){ const r=overCard.getBoundingClientRect(); idx=(e.clientY<r.top+r.height/2)?bi:bi+1; } }
   _presoBoard[col].splice(idx,0,id);
-  presoCacheBoard(); pbRender();
+  pbRender(); presoSaveBoard();
 }
-// serialize board → config records, persist to the local Store cache
-function presoCacheBoard(){
+// serialize the board → config records
+function presoBoardRecords(){
   const recs=[]; _presoCfg={};
   Object.entries(_presoBoard).forEach(([col,ids])=>{
     ids.forEach((id,i)=>{
       const excluded=(col==='excluded');
       const section=excluded?(_presoItemMap[id]?.__quote?'samples':presoHeuristic(_presoItemMap[id]||{})):col;
-      const rec={id, section, ord:i, excluded};
-      _presoCfg[id]={section, ord:i, excluded}; recs.push(rec);
+      _presoCfg[id]={section, ord:i, excluded}; recs.push({id, section, ord:i, excluded});
     });
   });
-  if(presoSectStore){ try{ presoSectStore.setAll(recs); }catch{} }
+  return recs;
+}
+// persist the arrangement — cache + D1 bulk (server-side, shared); falls back to local when the worker is down
+async function presoSaveBoard(){
+  const recs=presoBoardRecords();
+  if(!presoSectStore) return;
+  pbSetSaveState('saving');
+  let ok=false; try{ ok=await presoSectStore.saveAll(recs); }catch{}
+  pbSetSaveState(ok?'db':'local');
 }
 async function presoResetCfg(){
   _presoCfg={};
-  if(presoSectStore){ try{ presoSectStore.setAll([]); }catch{} }
-  await presoBuildBoard(); pbRender();
+  pbSetSaveState('saving');
+  let ok=false; if(presoSectStore){ try{ ok=await presoSectStore.saveAll([]); }catch{} }
+  await presoBuildBoard(); pbSetSaveState(ok?'db':'local'); pbRender();
   if(typeof showToast==='function') showToast('Deck reset to auto-classification','var(--tsi-teal)');
 }
 function presoPresentFromBuilder(){ closePresoBuilder(); openPreso(); }

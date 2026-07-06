@@ -95,9 +95,13 @@ Roles (cumulative ladder):
   Keyboard ←/→/Esc, "Hide $" toggle, full-screen. Read-only.
 - [x] **Stage 2 — curation builder (drag & drop)** — "🗂 Arrange deck" opens a kanban board
   (5 columns: the 4 business lines + "Not in deck"). Drag cards between lines to re-file, drag
-  within a line to reorder, drop into "Not in deck" to hide. Persists section/order/exclusion
-  per opp in `Store('preso_sections')` (local cache now; D1 when the worker deploys); "↺ Reset
-  to auto" clears overrides; "▶ Present" launches the deck in that exact arrangement.
+  within a line to reorder, drop into "Not in deck" to hide. "↺ Reset to auto" clears overrides;
+  "▶ Present" launches the deck in that exact arrangement.
+- [x] **Server-side arrangement** — the builder now **pushes to D1** (bulk POST
+  `/api/store/preso_sections`, one shared deck for the team) via a new `Store.saveAll()`;
+  a save-state chip shows **☁ Saved to server** vs **⚠ this browser only**. Verified: client
+  POSTs the correct `{id,section,ord,excluded}` payload; live D1 `collections` round-trip
+  (insert→read→delete) confirmed. **Remaining: deploy the worker** so the route exists (below).
 - [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
   richer sample-quote slides, PDF/Word export of the deck.
 
