@@ -1121,7 +1121,7 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   /* Header — compact. The desktop logo is 105px tall (overflows the 48px bar by
      design); on phones that overflowed onto the tab row and its 239px width
      shoved the title + dark-mode toggle off-screen. Shrink it to fit the bar. */
-  .header-logo  { height:38px; margin-top:0; }
+  .header-logo  { height:56px; margin-top:0; }
   .header-title { font-size:12px; }
   .header-sub   { font-size:10px; }
   .header-top   { padding-left:10px; gap:8px; }
@@ -1648,14 +1648,23 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   font-family:var(--font-ui); background:transparent;
   color:var(--color-text-secondary);
 }
+/* Mobile-only "← All accounts" back button (shown inside the detail/map panel) */
+.acct-back-btn{display:none;align-items:center;gap:6px;margin:10px 14px 2px;padding:7px 12px;
+  border:1px solid var(--color-border-mid);border-radius:var(--radius-md);background:var(--color-surface);
+  color:var(--tsi-teal);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui)}
 @media(max-width:768px){
   .acct-layout{grid-template-columns:1fr;height:auto}
-  .acct-sidebar{max-height:260px;border-right:none;border-bottom:1px solid var(--color-border)}
+  .acct-sidebar{max-height:none;border-right:none;border-bottom:1px solid var(--color-border)}
   /* The detail/map panels are pinned to grid-column:2 for the desktop two-pane
      layout; on mobile the grid is a single column, so force them back into
-     column 1 (row auto) to stack below the list instead of spilling into an
-     implicit second column that runs off-screen. */
+     column 1 (row auto). */
   .acct-main{grid-column:1;grid-row:auto;min-width:0}
+  /* Master/detail: show the FULL account list OR a selected site's detail —
+     never a cramped 260px split. Tapping a site opens the detail (with a Back
+     button); the list is hidden until you go back. */
+  .acct-layout:not(.acct-detail-open) .acct-main{display:none}
+  .acct-layout.acct-detail-open .acct-sidebar{display:none}
+  .acct-back-btn{display:inline-flex}
 }
 
 
@@ -6762,6 +6771,7 @@ function toggleAcctGroup(groupId) {
       </div>`;
     }
   }
+  acctSetDetailOpen(false);   // mobile: expanding a group returns to the list view
   if (_acctMapShowing) renderAcctMap();
 }
 
@@ -6780,11 +6790,34 @@ function selectAcctSite(siteId) {
     if (btn) btn.style.background = '';
   }
   renderAcctMain(siteId);
+  acctSetDetailOpen(true);   // mobile: swap from the list to the site detail
+}
+
+// Mobile master/detail helpers (no-op visual effect on desktop; the class is
+// only consumed by the ≤768px stylesheet).
+function acctSetDetailOpen(on){
+  const l = document.getElementById('acct-layout');
+  if (l) l.classList.toggle('acct-detail-open', !!on);
+}
+function acctBackToList(){
+  _acctSelectedSite = null;
+  if (_acctMapShowing){            // also closes the map view
+    _acctMapShowing = false;
+    const mp = document.getElementById('acct-map-panel');
+    const btn = document.getElementById('acct-map-toggle-btn');
+    if (mp) mp.style.display = 'none';
+    if (btn) btn.style.background = '';
+  }
+  const main = document.getElementById('acct-main');
+  if (main) main.style.display = '';
+  acctSetDetailOpen(false);
+  renderAcctSidebar();
 }
 
 function renderAcctMain(siteId) {
   const main = document.getElementById('acct-main');
   if (!main) return;
+  main.style.display = '';   // ensure visible (map toggle may have hidden it)
   const data    = getAccounts();
   const site    = data.sites.find(s => s.id === siteId);
   if (!site) return;
@@ -6807,6 +6840,7 @@ function renderAcctMain(siteId) {
   const today = new Date().toISOString().slice(0,10);
 
   main.innerHTML = `
+    <button class="acct-back-btn" onclick="acctBackToList()">← All accounts</button>
     <div class="acct-site-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
       <div>
         <div class="acct-site-name">${site.name}</div>
@@ -9684,11 +9718,15 @@ function toggleAcctMap() {
   const btn       = document.getElementById('acct-map-toggle-btn');
   if (_acctMapShowing) {
     mapPanel.style.display = '';
+    if (mainPanel) mainPanel.style.display = 'none';   // don't stack the detail under the map on mobile
     btn.style.background = 'rgba(0,146,159,.15)';
+    acctSetDetailOpen(true);                            // mobile: map takes over the screen
     renderAcctMap();
   } else {
     mapPanel.style.display = 'none';
+    if (mainPanel) mainPanel.style.display = '';
     btn.style.background = '';
+    acctSetDetailOpen(false);
   }
 }
 
@@ -11234,7 +11272,7 @@ startAdminPoll();
 
 <!-- ══ ACCOUNTS MODULE ══ -->
 <div id="view-accounts" class="view" style="padding:0">
-  <div class="acct-layout">
+  <div class="acct-layout" id="acct-layout">
 
     <!-- SIDEBAR -->
     <div class="acct-sidebar">
@@ -11257,6 +11295,7 @@ startAdminPoll();
 
     <!-- MAP PANEL — overlays main when toggled -->
     <div class="acct-main" id="acct-map-panel" style="display:none;padding:14px">
+      <button class="acct-back-btn" onclick="acctBackToList()">← All accounts</button>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <div style="font-size:13px;font-weight:600;color:var(--color-heading);flex:1">
           All Account Locations
