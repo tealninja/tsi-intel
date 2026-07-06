@@ -1,0 +1,33 @@
+# wrangler.toml — tsi-intel-api Worker (permissive drop-in)
+#
+# Deploy from this deploy/ directory:
+#     wrangler deploy
+#
+# This binds BOTH stores the worker needs:
+#   • TSI_DATA (KV)  — pipeline, bugs, usage, locks  (already used by the live worker)
+#   • DB       (D1)  — prices, quotes, and the /api/store collections (bugs, saved
+#                      views, follows, and the Project Track deck arrangement)
+#
+# IDs below were verified live against the Cloudflare account on 2026-07-06.
+#
+# AUTH: leave TSI_API_KEY unset (permissive, prod-parity). Do NOT `wrangler secret
+# put TSI_API_KEY` unless you also set the matching key in the client — otherwise
+# every write 401s. See the header comment in tsi-intel-api.js.
+
+name = "tsi-intel-api"
+main = "tsi-intel-api.js"
+compatibility_date = "2026-06-01"
+
+# KV — existing pipeline/bugs/usage/locks store
+[[kv_namespaces]]
+binding = "TSI_DATA"
+id = "e1b7efd464b647909e526903f52dc01f"   # tsi-pipeline-data
+
+# D1 — quotes, price book, and the generic collection store (THIS is the new binding)
+[[d1_databases]]
+binding = "DB"
+database_name = "tsi-intel"
+database_id = "e18ad8cb-ce35-42b2-ba01-8a1d31551398"
+
+# Optional: the AI proxy (/api/ai) reads env.ANTHROPIC_API_KEY. It's a secret, not
+# set here — add it only if you use that route:  wrangler secret put ANTHROPIC_API_KEY

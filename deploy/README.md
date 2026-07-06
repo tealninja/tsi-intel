@@ -19,22 +19,28 @@ It adds:
 
 ## Deploy (whoever owns the `tsi-intel-api` Worker)
 
-1. Use `deploy/tsi-intel-api.js` as the Worker's `main` script.
-2. Ensure the Worker's `wrangler.toml` has **both** bindings:
-   ```toml
-   [[kv_namespaces]]
-   binding = "TSI_DATA"
-   id = "e1b7efd464b647909e526903f52dc01f"
+A ready-to-use **`deploy/wrangler.toml`** sits next to the script with both
+bindings already filled in (IDs verified live on 2026-07-06):
 
-   [[d1_databases]]           # ← this is the new one the quote endpoints need
-   binding = "DB"
-   database_name = "tsi-intel"
-   database_id = "e18ad8cb-ce35-42b2-ba01-8a1d31551398"
-   ```
-3. `wrangler deploy`.
+```bash
+cd deploy
+wrangler deploy        # uses wrangler.toml → deploys tsi-intel-api.js
+```
 
 That's it — no client change needed. The app auto-detects the endpoints and the
-Quote Builder / Price Book flip from **OFFLINE** to **D1** on next load.
+Quote Builder / Price Book / deck-arrangement flip from **OFFLINE** to **D1** on
+next load. Both bindings the worker needs:
+
+- **TSI_DATA** (KV `tsi-pipeline-data`, `e1b7efd464b647909e526903f52dc01f`) — pipeline/bugs/usage/locks.
+- **DB** (D1 `tsi-intel`, `e18ad8cb-ce35-42b2-ba01-8a1d31551398`) — the new binding for
+  prices, quotes, and `/api/store/*` (bugs, saved views, follows, **Project Track deck arrangement**).
+
+If you deploy without the **DB** binding, the D1 routes now return a clear
+`503 "D1 not bound…"` instead of a cryptic 500.
+
+**Auth:** leave `TSI_API_KEY` **unset** (permissive, prod-parity). Setting it
+without also giving the client the matching key makes every write 401 — see the
+header comment in `tsi-intel-api.js`.
 
 ## Notes
 
