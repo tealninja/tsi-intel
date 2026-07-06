@@ -728,6 +728,16 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 }
 .dinput:focus,.dselect:focus,.dtextarea:focus { border-color:var(--tsi-teal); }
 .dtextarea { resize:vertical; min-height:60px; line-height:1.5; }
+/* Rich-text (contenteditable) quote fields */
+.q-rte { min-height:64px; overflow:auto; cursor:text; }
+.q-rte:focus { border-color:var(--tsi-teal); }
+.q-rte:empty:before { content:attr(data-ph); color:var(--color-text-muted); pointer-events:none; }
+.q-rte ul, .q-rte ol { margin:4px 0 4px 20px; padding:0; }
+.q-rte-tb { display:flex; gap:4px; margin-bottom:5px; }
+.q-rte-b { min-width:26px; height:24px; padding:0 6px; border:1px solid var(--color-border-mid); background:var(--color-surface);
+  border-radius:4px; font-size:12px; font-weight:700; cursor:pointer; color:var(--color-text-secondary); line-height:1; }
+.q-rte-b:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+.q-rte-b.bul { font-weight:500; }
 .drow-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
 .drow-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
 
@@ -11925,15 +11935,15 @@ startAdminPoll();
     </div>
 
     <div class="dsec">
-      <div class="dsec-title">Quote Text &amp; Terms</div>
-      <div class="drow"><label>Description <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— shown under the customer info</span></label><textarea class="dtextarea" id="q-description" placeholder="Short overview of the offering / opportunity…"></textarea></div>
-      <div class="drow"><label>Scope of Supply</label><textarea class="dtextarea" id="q-scope" placeholder="Description of what we are supplying…"></textarea></div>
-      <div class="drow"><label>Assumptions &amp; Clarifications <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— printed after the pricing</span></label><textarea class="dtextarea" id="q-assumptions"></textarea></div>
+      <div class="dsec-title">Quote Text &amp; Terms <span class="q-line-count" style="text-transform:none;letter-spacing:0">— rich text: B, I, • bullets</span></div>
+      <div class="drow"><label>Description <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— shown under the customer info</span></label><div class="dtextarea q-rte" id="q-description" contenteditable="true" data-ph="Short overview of the offering / opportunity…"></div></div>
+      <div class="drow"><label>Scope of Supply</label><div class="dtextarea q-rte" id="q-scope" contenteditable="true" data-ph="Description of what we are supplying…"></div></div>
+      <div class="drow"><label>Assumptions &amp; Clarifications <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— printed after the pricing</span></label><div class="dtextarea q-rte" id="q-assumptions" contenteditable="true" data-ph="Assumptions &amp; clarifications…"></div></div>
       <div class="drow-2">
-        <div><label>Payment Terms</label><textarea class="dtextarea" id="q-payment" style="min-height:48px"></textarea></div>
-        <div><label>Delivery Terms</label><textarea class="dtextarea" id="q-delivery" style="min-height:48px"></textarea></div>
+        <div><label>Payment Terms</label><div class="dtextarea q-rte" id="q-payment" contenteditable="true" data-ph="Payment terms…"></div></div>
+        <div><label>Delivery Terms</label><div class="dtextarea q-rte" id="q-delivery" contenteditable="true" data-ph="Delivery terms…"></div></div>
       </div>
-      <div class="drow"><label>Notes</label><textarea class="dtextarea" id="q-notes" style="min-height:48px"></textarea></div>
+      <div class="drow"><label>Notes</label><div class="dtextarea q-rte" id="q-notes" contenteditable="true" data-ph="Notes…"></div></div>
     </div>
   </div>
   <div id="q-drawer-mode-warn" class="q-drawer-mode-warn" style="display:none">
@@ -12863,7 +12873,30 @@ function blankQuote(){
     description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'',
     discount:0, discount_mode:'pct', freight:0, tax_pct:0, subtotal:0, total:0, lines:[] };
 }
+// ── Rich-text (contenteditable) helpers for the quote prose fields ──
+function rteCmd(e, cmd){ e.preventDefault(); try{ document.execCommand(cmd, false, null); }catch(_){} }
+function rteSanitize(html){
+  let s = String(html==null?'':html);
+  s = s.replace(/<\s*(script|style|iframe|object|embed|link|meta)\b[^>]*>[\s\S]*?<\/\s*\1\s*>/gi,'');
+  s = s.replace(/<\s*(script|style|iframe|object|embed|link|meta)\b[^>]*\/?>/gi,'');
+  s = s.replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi,'');           // strip on*= handlers
+  s = s.replace(/(href|src)\s*=\s*(["']?)\s*javascript:[^"'>\s]*\2/gi,'');  // strip javascript: urls
+  return s;
+}
+function rteFromValue(v){ v = (v==null?'':String(v)); return /<[a-z/][^>]*>/i.test(v) ? rteSanitize(v) : qesc(v).replace(/\n/g,'<br>'); }
+function rteToValue(html){ const s = rteSanitize(html); const t = document.createElement('div'); t.innerHTML = s;
+  return (t.textContent.trim()==='' && !/<(ul|ol|li|img)\b/i.test(s)) ? '' : s; }
+let _qRteMounted = false;
+function mountQuoteToolbars(){
+  if(_qRteMounted) return; _qRteMounted = true;
+  const tb = `<div class="q-rte-tb">`
+    + `<button type="button" class="q-rte-b" onmousedown="rteCmd(event,'bold')" title="Bold">B</button>`
+    + `<button type="button" class="q-rte-b" style="font-style:italic" onmousedown="rteCmd(event,'italic')" title="Italic">I</button>`
+    + `<button type="button" class="q-rte-b bul" onmousedown="rteCmd(event,'insertUnorderedList')" title="Bulleted list">• List</button></div>`;
+  document.querySelectorAll('#quote-drawer .q-rte').forEach(el=>{ el.insertAdjacentHTML('beforebegin', tb); });
+}
 async function openQuoteBuilder(id){
+  mountQuoteToolbars();
   populateQuoteAccounts(); populateQuoteCatPicker(); renderQuickAdd();
   if(id){ const q=await loadOneQuote(id); if(!q){ showToast('Quote not found','var(--tsi-coral)'); return; }
     _qWorking=JSON.parse(JSON.stringify(q)); _qWorking.lines=_qWorking.lines||[]; _qExisting=true;
@@ -12880,7 +12913,8 @@ function closeQuoteBuilder(){
   document.getElementById('quote-drawer').classList.remove('open');
 }
 function fillQuoteForm(){
-  const q=_qWorking; const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v==null?'':v; };
+  const q=_qWorking; const S=(id,v)=>{ const el=document.getElementById(id); if(!el) return;
+    if(el.isContentEditable) el.innerHTML=rteFromValue(v); else el.value=v==null?'':v; };
   const numEl=document.getElementById('quote-drawer-num'); numEl.textContent=q.id; numEl.title='Auto-generated quote number';
   S('q-customer',q.customer_name); document.getElementById('q-customer-org').value=q.customer_org_seed_id||'';
   S('q-customer-address',q.customer_address); S('q-contact-name',q.contact_name); S('q-contact-email',q.contact_email); S('q-contact-phone',q.contact_phone);
@@ -12992,7 +13026,8 @@ function recalcQuoteTotals(){
   q.subtotal=t.sub; q.total=t.grand;
 }
 function readQuoteForm(){
-  const q=_qWorking; const V=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+  const q=_qWorking; const V=id=>{ const el=document.getElementById(id); if(!el) return '';
+    return el.isContentEditable ? rteToValue(el.innerHTML) : el.value; };
   q.customer_name=V('q-customer').trim(); q.customer_org_seed_id=V('q-customer-org')||null;
   q.customer_address=V('q-customer-address').trim(); q.contact_name=V('q-contact-name').trim();
   q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
@@ -13057,7 +13092,7 @@ function printQuote(q){
   if(t.freight>0) foot.push(`<tr><td colspan="6" class="r lbl">Freight / Shipping</td><td class="r">${qmoney(t.freight,cur)}</td></tr>`);
   if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" class="r lbl">Tax / VAT (${q.tax_pct}%)</td><td class="r">${qmoney(t.tax,cur)}</td></tr>`);
   foot.push(`<tr class="grand"><td colspan="6" class="r lbl">Total (${cur})</td><td class="r">${qmoney(t.grand,cur)}</td></tr>`);
-  const blk=s=>qesc(s||'').replace(/\n/g,'<br>');
+  const blk=s=>{ s=String(s==null?'':s); return /<[a-z/][^>]*>/i.test(s) ? rteSanitize(s) : qesc(s).replace(/\n/g,'<br>'); };
   // TSI theme tokens (matches the app's :root): deep-blue #19446C primary,
   // teal #00929F accent, Inter (body) + DM Serif Display (headings).
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
@@ -13114,7 +13149,7 @@ function exportQuoteWordCurrent(){ if(_qWorking){ readQuoteForm(); exportQuoteWo
 async function exportQuoteWordById(id){ const q=await loadOneQuote(id); if(q) exportQuoteWord(q); }
 function exportQuoteWord(q){
   const cur=q.currency||'USD'; const t=qTotals(q);
-  const blk=s=>qesc(s||'').replace(/\n/g,'<br>');
+  const blk=s=>{ s=String(s==null?'':s); return /<[a-z/][^>]*>/i.test(s) ? rteSanitize(s) : qesc(s).replace(/\n/g,'<br>'); };
   const cellTd='style="padding:6px 7px;border-bottom:1px solid #eee;font-size:10.5pt;vertical-align:top"';
   const rows=(q.lines||[]).map((l,i)=>`<tr>
     <td ${cellTd} align="center">${i+1}</td>
