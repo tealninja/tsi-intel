@@ -41,3 +41,6 @@ seed_manifest.json
 enrichment_crosswalk.json
 IMPLEMENTATION_PLAN.md
 TODO.md
+
+# Deploy artifacts (worker source for tsi-intel-api) — never public
+deploy/
