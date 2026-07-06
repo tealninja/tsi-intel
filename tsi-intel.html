@@ -2724,6 +2724,9 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   </div>
   <div class="collapse-body" id="hot-body" style="max-height:760px">
     <div style="padding:10px var(--sp-4) 4px">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button class="preso-launch" onclick="openPreso()" title="Full-screen walk-through of the open opportunities, grouped by business line — built for presenting to the engineering team">🎤 Present to Engineering</button>
+      </div>
       <div class="hot-cards" id="hot-cards"></div>
     </div>
   </div>
@@ -11859,6 +11862,109 @@ startAdminPoll();
   </div>
 </div><!-- /quote-drawer -->
 
+<!-- ══════════════ PROJECT TRACK — present mode ══════════════ -->
+<style>
+.preso-launch{background:linear-gradient(135deg,#19446c,#00929f);color:#fff;border:none;border-radius:8px;
+  padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.preso-launch:hover{filter:brightness(1.08)}
+#preso-overlay{position:fixed;inset:0;z-index:12000;background:#05080c;color:#eaf0f7;
+  font-family:'Segoe UI',system-ui,sans-serif;display:none;flex-direction:column}
+#preso-overlay.open{display:flex}
+.pz-top{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid #1e2a37;flex:0 0 auto}
+.pz-brand{font-weight:800;letter-spacing:.5px}
+.pz-brand small{color:#5f7288;font-weight:600;margin-left:8px;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
+.pz-top .sp{margin-left:auto}
+.pz-btn{background:#161d27;color:#cdd8e4;border:1px solid #2a3644;border-radius:7px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+.pz-btn:hover{background:#1d2632}
+.pz-btn.act{color:#fff;border-color:#00929f;background:rgba(0,146,159,.16)}
+.pz-stage{flex:1 1 auto;overflow:auto;display:flex;justify-content:center;padding:22px}
+.pz-slide{width:100%;max-width:1180px;margin:auto;position:relative;
+  background:radial-gradient(1200px 500px at 12% -10%,#12202b 0%,#0d1117 55%);
+  border:1px solid #2a3644;border-radius:16px;padding:34px 40px 30px;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden}
+.pz-slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--acc,#00929f)}
+.pz-eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#5f7288;margin-bottom:18px;flex-wrap:wrap}
+.pz-eyebrow .on{color:var(--acc,#00929f);font-weight:700}
+.pz-eyebrow .sep{opacity:.35}.pz-eyebrow .pos{margin-left:auto;color:#5f7288;letter-spacing:.05em}
+.pz-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:12px}
+.pz-acct{font-size:38px;font-weight:800;line-height:1.03;letter-spacing:-.5px}
+.pz-ptype{font-size:18px;color:#8fa2b7;margin-top:6px;font-weight:500}
+.pz-loc{font-size:14px;color:#5f7288;margin-top:9px}
+.pz-flag{white-space:nowrap;font-size:12px;color:#c4a230;border:1px solid rgba(196,162,48,.4);border-radius:999px;padding:5px 12px;background:rgba(196,162,48,.08)}
+.pz-ribbon{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:#9fb2c7;background:#12202b;border:1px solid #26384a;border-radius:8px;padding:7px 12px;margin-bottom:16px}
+.pz-ribbon b{color:#eaf0f7}
+.pz-ribbon a{color:var(--acc,#00929f);cursor:pointer;text-decoration:none;border-bottom:1px dashed currentColor}
+.pz-grid{display:grid;grid-template-columns:1.55fr .95fr;gap:20px}
+.pz-box{background:#161d27;border:1px solid #2a3644;border-radius:12px;padding:16px 18px}
+.pz-box+.pz-box{margin-top:13px}
+.pz-lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5f7288;margin-bottom:11px}
+.pz-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px}
+.pz-chip{font-size:13.5px;font-weight:600;color:#fff;padding:6px 12px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
+.pz-spec{font-size:16px;line-height:1.7;color:#d3ddea;white-space:pre-wrap}
+.pz-spec .x{color:var(--acc,#00929f);font-weight:700}
+.pz-caps{display:flex;gap:22px;flex-wrap:wrap}
+.pz-cap .big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:var(--acc,#00929f)}
+.pz-cap .csub{font-size:11px;color:#5f7288;letter-spacing:.09em;text-transform:uppercase;margin-top:5px}
+.pz-inst{display:flex;gap:9px;flex-wrap:wrap}
+.pz-pill{font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px solid #2a3644;color:#8fa2b7}
+.pz-pill.on{color:#dcecd2;border-color:rgba(128,152,72,.5);background:rgba(128,152,72,.14)}
+.pz-map{height:150px;border-radius:10px;border:1px solid #2a3644;overflow:hidden;margin-bottom:12px;background:linear-gradient(0deg,#0c161f,#12212e);position:relative}
+.pz-map .gb{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:26px 26px}
+.pz-map .pin{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--acc,#00929f);box-shadow:0 0 0 6px color-mix(in srgb,var(--acc,#00929f) 25%,transparent);transform:translate(-50%,-50%)}
+.pz-map .nm{position:absolute;left:12px;bottom:9px;font-size:12px;color:#8fa2b7}
+.pz-comm{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
+.pz-comm .k{color:#5f7288}.pz-comm .v{color:#eaf0f7;text-align:right;font-variant-numeric:tabular-nums}
+#preso-overlay.hide-money .pz-money{filter:blur(7px);opacity:.5;user-select:none}
+/* overview */
+.pz-ov-title{font-size:30px;font-weight:800;margin-bottom:4px}
+.pz-ov-sub{color:#8fa2b7;margin-bottom:20px}
+.pz-ov-grid{display:grid;grid-template-columns:1.3fr .9fr;gap:20px}
+#pz-ovmap{height:340px;border-radius:12px;border:1px solid #2a3644;overflow:hidden;background:#0c161f}
+.pz-kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.pz-kpi{background:#161d27;border:1px solid #2a3644;border-radius:12px;padding:14px 16px}
+.pz-kpi .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.pz-kpi .l{font-size:11px;color:#5f7288;text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+.pz-agenda{background:#161d27;border:1px solid #2a3644;border-radius:12px;padding:8px 6px}
+.pz-ag-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer}
+.pz-ag-row:hover{background:#1d2632}
+.pz-ag-dot{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
+.pz-ag-nm{font-weight:700}.pz-ag-ct{margin-left:auto;color:#8fa2b7;font-variant-numeric:tabular-nums}
+.pz-ag-bl{color:#5f7288;font-size:12px}
+/* section divider */
+.pz-sec-big{font-size:52px;font-weight:800;letter-spacing:-1px;margin:6px 0 8px}
+.pz-sec-blurb{font-size:17px;color:#8fa2b7;margin-bottom:22px}
+.pz-sec-list{display:flex;flex-direction:column;gap:8px}
+.pz-sec-item{display:flex;align-items:baseline;gap:12px;padding:9px 4px;border-bottom:1px solid #1a2431}
+.pz-sec-item .a{font-weight:700}.pz-sec-item .t{color:#8fa2b7}.pz-sec-item .v{margin-left:auto;color:#5f7288;font-variant-numeric:tabular-nums}
+/* rail */
+.pz-rail{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:11px 22px;border-top:1px solid #1e2a37;font-size:11px;color:#5f7288;overflow-x:auto;white-space:nowrap}
+.pz-rseg{display:inline-flex;align-items:center;gap:5px}
+.pz-rnode{width:9px;height:9px;border-radius:50%;background:#33475b;cursor:pointer;flex:0 0 auto}
+.pz-rnode.on{box-shadow:0 0 0 4px color-mix(in srgb,var(--c,#00929f) 22%,transparent);background:var(--c,#00929f)}
+.pz-rname{text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
+.pz-rname.cur{color:#eaf0f7;font-weight:700}
+.pz-rdash{width:20px;height:1px;background:#2a3644;flex:0 0 auto}
+.pz-nav{position:fixed;bottom:56px;right:26px;display:flex;gap:8px;z-index:12010}
+.pz-nav button{width:46px;height:46px;border-radius:50%;border:1px solid #2a3644;background:#161d27cc;color:#eaf0f7;font-size:20px;cursor:pointer;backdrop-filter:blur(4px)}
+.pz-nav button:hover{background:#1d2632}
+.pz-empty{color:#5f7288;font-style:italic;font-size:15px;padding:8px 0}
+@media(max-width:760px){.pz-grid,.pz-ov-grid{grid-template-columns:1fr}.pz-acct{font-size:28px}.pz-sec-big{font-size:36px}.pz-slide{padding:22px 20px}}
+</style>
+<div id="preso-overlay" role="dialog" aria-label="Project Track presentation">
+  <div class="pz-top">
+    <span class="pz-brand">TSI · Project Track<small>Open opportunities · for engineering</small></span>
+    <span class="sp"></span>
+    <button class="pz-btn" id="pz-money-btn" onclick="presoToggleMoney()" title="Blur commercial figures">Hide $</button>
+    <button class="pz-btn" onclick="presoFullscreen()" title="Toggle full screen">⛶ Full screen</button>
+    <button class="pz-btn" onclick="closePreso()">✕ Exit</button>
+  </div>
+  <div class="pz-stage" id="pz-stage"></div>
+  <div class="pz-rail" id="pz-rail"></div>
+  <div class="pz-nav">
+    <button onclick="presoGo(-1)" title="Previous (←)">‹</button>
+    <button onclick="presoGo(1)" title="Next (→)">›</button>
+  </div>
+</div>
+
 <script>
 const PRODUCTS_SEED = [
   {"code":"AMS-001","name":"AMS","category":"AMS Services","price":null,"unit":"service","structure":"Product Family","parentCode":"","legacyPn":"AMS-XXXXX","notes":"","seedId":"prod_0011"},
@@ -12915,6 +13021,314 @@ function exportQuoteWord(q){
   try { prodDownload(new Blob(['﻿'+doc], {type:'application/msword'}), fname); }
   catch(e){ showToast('Word export failed: '+e.message,'var(--tsi-coral)'); return; }
   showToast('✓ Exported '+fname,'var(--tsi-teal)');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PROJECT TRACK — full-screen present mode for the engineering team.
+   Deck: Overview (map + KPIs + agenda) → each business-line section →
+   one slide per opportunity (technical scope first). Sections in a
+   fixed order; Biomass/Eng-Wood/Torrefaction come from open pipeline
+   opps (heuristic-classified, override via Store('preso_sections'));
+   Torrefaction Samples comes from the Biocarbon quotes. Read-only.
+   Reuses: DATA, fetchQuotes, TAG_DEFS, LOC_COORDS, Store, showToast, L.
+   ══════════════════════════════════════════════════════════════════ */
+const PRESO_SECTIONS = [
+  { key:'biomass', label:'Biomass',              acc:'#6E8C34', blurb:'Wood-pellet & biomass-fuel drying systems' },
+  { key:'engwood', label:'Engineered Wood',      acc:'#19446C', blurb:'MDF · OSB · particleboard — dryers, emissions, aftermarket' },
+  { key:'torref',  label:'Torrefaction',         acc:'#B45309', blurb:'Torreactor & TAP plants' },
+  { key:'samples', label:'Torrefaction Samples', acc:'#0E7490', blurb:'Biocarbon sample program' },
+];
+const PRESO_SECT = Object.fromEntries(PRESO_SECTIONS.map(s=>[s.key,s]));
+let presoSectStore = (typeof Store==='function') ? Store('preso_sections') : null;
+let _presoOverrides = {};
+let _presoDeck = [];      // flat list of slide descriptors
+let _presoIdx = 0;
+let _presoMap = null;
+
+// heuristic → section key (overridable)
+function presoClassify(o){
+  if(_presoOverrides[o.id]) return _presoOverrides[o.id];
+  if((o.cat||'')==='Torrefaction') return 'torref';
+  const hay = ((o.acct||'')+' '+(o.type||'')+' '+(o.notes||'')+' '+(o.loc||'')).toLowerCase();
+  if(/biomass|pellet|\bfuel\b|austwood|van\s*lung/.test(hay)) return 'biomass';
+  return 'engwood';
+}
+// account base for sibling detection ("Idemitsu SE Asia #2" → "Idemitsu SE Asia")
+function presoAcctBase(a){ return String(a||'').replace(/\s*#?\d+\s*$/,'').trim().toLowerCase(); }
+// decode scope tags → [{label,color}]
+function presoScopeTags(tags){
+  return (tags||[]).map(t=>TAG_DEFS[t]).filter(Boolean).map(d=>({label:d[0],color:'#'+d[1]}));
+}
+// install/commissioning scope from tags (MI/EI/COM), not the unused booleans
+function presoInstall(tags){
+  const has=k=>(tags||[]).includes(k);
+  return [
+    {label:'Mechanical install', on:has('MI')},
+    {label:'Electrical install',  on:has('EI')},
+    {label:'Commissioning',       on:has('COM')},
+    {label:'Equipment supply',    on:true},
+  ];
+}
+// best-effort capacity extraction from free text → [{big,sub}]
+function presoCapacity(o){
+  const txt = (o.type||'')+' · '+(o.notes||'');
+  const caps=[]; const seen=new Set();
+  // throughput e.g. "700k TPY", "120k TPY", "300 TPY"
+  const tpy = txt.match(/(\d[\d,\.]*\s*[kKmM]?)\s*TPY/);
+  if(tpy){ caps.push({big:tpy[1].replace(/\s+/g,'')+'', sub:'TPY output'}); seen.add('tpy'); }
+  // counts e.g. "6x Torreactors", "3x full lines" — require a LETTER right after x (skips "14x90ft")
+  const re=/(\d+)\s*[x×]\s*([A-Za-z][A-Za-z\/\-]*(?:\s+[A-Za-z][A-Za-z\/\-]*){0,3})/g; let m;
+  while((m=re.exec(txt)) && caps.length<3){
+    const words=m[2].trim().split(/\s+/);
+    const label=words[words.length-1].replace(/[^A-Za-z\/\-]/g,'');
+    const key=label.toLowerCase();
+    if(!label || seen.has(key)) continue; seen.add(key);
+    caps.push({big:m[1]+'×', sub:label});
+  }
+  return caps.slice(0,3);
+}
+function presoMoney(n){ if(n==null||isNaN(n)) return '—'; const v=Number(n); return v>=1e6?('$'+(v/1e6).toFixed(1)+'M'):(v>=1e3?('$'+(v/1e3).toFixed(0)+'k'):('$'+v)); }
+function presoLoc(o){ return o.loc || [o.city,o.country].filter(Boolean).join(', ') || '—'; }
+function presoCoords(loc){
+  if(!loc || typeof LOC_COORDS==='undefined') return null;
+  if(LOC_COORDS[loc]) return LOC_COORDS[loc];
+  const k=Object.keys(LOC_COORDS).find(k=>loc.toLowerCase().includes(k.toLowerCase().split(',')[0])||k.toLowerCase().includes(loc.toLowerCase().split(',')[0]));
+  return k?LOC_COORDS[k]:null;
+}
+
+async function presoLoadOverrides(){
+  _presoOverrides={};
+  if(!presoSectStore) return;
+  try{ await presoSectStore.pull(); }catch{}
+  try{ (presoSectStore.all()||[]).forEach(r=>{ if(r&&r.id&&r.section) _presoOverrides[r.id]=r.section; }); }catch{}
+}
+
+// assemble the deck
+async function presoBuildDeck(){
+  await presoLoadOverrides();
+  const opens = (typeof DATA!=='undefined'?DATA:[]).filter(o=>(o.status||'O')==='O');
+  const bySect={ biomass:[], engwood:[], torref:[], samples:[] };
+  opens.forEach(o=>{ const k=presoClassify(o); (bySect[k]||bySect.engwood).push(o); });
+  // sibling links within the deck (per section, by account base)
+  Object.values(bySect).forEach(list=>{
+    const groups={};
+    list.forEach(o=>{ const b=presoAcctBase(o.acct); (groups[b]=groups[b]||[]).push(o); });
+    list.forEach(o=>{ o.__sibs=(groups[presoAcctBase(o.acct)]||[]).filter(s=>s.id!==o.id); });
+  });
+  // Torrefaction Samples ← Biocarbon quotes
+  let quotes=[]; try{ quotes=await fetchQuotes(); }catch{}
+  bySect.samples = (quotes||[]).map(q=>({ __quote:true, id:q.id, acct:q.customer_name||'Sample quote',
+    type:q.project||'Torrefaction sample program', loc:q.customer_address||'', val:q.total,
+    status:q.status, lines:q.lines||[], quote_date:q.quote_date }));
+
+  const deck=[{type:'overview', bySect}];
+  PRESO_SECTIONS.forEach(s=>{
+    const jobs=bySect[s.key]||[];
+    deck.push({type:'section', section:s, jobs});
+    jobs.forEach((job,i)=>deck.push({type:'job', section:s, job, i, n:jobs.length}));
+  });
+  return deck;
+}
+
+async function openPreso(){
+  const ov=document.getElementById('preso-overlay');
+  ov.classList.add('open');
+  document.getElementById('pz-stage').innerHTML='<div style="margin:auto;color:#5f7288">Building deck…</div>';
+  document.addEventListener('keydown', presoKey);
+  try{ _presoDeck=await presoBuildDeck(); }catch(e){ _presoDeck=[{type:'overview',bySect:{biomass:[],engwood:[],torref:[],samples:[]}}]; }
+  _presoIdx=0; presoRender();
+}
+function closePreso(){
+  document.getElementById('preso-overlay').classList.remove('open');
+  document.removeEventListener('keydown', presoKey);
+  if(_presoMap){ try{_presoMap.remove();}catch{} _presoMap=null; }
+  if(document.fullscreenElement){ try{document.exitFullscreen();}catch{} }
+}
+function presoKey(e){
+  if(e.key==='Escape'){ closePreso(); }
+  else if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); presoGo(1); }
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); presoGo(-1); }
+  else if(e.key==='Home'){ presoJump(0); }
+}
+function presoGo(d){ presoJump(_presoIdx+d); }
+function presoJump(i){ if(i<0||i>=_presoDeck.length) return; _presoIdx=i; presoRender(); }
+function presoToggleMoney(){
+  const ov=document.getElementById('preso-overlay'); ov.classList.toggle('hide-money');
+  document.getElementById('pz-money-btn').classList.toggle('act', ov.classList.contains('hide-money'));
+}
+function presoFullscreen(){
+  const ov=document.getElementById('preso-overlay');
+  if(document.fullscreenElement){ document.exitFullscreen(); }
+  else if(ov.requestFullscreen){ ov.requestFullscreen().catch(()=>{}); }
+}
+
+function presoRender(){
+  const slide=_presoDeck[_presoIdx]; if(!slide) return;
+  const stage=document.getElementById('pz-stage');
+  if(slide.type==='overview') stage.innerHTML=presoOverviewHTML(slide);
+  else if(slide.type==='section') stage.innerHTML=presoSectionHTML(slide);
+  else stage.innerHTML=presoJobHTML(slide);
+  stage.scrollTop=0;
+  presoRenderRail();
+  if(slide.type==='overview') presoRenderOvMap(slide);
+}
+
+function presoOverviewHTML(s){
+  const all=[].concat(s.bySect.biomass,s.bySect.engwood,s.bySect.torref);
+  const nJobs=all.length + s.bySect.samples.length;
+  const totVal=all.reduce((a,o)=>a+(Number(o.val)||0),0);
+  const wVal=all.reduce((a,o)=>a+(Number(o.val)||0)*(Number(o.prob)||0),0);
+  const kpis=[['Opportunities',nJobs],['Business lines',PRESO_SECTIONS.filter(x=>(s.bySect[x.key]||[]).length).length],
+    ['Combined value',presoMoney(totVal)],['Weighted value',presoMoney(wVal)]];
+  const agenda=PRESO_SECTIONS.map((sec,ix)=>{
+    const jobs=s.bySect[sec.key]||[]; const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
+    return `<div class="pz-ag-row" onclick="presoJumpToSection('${sec.key}')">
+      <span class="pz-ag-dot" style="background:${sec.acc}"></span>
+      <span class="pz-ag-nm">${qesc(sec.label)}</span>
+      <span class="pz-ag-bl">${qesc(sec.blurb)}</span>
+      <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?' · '+presoMoney(val):''}</span></div>`;
+  }).join('');
+  return `<div class="pz-slide" style="--acc:#00929f">
+    <div class="pz-eyebrow"><span class="on">Overview</span><span class="sep">·</span><span>Open opportunities for engineering</span></div>
+    <div class="pz-ov-title">Open Opportunities — Engineering Review</div>
+    <div class="pz-ov-sub">Grouped by business line. Use → / ← or click the track below.</div>
+    <div class="pz-ov-grid">
+      <div><div id="pz-ovmap"></div></div>
+      <div>
+        <div class="pz-kpis">${kpis.map(k=>`<div class="pz-kpi"><div class="n${k[0].includes('value')?' pz-money':''}">${k[1]}</div><div class="l">${k[0]}</div></div>`).join('')}</div>
+        <div class="pz-agenda">${agenda}</div>
+      </div>
+    </div></div>`;
+}
+function presoRenderOvMap(s){
+  const el=document.getElementById('pz-ovmap'); if(!el) return;
+  if(typeof L==='undefined'){ el.innerHTML='<div style="padding:14px;color:#5f7288;font-size:13px">Map unavailable offline</div>'; return; }
+  try{
+    if(_presoMap){ _presoMap.remove(); _presoMap=null; }
+    _presoMap=L.map(el,{zoomControl:true,attributionControl:false}).setView([25,0],2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(_presoMap);
+    const pts=[];
+    ['biomass','engwood','torref'].forEach(k=>{
+      (s.bySect[k]||[]).forEach(o=>{ const c=presoCoords(presoLoc(o)); if(!c) return;
+        const mk=L.circleMarker(c,{radius:Math.max(6,Math.min(24,6+Math.sqrt((o.val||0)/1e6)*1.3)),
+          color:PRESO_SECT[k].acc,fillColor:PRESO_SECT[k].acc,fillOpacity:.75,weight:1.4});
+        mk.bindPopup('<b>'+qesc(o.acct)+'</b><br>'+qesc(o.type||'')); mk.addTo(_presoMap); pts.push(c); });
+    });
+    if(pts.length) _presoMap.fitBounds(pts,{padding:[30,30],maxZoom:5});
+    setTimeout(()=>_presoMap&&_presoMap.invalidateSize(),60);
+  }catch(e){ el.innerHTML='<div style="padding:14px;color:#5f7288">Map error</div>'; }
+}
+
+function presoSectionHTML(s){
+  const sec=s.section, jobs=s.jobs;
+  const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
+  const list=jobs.length ? jobs.map(o=>`<div class="pz-sec-item"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span></div>`).join('')
+    : `<div class="pz-empty">No opportunities in this section yet.</div>`;
+  return `<div class="pz-slide" style="--acc:${sec.acc}">
+    <div class="pz-eyebrow">${PRESO_SECTIONS.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
+    <div class="pz-sec-big">${qesc(sec.label)}</div>
+    <div class="pz-sec-blurb">${qesc(sec.blurb)}</div>
+    <div style="display:flex;gap:22px;margin-bottom:20px">
+      <div class="pz-cap"><div class="big" style="color:${sec.acc}">${jobs.length}</div><div class="csub">${jobs.length===1?'Opportunity':'Opportunities'}</div></div>
+      ${val?`<div class="pz-cap pz-money"><div class="big" style="color:${sec.acc}">${presoMoney(val)}</div><div class="csub">Combined value</div></div>`:''}
+    </div>
+    <div class="pz-sec-list">${list}</div></div>`;
+}
+
+function presoJobHTML(s){
+  const o=s.job, sec=s.section;
+  return o.__quote ? presoQuoteSlide(o,sec,s) : presoOppSlide(o,sec,s);
+}
+function presoOppSlide(o,sec,s){
+  const tags=presoScopeTags(o.tags);
+  const chips=tags.length?tags.map(t=>`<span class="pz-chip" style="background:${t.color}">${qesc(t.label)}</span>`).join(''):'';
+  const caps=presoCapacity(o);
+  const inst=presoInstall(o.tags);
+  const spec=(o.notes||'').trim();
+  const specHtml=spec?`<div class="pz-spec">${qesc(spec).replace(/(\d+)\s*[x×]/g,'<span class="x">$1×</span>')}</div>`:(chips?'':`<div class="pz-empty">Scope defined by project type; details TBD.</div>`);
+  const coords=presoCoords(presoLoc(o));
+  const pin=coords?`<div class="pz-map"><div class="gb"></div><div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div><div class="nm">${qesc(presoLoc(o))}</div></div>`
+    :`<div class="pz-map"><div class="gb"></div><div class="nm">${qesc(presoLoc(o))}</div></div>`;
+  // stage-link ribbon
+  let ribbon='';
+  const stageM=(spec+' '+(o.type||'')).match(/stage\s+(\d+)\s+of\s+(\d+)/i);
+  const sibs=o.__sibs||[];
+  if(stageM||sibs.length){
+    let bits=[];
+    if(stageM) bits.push(`<b>Stage ${stageM[1]} of ${stageM[2]}</b>`);
+    if(sibs.length){
+      const links=sibs.map(sb=>`<a onclick="presoJumpToId('${qattr(sb.id)}')">${qesc(sb.type||sb.acct)}</a>`).join(' · ');
+      bits.push(`part of <b>${qesc(presoAcctBase(o.acct)?o.acct.replace(/\s*#?\d+\s*$/,''):o.acct)}</b> — also: ${links}`);
+    }
+    ribbon=`<div class="pz-ribbon">🔗 ${bits.join(' &nbsp;·&nbsp; ')}</div>`;
+  }
+  const capsHtml=caps.length?`<div class="pz-lbl" style="margin-bottom:10px">Capacity</div><div class="pz-caps">${caps.map(c=>`<div class="pz-cap"><div class="big" style="color:${sec.acc}">${qesc(c.big)}</div><div class="csub">${qesc(c.sub)}</div></div>`).join('')}</div>`:'';
+  return `<div class="pz-slide" style="--acc:${sec.acc}">
+    <div class="pz-eyebrow">${PRESO_SECTIONS.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
+    <div class="pz-head">
+      <div><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div><div class="pz-loc">📍 ${qesc(presoLoc(o))}</div></div>
+      <div class="pz-flag">${qesc(o.stage||'—')}${o.close?' · closes '+qesc(o.close):''}</div>
+    </div>
+    ${ribbon}
+    <div class="pz-grid">
+      <div>
+        <div class="pz-box"><div class="pz-lbl">Scope of Supply</div>${chips?`<div class="pz-chips">${chips}</div>`:''}${specHtml}</div>
+        <div class="pz-box"><div class="pz-lbl">Install &amp; Commissioning</div>
+          <div class="pz-inst">${inst.map(p=>`<span class="pz-pill${p.on?' on':''}">${qesc(p.label)}</span>`).join('')}</div>
+          ${o.freightTerms?`<div style="font-size:12.5px;color:#5f7288;margin-top:11px">Freight: ${qesc(o.freightTerms)}</div>`:''}</div>
+      </div>
+      <div>
+        <div class="pz-box">${pin}${capsHtml||'<div style="color:#5f7288;font-size:12.5px">Scope by tags &amp; type</div>'}</div>
+        <div class="pz-box pz-money"><div class="pz-lbl">Commercial</div>
+          <div class="pz-comm">
+            <span class="k">Value</span><span class="v">${presoMoney(o.val)}</span>
+            <span class="k">Probability</span><span class="v">${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</span>
+            <span class="k">Stage</span><span class="v">${qesc(o.stage||'—')}</span>
+            <span class="k">Lead</span><span class="v">${qesc(o.lead||'—')}</span>
+          </div></div>
+      </div>
+    </div></div>`;
+}
+function presoQuoteSlide(o,sec,s){
+  const lines=(o.lines||[]);
+  const chips=lines.slice(0,8).map(l=>`<span class="pz-chip" style="background:#0e7490">${qesc((l.qty?l.qty+'× ':'')+(l.description||l.code||'item'))}</span>`).join('');
+  return `<div class="pz-slide" style="--acc:${sec.acc}">
+    <div class="pz-eyebrow">${PRESO_SECTIONS.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
+    <div class="pz-head">
+      <div><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div>${o.loc?`<div class="pz-loc">📍 ${qesc(o.loc)}</div>`:''}</div>
+      <div class="pz-flag" style="color:#0e7490;border-color:rgba(14,116,144,.5);background:rgba(14,116,144,.1)">${qesc(o.status||'Quote')}${o.quote_date?' · '+qesc(o.quote_date):''}</div>
+    </div>
+    <div class="pz-grid">
+      <div><div class="pz-box"><div class="pz-lbl">Sample Scope — ${lines.length} line${lines.length===1?'':'s'}</div>
+        ${chips?`<div class="pz-chips">${chips}</div>`:'<div class="pz-empty">No line items on this quote.</div>'}</div></div>
+      <div><div class="pz-box pz-money"><div class="pz-lbl">Commercial</div>
+        <div class="pz-comm"><span class="k">Quote total</span><span class="v">${presoMoney(o.val)}</span>
+          <span class="k">Status</span><span class="v">${qesc(o.status||'—')}</span>
+          <span class="k">Quote №</span><span class="v" style="font-size:12px">${qesc(o.id||'—')}</span></div></div></div>
+    </div></div>`;
+}
+// crude equirectangular projection for the decorative pin (lat/lon → % of box)
+function presoPinX(c){ return Math.max(4,Math.min(96,(c[1]+180)/360*100)); }
+function presoPinY(c){ return Math.max(4,Math.min(96,(90-c[0])/180*100)); }
+
+function presoJumpToSection(key){ const i=_presoDeck.findIndex(d=>d.type==='section'&&d.section.key===key); if(i>=0) presoJump(i); }
+function presoJumpToId(id){ const i=_presoDeck.findIndex(d=>d.type==='job'&&d.job&&d.job.id===id); if(i>=0) presoJump(i); }
+
+function presoRenderRail(){
+  const rail=document.getElementById('pz-rail'); if(!rail) return;
+  const cur=_presoDeck[_presoIdx];
+  let html=`<span class="pz-rseg"><span class="pz-rnode ${_presoIdx===0?'on':''}" style="--c:#00929f" onclick="presoJump(0)"></span><span class="pz-rname ${_presoIdx===0?'cur':''}" onclick="presoJump(0)">Overview</span></span>`;
+  PRESO_SECTIONS.forEach(sec=>{
+    html+=`<span class="pz-rdash"></span>`;
+    const secIdx=_presoDeck.findIndex(d=>d.type==='section'&&d.section.key===sec.key);
+    const onSec=cur&&((cur.type==='section'&&cur.section.key===sec.key)||(cur.type==='job'&&cur.section.key===sec.key));
+    html+=`<span class="pz-rseg"><span class="pz-rname ${onSec?'cur':''}" style="${onSec?'color:'+sec.acc:''}" onclick="presoJump(${secIdx})">${qesc(sec.label)}</span>`;
+    _presoDeck.forEach((d,di)=>{ if(d.type==='job'&&d.section.key===sec.key){
+      html+=`<span class="pz-rnode ${di===_presoIdx?'on':''}" style="--c:${sec.acc}" title="${qattr(d.job.acct||'')}" onclick="presoJump(${di})"></span>`;
+    }});
+    html+=`</span>`;
+  });
+  rail.innerHTML=html;
 }
 
 // Products-tab "+ Quote" hook (if the Products table exposes it later).

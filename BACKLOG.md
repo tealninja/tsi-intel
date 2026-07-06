@@ -83,6 +83,21 @@ Roles (cumulative ladder):
 - [ ] Full **rev history in D1** — rev # + status persist as columns today; the detailed
   per-revision snapshots are local-only (add a `revisions` JSON column / collection later).
 
+## 🎤 Project Track — present mode (sales → engineering)
+- [x] **Stage 1 — present mode** — full-screen "🎤 Present to Engineering" (from the Hot
+  strip). Deck: Overview (map + KPIs + agenda) → business-line section dividers → one slide
+  per opportunity, **technical scope first** (decoded scope-tag chips, spec text with counts
+  highlighted, install/commissioning from MI/EI/COM tags, auto-extracted **capacity** TPY/×
+  figures, muted-but-shown commercial block, bottom **track rail** with click-to-jump).
+  Sections fixed: **Biomass → Engineered Wood → Torrefaction → Torrefaction Samples**;
+  pipeline opps heuristic-classified; **Samples pulls from Biocarbon quotes**;
+  **linked-stages ribbon** cross-refs siblings (Alfanar Stage 1/2, Idemitsu units).
+  Keyboard ←/→/Esc, "Hide $" toggle, full-screen. Read-only.
+- [ ] **Stage 2 — curation builder** — hand-pick which opps are in the deck + fix section
+  assignment (override stored in `Store('preso_sections')`, heuristic-seeded); reorder.
+- [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
+  richer sample-quote slides, PDF/Word export of the deck.
+
 ## ✅ Recently done
 - [x] **Word (.doc) export** — editable proposal download (Biocarbon letterhead, pricing
   table, scope/assumptions/terms), from the builder footer and each quotes-list row.
