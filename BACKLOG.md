@@ -17,12 +17,13 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 - [ ] **Quote drawer too wide on mobile** — fix width.
 - [ ] **Full mobile audit** of every tab on load.
 
-**Navigation / IA restructure**
-- [ ] **Imminent** → a *filter* on Pipeline, not its own tab.
-- [ ] Merge **Parse-updates + AI-assistant** into one tab (both are text→data).
-- [ ] Move **Usage + Bug register** to the end.
-- [ ] Move **Products + Quotes** to just after Accounts.
-- [?] Confirm final tab order.
+**Navigation / IA restructure** — ✅ DONE
+- [x] **Imminent** → a *filter* on Pipeline (⚡ chip, IMMINENT_IDS), Imminent tab removed.
+- [x] Merge **Parse-updates + AI-assistant** into one **"AI + Parse"** tab with sub-tabs.
+- [x] Move **Usage + Bug register** to the end.
+- [x] Move **Products + Quotes** to just after Accounts.
+- [x] Tab order: `Pipeline · Accounts · Products · Quotes · Won · Summary · AI+Parse · Usage · Bugs · MGMT`.
+- [x] Refactored `showTab` to be **data-tab based** (no more brittle position-indexed matching).
 
 **Accounts features**
 - [ ] **Account media**: store parent-account **logos** (for the view) + **photos** per account,

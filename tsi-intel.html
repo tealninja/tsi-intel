@@ -2660,17 +2660,15 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <span class="tab-ham-icon">☰</span><span class="tab-current" id="tab-current">All Pipeline</span>
   </button>
   <div class="tab-items" id="tab-items">
-  <div class="tab active" onclick="showTab('pipeline')">All Pipeline</div>
-  <div class="tab" onclick="showTab('won')">📁 Closed</div>
-  <div class="tab" onclick="showTab('summary')">📊 Summary</div>
-  <div class="tab" onclick="showTab('accounts')">🏭 Accounts</div>
-  <div class="tab" onclick="showTab('ai')">🤖 AI Assistant</div>
-  <div class="tab" onclick="showTab('parser')">📥 Parse Updates</div>
-  <div class="tab" onclick="showTab('bugs')">🐛 Bug Register</div>
-  <div class="tab" onclick="showTab('imminent')">⚡ Imminent</div>
-  <div class="tab" onclick="showTab('usage')">📊 Usage</div>
-  <div class="tab" onclick="showTab('products')">📦 Products</div>
-  <div class="tab" onclick="showTab('quotes')">🧾 Quotes</div>
+  <div class="tab active" data-tab="pipeline" onclick="showTab('pipeline')">All Pipeline</div>
+  <div class="tab" data-tab="accounts" onclick="showTab('accounts')">🏭 Accounts</div>
+  <div class="tab" data-tab="products" onclick="showTab('products')">📦 Products</div>
+  <div class="tab" data-tab="quotes" onclick="showTab('quotes')">🧾 Quotes</div>
+  <div class="tab" data-tab="won" onclick="showTab('won')">📁 Closed</div>
+  <div class="tab" data-tab="summary" onclick="showTab('summary')">📊 Summary</div>
+  <div class="tab" data-tab="tools" onclick="showTab('tools')">🤖 AI + Parse</div>
+  <div class="tab" data-tab="usage" onclick="showTab('usage')">📊 Usage</div>
+  <div class="tab" data-tab="bugs" onclick="showTab('bugs')">🐛 Bug Register</div>
   <div class="tab mgmt-tab" onclick="enterMgmt();closeTabMenu()">⚙ MGMT</div>
   </div>
   <div class="tab-backdrop" onclick="closeTabMenu()"></div>
@@ -2858,6 +2856,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <span class="chip-label">Show:</span>
       <span class="chip" id="chip-starred" onclick="toggleStarredFilter(this)">⭐ Starred only</span>
       <span class="chip" id="chip-following" onclick="toggleFollowingFilter(this)">🔔 Following only</span>
+      <span class="chip" id="chip-imminent" onclick="toggleImminentFilter(this)" title="Only deals with a PO expected soon">⚡ Imminent</span>
     </div>
   </div>
   <div class="tbl-wrap" id="pip-table-wrap">
@@ -2939,7 +2938,19 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   </div>
 </div>
 
-<!-- ══ AI ══ -->
+<!-- ══ AI + PARSE (merged "tools" tab) ══ -->
+<style>
+.tools-subnav{display:flex;gap:6px;padding:12px var(--sp-4) 0;flex-wrap:wrap}
+.tools-subnav .subtab{padding:8px 15px;border:1px solid var(--color-border);border-bottom:none;
+  border-radius:8px 8px 0 0;background:var(--color-surface);color:var(--color-text-secondary);
+  font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-ui)}
+.tools-subnav .subtab.active{color:var(--tsi-teal);background:var(--color-bg);font-weight:600;
+  box-shadow:inset 0 -2px 0 var(--tsi-teal)}
+</style>
+<div id="tools-subnav" class="tools-subnav" style="display:none">
+  <button class="subtab active" data-sub="ai" onclick="showToolsSub('ai')">🤖 AI Assistant</button>
+  <button class="subtab" data-sub="parser" onclick="showToolsSub('parser')">📥 Parse Updates</button>
+</div>
 <div id="view-ai" class="view">
   <div class="ai-layout">
     <div class="chat-card">
@@ -3145,10 +3156,17 @@ function monthsFromNow(date) {
 let activeCloseChip = null;
 let starredOnly = false;
 let followingOnly = false;   // personal "following" filter (per-user)
+let imminentOnly = false;    // "Imminent" filter — replaces the old Imminent tab
 
 function toggleStarredFilter(el) {
   starredOnly = !starredOnly;
   el.classList.toggle("active", starredOnly);
+  renderPipeline();
+}
+
+function toggleImminentFilter(el) {
+  imminentOnly = !imminentOnly;
+  el.classList.toggle("active", imminentOnly);
   renderPipeline();
 }
 
@@ -3665,15 +3683,21 @@ function renderWon() {
   });
 }
 
+let _toolsSub = 'ai';
 function showTab(name) {
-  // Order matches the visible tab-bar exactly: pipeline, won, summary, accounts,
-  // ai, parser, bugs, imminent, usage. 'mgmt' has its own tab (.mgmt-tab) handled separately.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes"].forEach((t,i)=>{
-    const tabEl  = document.querySelectorAll(".tab")[i];
+  // 'ai' and 'parser' are sub-views of the merged "AI + Parse" (tools) tab.
+  if (name==='ai' || name==='parser') { _toolsSub = name; name = 'tools'; }
+  // Tab highlight keyed on data-tab (not DOM position) so the bar reorders freely.
+  document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
+  // Views — 'tools' owns no view; it hosts ai + parser via showToolsSub(). Imminent
+  // has no tab anymore (it's a pipeline filter), so its view stays hidden.
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes"].forEach(t=>{
     const viewEl = document.getElementById("view-"+t);
-    if (tabEl)  tabEl.classList.toggle("active", t===name);
     if (viewEl) viewEl.classList.toggle("active", t===name);
   });
+  const toolsNav = document.getElementById('tools-subnav');
+  if (toolsNav) toolsNav.style.display = (name==='tools') ? '' : 'none';
+  if (name==='tools') showToolsSub(_toolsSub);
   // Hot Cards / User Bar / Pipeline Charts are pipeline-specific — only show there
   const pipelineWidgets = document.getElementById('pipeline-only-widgets');
   if (pipelineWidgets) pipelineWidgets.style.display = (name === 'pipeline') ? '' : 'none';
@@ -3708,6 +3732,15 @@ function showTab(name) {
   const activeTab = document.querySelector('.tab-items .tab.active');
   if (curEl && activeTab) curEl.textContent = activeTab.textContent.trim();
   closeTabMenu();
+}
+
+function showToolsSub(sub){
+  _toolsSub = (sub==='parser') ? 'parser' : 'ai';
+  const ai = document.getElementById('view-ai');
+  const pa = document.getElementById('view-parser');
+  if (ai) ai.classList.toggle('active', _toolsSub==='ai');
+  if (pa) pa.classList.toggle('active', _toolsSub==='parser');
+  document.querySelectorAll('#tools-subnav .subtab').forEach(b => b.classList.toggle('active', b.dataset.sub===_toolsSub));
 }
 
 function toggleTabMenu(){
@@ -4231,6 +4264,7 @@ function currentFilteredRows() {
   const prob = (document.getElementById("fprob")||{}).value||'';
   let _f = open().filter(o=>
     (!starredOnly||starredIds.has(o.id))&&
+    (!imminentOnly||(typeof IMMINENT_IDS!=='undefined'&&IMMINENT_IDS.includes(o.id)))&&
     (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q))&&
     (!cat||o.cat===cat)&&(!loc||o.loc===loc)&&(!lead||o.lead===lead)&&
     (!tag||(o.tags||[]).includes(tag))&&probFilter(o,prob)&&closeFilter(o)
