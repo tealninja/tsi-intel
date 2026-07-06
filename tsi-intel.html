@@ -2726,7 +2726,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <div style="padding:10px var(--sp-4) 4px">
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
         <button class="preso-launch" style="background:#161d27;color:#cdd8e4;border:1px solid #2a3644" onclick="openPresoBuilder()" title="Arrange the deck: drag opportunities between business lines, reorder, or hide them">🗂 Arrange deck</button>
-        <button class="preso-launch" onclick="openPreso()" title="Full-screen walk-through of the open opportunities, grouped by business line — built for presenting to the engineering team">🎤 Present to Engineering</button>
+        <button class="preso-launch" onclick="openPreso()" title="Full-screen walk-through of the open opportunities, grouped by business line">🎤 Present</button>
       </div>
       <div class="hot-cards" id="hot-cards"></div>
     </div>
@@ -11957,7 +11957,7 @@ startAdminPoll();
 </style>
 <div id="preso-overlay" role="dialog" aria-label="Project Track presentation">
   <div class="pz-top">
-    <span class="pz-brand">TSI · Project Track<small>Open opportunities · for engineering</small></span>
+    <span class="pz-brand">TSI · Project Track<small>Open opportunities</small></span>
     <span class="sp"></span>
     <button class="pz-btn" id="pz-money-btn" onclick="presoToggleMoney()" title="Blur commercial figures">Hide $</button>
     <button class="pz-btn" onclick="presoFullscreen()" title="Toggle full screen">⛶ Full screen</button>
@@ -13258,8 +13258,8 @@ function presoOverviewHTML(s){
       <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?' · '+presoMoney(val):''}</span></div>`;
   }).join('');
   return `<div class="pz-slide" style="--acc:#00929f">
-    <div class="pz-eyebrow"><span class="on">Overview</span><span class="sep">·</span><span>Open opportunities for engineering</span></div>
-    <div class="pz-ov-title">Open Opportunities — Engineering Review</div>
+    <div class="pz-eyebrow"><span class="on">Overview</span><span class="sep">·</span><span>Open opportunities</span></div>
+    <div class="pz-ov-title">Open Opportunities</div>
     <div class="pz-ov-sub">Grouped by business line. Use → / ← or click the track below.</div>
     <div class="pz-ov-grid">
       <div><div id="pz-ovmap"></div></div>
