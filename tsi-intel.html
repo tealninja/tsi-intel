@@ -2552,21 +2552,44 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 .q-quickadd-chip:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); background:rgba(0,146,159,0.06); }
 .q-quickadd-chip .qc-price { font-family:var(--font-mono); opacity:.7; margin-left:4px; }
 
-.q-lines-wrap { border:1px solid var(--color-border); border-radius:var(--radius-md); overflow:hidden; background:var(--color-surface); }
-.q-lines-table { width:100%; border-collapse:collapse; font-size:12px; }
-.q-lines-table thead th { text-align:left; font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--color-text-muted); padding:7px 8px; border-bottom:1px solid var(--color-border); background:var(--color-bg); }
-.q-lines-table tbody td { padding:5px 8px; border-bottom:1px solid var(--color-border); vertical-align:middle; }
-.q-lines-table tbody tr:last-child td { border-bottom:none; }
-.q-lines-table input { width:100%; padding:4px 6px; border:1px solid transparent; border-radius:4px; font-size:12px; font-family:var(--font-ui); background:transparent; color:var(--color-text-primary); outline:none; transition:border-color var(--transition); }
-.q-lines-table input:focus { border-color:var(--tsi-teal); background:var(--color-bg); }
-.q-lines-table input.q-num { text-align:right; font-family:var(--font-mono); }
-.q-line-total { text-align:right; font-family:var(--font-mono); font-weight:500; color:var(--color-heading); white-space:nowrap; }
+/* Line items — responsive rows (wrap on narrow drawers so qty/price stay reachable;
+   the old fixed table overflowed and clipped those fields on phones). */
+.q-lines-wrap { border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); }
+.ql-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 9px; border-bottom:1px solid var(--color-border); }
+.ql-row:last-child { border-bottom:none; }
+.ql-row.dragging { opacity:.45; }
+.ql-row.drag-over { box-shadow:inset 0 2px 0 0 var(--tsi-teal); }
+.ql-handle { flex:0 0 auto; cursor:grab; color:var(--color-text-muted); font-size:13px; line-height:1; padding:2px; user-select:none; }
+.ql-handle:active { cursor:grabbing; }
+.ql-main { flex:1 1 210px; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ql-desc { width:100%; padding:5px 7px; border:1px solid var(--color-border-mid); border-radius:4px; font-size:12px; font-family:var(--font-ui); background:var(--color-bg); color:var(--color-text-primary); outline:none; }
+.ql-meta { display:flex; align-items:center; gap:6px; }
+.ql-code { width:120px; padding:1px 4px; border:1px solid transparent; border-radius:3px; font-family:var(--font-mono); font-size:10px; background:transparent; color:var(--color-text-secondary); outline:none; }
+.ql-code:focus, .ql-desc:focus { border-color:var(--tsi-teal); background:var(--color-bg); }
+.ql-nums { display:flex; align-items:flex-end; gap:8px; flex:0 0 auto; }
+.ql-field { display:flex; flex-direction:column; gap:2px; }
+.ql-field > span { font-size:8px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-text-muted); }
+.ql-field input { width:60px; padding:5px 6px; border:1px solid var(--color-border-mid); border-radius:4px; font-size:12px; background:var(--color-bg); color:var(--color-text-primary); font-family:var(--font-mono); text-align:right; outline:none; }
+.ql-field.unit input { width:52px; text-align:left; font-family:var(--font-ui); }
+.ql-field input:focus { border-color:var(--tsi-teal); }
+.ql-total { display:flex; flex-direction:column; gap:2px; align-items:flex-end; min-width:74px; }
+.ql-total > span { font-size:8px; text-transform:uppercase; color:var(--color-text-muted); }
+.ql-total b { font-family:var(--font-mono); font-weight:500; color:var(--color-heading); white-space:nowrap; }
 .q-line-src { font-size:9px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-text-muted); }
 .q-line-src.custom { color:var(--tsi-amber); }
-.q-line-del { background:none; border:none; color:var(--color-text-muted); cursor:pointer; font-size:13px; padding:0 2px; }
+.q-line-del { background:none; border:none; color:var(--color-text-muted); cursor:pointer; font-size:13px; padding:0 2px; align-self:center; }
 .q-line-del:hover { color:var(--tsi-coral); }
 .q-lines-empty { padding:18px; text-align:center; font-size:12px; color:var(--color-text-muted); }
 .q-line-count { font-size:10px; color:var(--color-text-muted); font-weight:400; text-transform:none; letter-spacing:0; }
+/* product autocomplete */
+.q-ac-wrap { position:relative; }
+.q-ac-menu { position:absolute; top:calc(100% + 2px); left:0; right:0; z-index:60; max-height:260px; overflow-y:auto;
+  background:var(--color-surface); border:1px solid var(--color-border-mid); border-radius:var(--radius-md); box-shadow:0 8px 24px rgba(0,0,0,.18); }
+.q-ac-item { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:7px 10px; font-size:12px; cursor:pointer; }
+.q-ac-item:hover, .q-ac-item.sel { background:rgba(0,146,159,0.08); }
+.q-ac-name { color:var(--color-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.q-ac-meta { font-family:var(--font-mono); font-size:10px; color:var(--color-text-muted); white-space:nowrap; flex:0 0 auto; }
+.q-ac-custom { border-top:1px solid var(--color-border); color:var(--tsi-teal); font-weight:500; }
 
 .q-adjust-row { display:flex; gap:6px; }
 .q-adjust-mode { width:74px; flex-shrink:0; }
@@ -11767,8 +11790,17 @@ startAdminPoll();
 
     <div class="dsec">
       <div class="dsec-title">Add Line Items <span class="q-line-count">— prices auto-fill from the price book; edit any field</span></div>
+      <div class="drow" style="margin-bottom:8px">
+        <label>Find product (type a name or code)</label>
+        <div class="q-ac-wrap">
+          <input class="dinput" id="q-add-search" placeholder="e.g. chips high, 3P-PROX, super sack…" autocomplete="off"
+            oninput="qacSearch(this.value)" onkeydown="qacKey(event)"
+            onblur="setTimeout(()=>{const m=document.getElementById('q-add-ac');if(m)m.style.display='none'},160)">
+          <div class="q-ac-menu" id="q-add-ac" style="display:none"></div>
+        </div>
+      </div>
       <div class="drow-2" style="margin-bottom:8px">
-        <div><label>Category</label><select class="dselect" id="q-add-cat" onchange="onQuoteAddCatChange()"></select></div>
+        <div><label>Or browse by category</label><select class="dselect" id="q-add-cat" onchange="onQuoteAddCatChange()"></select></div>
         <div><label>Product</label><select class="dselect" id="q-add-prod"></select></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -11782,17 +11814,10 @@ startAdminPoll();
     </div>
 
     <div class="dsec">
-      <div class="dsec-title">Line Items <span id="q-line-count" class="q-line-count"></span></div>
+      <div class="dsec-title">Line Items <span id="q-line-count" class="q-line-count"></span> <span class="q-line-count" style="text-transform:none;letter-spacing:0">· drag ⠿ to reorder</span></div>
       <div class="q-lines-wrap">
-        <table class="q-lines-table" id="q-lines-table">
-          <thead><tr>
-            <th style="width:108px">Part #</th><th>Description</th>
-            <th style="width:52px">Qty</th><th style="width:58px">Unit</th>
-            <th style="width:92px">Unit Price</th><th style="width:96px">Line Total</th><th style="width:22px"></th>
-          </tr></thead>
-          <tbody id="q-lines-body"></tbody>
-        </table>
-        <div id="q-lines-empty" class="q-lines-empty">No line items yet — add products above or use a quick-add chip.</div>
+        <div id="q-lines-body"></div>
+        <div id="q-lines-empty" class="q-lines-empty">No line items yet — search above, browse by category, or use a quick-add chip.</div>
       </div>
     </div>
 
@@ -12620,12 +12645,13 @@ function addQuoteLine(seedId){
   renderQuoteLines(); recalcQuoteTotals();
 }
 function addQuoteLineFromPicker(){ const id=document.getElementById('q-add-prod').value; if(id) addQuoteLine(id); }
-function addQuoteCustomLine(){ if(!_qWorking) return; _qWorking.lines.push({ id:null, product_seed_id:null, code:'', description:'', qty:1, unit:'ea', unit_price:0 }); renderQuoteLines(); recalcQuoteTotals(); }
+function addQuoteCustomLine(){ addQuoteCustomLineNamed(''); }
+function addQuoteCustomLineNamed(name){ if(!_qWorking) return; _qWorking.lines.push({ id:null, product_seed_id:null, code:'', description:name||'', qty:1, unit:'ea', unit_price:0 }); renderQuoteLines(); recalcQuoteTotals(); }
 function removeQuoteLine(i){ if(!_qWorking) return; _qWorking.lines.splice(i,1); renderQuoteLines(); recalcQuoteTotals(); }
 function updateQuoteLine(i,field,val){
   const l=_qWorking&&_qWorking.lines[i]; if(!l) return;
   l[field]=(field==='qty'||field==='unit_price')?(parseFloat(val)||0):val;
-  const lt=document.querySelector('#q-lines-body tr[data-i="'+i+'"] .q-line-total');
+  const lt=document.querySelector('#q-lines-body [data-i="'+i+'"] .q-line-total');
   if(lt) lt.textContent=qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0), _qWorking.currency);
   recalcQuoteTotals();
 }
@@ -12636,15 +12662,58 @@ function renderQuoteLines(){
   if(!lines.length){ body.innerHTML=''; empty.style.display=''; return; }
   empty.style.display='none'; const cur=_qWorking.currency;
   body.innerHTML=lines.map((l,i)=>`
-    <tr data-i="${i}">
-      <td><input value="${qattr(l.code||'')}" oninput="updateQuoteLine(${i},'code',this.value)" placeholder="${l.product_seed_id?'':'custom'}" style="font-family:var(--font-mono);font-size:10px"><div class="q-line-src ${l.product_seed_id?'':'custom'}">${l.product_seed_id?'catalog':'custom'}</div></td>
-      <td><input value="${qattr(l.description)}" oninput="updateQuoteLine(${i},'description',this.value)" placeholder="Description"></td>
-      <td><input class="q-num" type="number" min="0" step="1" value="${l.qty}" oninput="updateQuoteLine(${i},'qty',this.value)"></td>
-      <td><input value="${qattr(l.unit)}" oninput="updateQuoteLine(${i},'unit',this.value)"></td>
-      <td><input class="q-num" type="number" min="0" step="0.01" value="${l.unit_price}" oninput="updateQuoteLine(${i},'unit_price',this.value)"></td>
-      <td class="q-line-total">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</td>
-      <td><button class="q-line-del" onclick="removeQuoteLine(${i})" title="Remove">✕</button></td>
-    </tr>`).join('');
+    <div class="ql-row" data-i="${i}" ondragover="qDragOver(event,${i})" ondragleave="qDragLeave(event)" ondrop="qDrop(event,${i})">
+      <div class="ql-handle" title="Drag to reorder" draggable="true" ondragstart="qDragStart(event,${i})" ondragend="qDragEnd(event)">⠿</div>
+      <div class="ql-main">
+        <input class="ql-desc" value="${qattr(l.description)}" oninput="updateQuoteLine(${i},'description',this.value)" placeholder="Description">
+        <div class="ql-meta">
+          <input class="ql-code" value="${qattr(l.code||'')}" oninput="updateQuoteLine(${i},'code',this.value)" placeholder="PN" title="Part number">
+          <span class="q-line-src ${l.product_seed_id?'':'custom'}">${l.product_seed_id?'catalog':'custom'}</span>
+        </div>
+      </div>
+      <div class="ql-nums">
+        <label class="ql-field"><span>Qty</span><input type="number" min="0" step="1" value="${l.qty}" oninput="updateQuoteLine(${i},'qty',this.value)"></label>
+        <label class="ql-field unit"><span>Unit</span><input value="${qattr(l.unit)}" oninput="updateQuoteLine(${i},'unit',this.value)"></label>
+        <label class="ql-field"><span>Unit Price</span><input type="number" min="0" step="0.01" value="${l.unit_price}" oninput="updateQuoteLine(${i},'unit_price',this.value)"></label>
+        <div class="ql-total"><span>Total</span><b class="q-line-total">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</b></div>
+        <button class="q-line-del" onclick="removeQuoteLine(${i})" title="Remove line">✕</button>
+      </div>
+    </div>`).join('');
+}
+// Drag-to-reorder line items (handle is the only draggable element, so inputs stay editable).
+let _qDragFrom=null;
+function qDragStart(e,i){ _qDragFrom=i; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',String(i));}catch{} const r=e.target.closest('.ql-row'); if(r) r.classList.add('dragging'); }
+function qDragOver(e,i){ e.preventDefault(); e.dataTransfer.dropEffect='move'; e.currentTarget.classList.add('drag-over'); }
+function qDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function qDrop(e,i){ e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  const from=_qDragFrom; if(from==null||from===i||!_qWorking) return;
+  const arr=_qWorking.lines; const [moved]=arr.splice(from,1); arr.splice(i,0,moved);
+  _qDragFrom=null; renderQuoteLines(); recalcQuoteTotals(); }
+function qDragEnd(){ _qDragFrom=null; document.querySelectorAll('.ql-row').forEach(r=>r.classList.remove('dragging','drag-over')); }
+// Product autocomplete for the Add Line Items search box.
+let _qacResults=[], _qacSel=-1;
+function qacSearch(q){
+  q=(q||'').trim().toLowerCase();
+  const menu=document.getElementById('q-add-ac'); if(!menu) return;
+  if(!q){ menu.style.display='none'; _qacResults=[]; _qacSel=-1; return; }
+  _qacResults=PRODUCTS.filter(p=>(p.code+' '+p.name+' '+p.category).toLowerCase().includes(q)).slice(0,8);
+  _qacSel=_qacResults.length?0:-1;
+  let html=_qacResults.map((p,idx)=>{ const pr=pbPrice(p.seedId);
+    return `<div class="q-ac-item${idx===_qacSel?' sel':''}" data-idx="${idx}" onmousedown="qacPick(${idx})"><span class="q-ac-name">${qesc(p.name)}</span><span class="q-ac-meta">${qesc(p.code)}${pr!=null?' · '+qmoney(pr,'USD'):''}</span></div>`; }).join('');
+  html+=`<div class="q-ac-item q-ac-custom" onmousedown="qacCustom()">+ Add “${qesc(q)}” as a custom line</div>`;
+  menu.innerHTML=html; menu.style.display='';
+}
+function qacClose(){ const s=document.getElementById('q-add-search'); if(s) s.value=''; const m=document.getElementById('q-add-ac'); if(m) m.style.display='none'; _qacResults=[]; _qacSel=-1; }
+function qacPick(idx){ const p=_qacResults[idx]; if(p) addQuoteLine(p.seedId); qacClose(); }
+function qacCustom(){ const s=document.getElementById('q-add-search'); addQuoteCustomLineNamed(s?s.value.trim():''); qacClose(); }
+function qacHighlight(){ document.querySelectorAll('#q-add-ac .q-ac-item[data-idx]').forEach(el=>el.classList.toggle('sel', +el.dataset.idx===_qacSel)); }
+function qacKey(e){
+  const menu=document.getElementById('q-add-ac'); const open=menu&&menu.style.display!=='none';
+  if(e.key==='Escape'){ qacClose(); return; }
+  if(!open) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _qacSel=Math.min(_qacSel+1,_qacResults.length-1); qacHighlight(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); _qacSel=Math.max(_qacSel-1,0); qacHighlight(); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(_qacSel>=0&&_qacResults[_qacSel]) qacPick(_qacSel); else qacCustom(); }
 }
 function qTotals(q){
   const sub=(q.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unit_price)||0),0);

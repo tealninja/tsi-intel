@@ -73,6 +73,10 @@ Roles (cumulative ladder):
   so features compose consistently. Ties into the extensibility work above.
 
 ## ✅ Recently done
+- [x] **Quote Builder line items** — fixed the mobile bug where qty/unit-price were
+  clipped off-screen (wide table → responsive wrapping rows); added **drag-to-reorder**
+  (handle), a **product autocomplete** search (with "add as custom line"), keeping the
+  category/product dropdowns + quick-add chips.
 - [x] **Collapse sections cut off on mobile** — Hot Right Now / Pipeline Charts had
   fixed 200/260px caps; charts stack taller on phones and clipped. Now measured via
   scrollHeight (recomputed on load/resize/expand) so nothing is cut off, no desktop gap.
