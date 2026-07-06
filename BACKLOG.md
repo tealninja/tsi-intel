@@ -8,6 +8,45 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗒️ 2026-07-06 review — new batch (raised by JT)
+**Quick wins / polish**
+- [x] Pipeline **Value** shows thousands separators (commas).
+- [ ] Account list: make it **obvious it scrolls** (affordance/fade/scrollbar).
+- [ ] Account detail: **map is tiny, climatogram dominates** — size evenly or stack vertically.
+- [ ] **Summary** tab: scroll only the top cards, not the whole page.
+- [ ] **Quote drawer too wide on mobile** — fix width.
+- [ ] **Full mobile audit** of every tab on load.
+
+**Navigation / IA restructure**
+- [ ] **Imminent** → a *filter* on Pipeline, not its own tab.
+- [ ] Merge **Parse-updates + AI-assistant** into one tab (both are text→data).
+- [ ] Move **Usage + Bug register** to the end.
+- [ ] Move **Products + Quotes** to just after Accounts.
+- [?] Confirm final tab order.
+
+**Accounts features**
+- [ ] **Account media**: store parent-account **logos** (for the view) + **photos** per account,
+  with **one prime photo** for the card. (Blobs → Cloudflare **R2**; needs worker + deploy.)
+- [ ] **Unassigned leads inbox**: quick, high-level capture ("was at the mill, engineer wants
+  new seals, follow up") + the landing spot for **webform / email** requests.
+
+**Quote generator**
+- [ ] **Print/PDF** must use **theme colors + fonts** correctly (check the styles repo).
+- [ ] **Rich-text** long fields (bold, bullets).
+- [ ] **Attach the T&Cs** doc (uploaded in git) — a box for the full terms.
+- [ ] Rename **"proposal" → "quote"** throughout.
+- [ ] Add a **Description** section after the "issued to" info.
+- [ ] Move **Assumptions & Clarifications to after the pricing**.
+- [ ] Import: allow **Excel / files / email** upload + **drag-and-drop**.
+
+**Decisions to talk through**
+- [?] **Part numbers** — abstract them? (how far, and why)
+- [?] **AI model tiering / user classes**: `wteal@`, `bteal@`, `jteal@tsi-inc.net` = **executive**
+  class → default a higher-power model (next below Opus, e.g. **Sonnet**) + a **model dropdown**
+  for them. Model choice server-side by class.
+- [ ] **Usage** tab should key on the **SharePoint** identity we already resolve.
+
+
 ## 🚀 Deploy / go-live (blocked on the Cloudflare pipeline)
 - [!] Deploy the quote API endpoints (`worker.js` /api/prices, /api/quotes) via
   `feature/db-seed-and-auth`. Patch: `docs/quote-api-for-db-branch.patch`. Flips the

@@ -3356,7 +3356,7 @@ function makeTextCell(o,field,acList=null,allowCreate=false) {
 function makeValCell(o) {
   const td=document.createElement("td"); td.className="editable";
   const inp=document.createElement("input"); inp.className="cell-input val-input";
-  inp.value=o.val!=null?o.val:""; inp.placeholder="TBD";
+  inp.value=o.val!=null?Number(o.val).toLocaleString('en-US'):""; inp.placeholder="TBD";
   inp.oninput=()=>{
     const rec=DATA.find(r=>r.id===o.id);
     if(rec) {
@@ -3368,7 +3368,8 @@ function makeValCell(o) {
     }
     refreshWtdCells();
   };
-  inp.onblur=()=>{ const rec=DATA.find(r=>r.id===o.id); inp.value=rec&&rec.val!=null?rec.val:""; };
+  // Reformat with thousands separators when leaving the field (typing stays raw).
+  inp.onblur=()=>{ const rec=DATA.find(r=>r.id===o.id); inp.value=rec&&rec.val!=null?Number(rec.val).toLocaleString('en-US'):""; };
   td.appendChild(inp); return td;
 }
 
