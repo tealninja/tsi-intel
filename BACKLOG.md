@@ -78,11 +78,14 @@ Roles (cumulative ladder):
   connector (no tokens). Needs a decision + the worker deployed.
 - [ ] **Quote templates** — save a quote's lines + terms + config as a reusable
   template (Store('quote_templates')); start a new quote from one.
-- [ ] **Export** — beyond Print/PDF: downloadable file (PDF / Excel / Word?) — confirm format.
+- [x] **Export** — **Word (.doc)** download (editable proposal, table-based layout for
+  Word's renderer). Available from the builder footer (📄 Word) and each quotes-list row (📄).
 - [ ] Full **rev history in D1** — rev # + status persist as columns today; the detailed
   per-revision snapshots are local-only (add a `revisions` JSON column / collection later).
 
 ## ✅ Recently done
+- [x] **Word (.doc) export** — editable proposal download (Biocarbon letterhead, pricing
+  table, scope/assumptions/terms), from the builder footer and each quotes-list row.
 - [x] **Quote lifecycle** — Save-draft / Publish buttons; **rev control** (auto-bumps
   R0→R1 on re-publish, keeps a revision history w/ hover timeline); auto-generated
   quote № surfaced as read-only.

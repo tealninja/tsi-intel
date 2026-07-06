@@ -688,7 +688,7 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .drawer-body { overflow-y:auto; overflow-x:hidden; padding:16px 18px 8px; }
 .drawer-footer {
   padding:12px 18px; border-top:1px solid var(--color-border);
-  display:flex; gap:10px;
+  display:flex; gap:10px; flex-wrap:wrap;
   background:var(--color-surface);
   box-shadow:0 -2px 8px rgba(0,0,0,0.08);
 }
@@ -11853,6 +11853,7 @@ startAdminPoll();
   <div class="drawer-footer">
     <button class="btn-cancel-drawer" onclick="closeQuoteBuilder()">Cancel</button>
     <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable proposal (PDF)">🖨 Print / PDF</button>
+    <button class="btn-cancel-drawer" onclick="exportQuoteWordCurrent()" title="Download an editable Word (.doc) proposal">📄 Word</button>
     <button class="btn-cancel-drawer" id="q-save-btn" onclick="saveDraft()" title="Save without publishing">Save draft</button>
     <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Mark Sent; bumps the revision on re-publish">Publish ▸</button>
   </div>
@@ -12547,6 +12548,7 @@ async function renderQuotesList(){
         <button class="q-row-action" onclick="openQuoteBuilder('${qattr(q.id)}')" title="Edit">✎</button>
         <button class="q-row-action" onclick="duplicateQuote('${qattr(q.id)}')" title="Duplicate">⧉</button>
         <button class="q-row-action" onclick="printQuoteById('${qattr(q.id)}')" title="Print / PDF">🖨</button>
+        <button class="q-row-action" onclick="exportQuoteWordById('${qattr(q.id)}')" title="Download Word (.doc)">📄</button>
         <button class="q-row-action del" onclick="deleteQuote('${qattr(q.id)}')" title="Delete">🗑</button>
       </td>
     </tr>`; }).join('');
@@ -12853,6 +12855,66 @@ function printQuote(q){
   </body></html>`;
   const w=window.open('','_blank'); if(!w){ showToast('Pop-up blocked — allow pop-ups to print','var(--tsi-coral)'); return; }
   w.document.open(); w.document.write(html); w.document.close();
+}
+
+// ── EXPORT: Word (.doc) — editable proposal ──
+// Word's HTML renderer has no flexbox/grid, so this uses a table-based layout
+// with inline styles (opens editable in Word; save-as .docx there if wanted).
+function exportQuoteWordCurrent(){ if(_qWorking){ readQuoteForm(); exportQuoteWord(_qWorking); } }
+async function exportQuoteWordById(id){ const q=await loadOneQuote(id); if(q) exportQuoteWord(q); }
+function exportQuoteWord(q){
+  const cur=q.currency||'USD'; const t=qTotals(q);
+  const blk=s=>qesc(s||'').replace(/\n/g,'<br>');
+  const cellTd='style="padding:6px 7px;border-bottom:1px solid #eee;font-size:10.5pt;vertical-align:top"';
+  const rows=(q.lines||[]).map((l,i)=>`<tr>
+    <td ${cellTd} align="center">${i+1}</td>
+    <td ${cellTd} style="padding:6px 7px;border-bottom:1px solid #eee;font-family:Consolas,monospace;font-size:9.5pt;color:#666">${qesc(l.code||'')}</td>
+    <td ${cellTd}>${qesc(l.description||'')}</td>
+    <td ${cellTd} align="center">${qesc(l.unit||'')}</td>
+    <td ${cellTd} align="right">${qmoney(l.unit_price,cur)}</td>
+    <td ${cellTd} align="right">${qesc(String(l.qty||0))}</td>
+    <td ${cellTd} align="right">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</td></tr>`).join('');
+  const ftd='style="padding:5px 7px;font-size:10.5pt"';
+  const foot=[`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Subtotal</td><td ${ftd} align="right">${qmoney(t.sub,cur)}</td></tr>`];
+  if(t.disc>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</td><td ${ftd} align="right">−${qmoney(t.disc,cur)}</td></tr>`);
+  if(t.freight>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Freight / Shipping</td><td ${ftd} align="right">${qmoney(t.freight,cur)}</td></tr>`);
+  if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Tax / VAT (${q.tax_pct}%)</td><td ${ftd} align="right">${qmoney(t.tax,cur)}</td></tr>`);
+  foot.push(`<tr><td colspan="6" align="right" style="padding:8px 7px;border-top:2px solid #2f5233;font-size:13pt;font-weight:700;color:#2f5233">Total (${cur})</td><td align="right" style="padding:8px 7px;border-top:2px solid #2f5233;font-size:13pt;font-weight:700;color:#2f5233">${qmoney(t.grand,cur)}</td></tr>`);
+  const h3='style="font-size:11pt;text-transform:uppercase;letter-spacing:.5pt;color:#6E8C34;border-bottom:1px solid #e5e5e5;padding-bottom:3px;margin:16pt 0 6pt"';
+  const prose='style="font-size:10.5pt;color:#444;white-space:pre-wrap"';
+  const metaTd='style="padding:2px 0;font-size:10.5pt;width:50%"';
+  const body=`
+    <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #6E8C34"><tr>
+      <td style="padding-bottom:10px"><div style="font-size:18pt;font-weight:700;color:#2f5233">${qesc(BIOCARBON_SELLER.name)}</div>
+        <div style="font-size:9pt;color:#777">${qesc(BIOCARBON_SELLER.addr)} · EIN ${qesc(BIOCARBON_SELLER.ein)}</div></td>
+      <td align="right" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#6E8C34;font-family:Consolas,monospace">${qesc(q.id)}</div>
+        <div style="font-size:9pt;color:#999">Rev ${qesc(q.rev||'R0')} · ${qesc(q.status||'Draft')}</div></td>
+    </tr></table>
+    <h3 ${h3}>Proposal${q.project?' — '+qesc(q.project):''}</h3>
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td ${metaTd}><b style="color:#2f5233">Issued to:</b> ${qesc(q.customer_name||'—')}</td><td ${metaTd}><b style="color:#2f5233">Quote Date:</b> ${qesc(q.quote_date||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#2f5233">Address:</b> ${qesc(q.customer_address||'—')}</td><td ${metaTd}><b style="color:#2f5233">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#2f5233">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#2f5233">Prepared By:</b> ${qesc(q.prepared_by||'—')}</td></tr>
+    </table>
+    ${q.scope?`<h3 ${h3}>Scope of Supply</h3><div ${prose}>${blk(q.scope)}</div>`:''}
+    ${q.assumptions?`<h3 ${h3}>Assumptions &amp; Clarifications</h3><div ${prose}>${blk(q.assumptions)}</div>`:''}
+    <h3 ${h3}>Pricing Summary</h3>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>${['#','PN','Product','Unit','Price','Qty','Extended'].map((h,ix)=>`<th align="${ix===0||ix===3?'center':(ix>=4?'right':'left')}" style="font-size:9pt;text-transform:uppercase;color:#888;border-bottom:2px solid #ddd;padding:6px 7px">${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody><tfoot>${foot.join('')}</tfoot></table>
+    ${q.delivery_terms?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(q.delivery_terms)}</div>`:''}
+    ${q.payment_terms?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(q.payment_terms)}</div>`:''}
+    ${q.notes?`<h3 ${h3}>Notes</h3><div ${prose}>${blk(q.notes)}</div>`:''}
+    <p style="font-size:8.5pt;color:#888;border-top:1px solid #eee;margin-top:16pt;padding-top:8pt"><b>Terms &amp; Conditions.</b> ${qesc(Q_TERMS)}</p>`;
+  const doc=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head><meta charset='utf-8'><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
+    <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+    <style>@page{margin:0.9in} body{font-family:Calibri,'Segoe UI',Arial,sans-serif;color:#333;font-size:11pt}</style>
+    </head><body>${body}</body></html>`;
+  const fname=(q.id||'quote')+(q.rev&&q.rev!=='R0'?'-'+q.rev:'')+'.doc';
+  try { prodDownload(new Blob(['﻿'+doc], {type:'application/msword'}), fname); }
+  catch(e){ showToast('Word export failed: '+e.message,'var(--tsi-coral)'); return; }
+  showToast('✓ Exported '+fname,'var(--tsi-teal)');
 }
 
 // Products-tab "+ Quote" hook (if the Products table exposes it later).
