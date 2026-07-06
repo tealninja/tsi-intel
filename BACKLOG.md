@@ -73,6 +73,9 @@ Roles (cumulative ladder):
   so features compose consistently. Ties into the extensibility work above.
 
 ## ✅ Recently done
+- [x] **Collapse sections cut off on mobile** — Hot Right Now / Pipeline Charts had
+  fixed 200/260px caps; charts stack taller on phones and clipped. Now measured via
+  scrollHeight (recomputed on load/resize/expand) so nothing is cut off, no desktop gap.
 - [x] **Mobile header fix** — the 105px logo overflowed the 48px bar and shoved the
   title/dark-toggle off-screen; shrunk it on ≤768px so nothing is cut off (to 320px).
 - [x] **Follows** (pipeline) — per-user 🔔 follow per opp + "Following only" filter.

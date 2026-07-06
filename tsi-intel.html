@@ -2698,7 +2698,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <span class="ch-meta" id="hot-meta">scored by probability × value × activity</span>
     <span class="ch-chevron">▾</span>
   </div>
-  <div class="collapse-body" id="hot-body" style="max-height:200px">
+  <div class="collapse-body" id="hot-body" style="max-height:760px">
     <div style="padding:10px var(--sp-4) 4px">
       <div class="hot-cards" id="hot-cards"></div>
     </div>
@@ -2725,7 +2725,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <span class="ch-meta" id="charts-meta"></span>
     <span class="ch-chevron">▾</span>
   </div>
-  <div class="collapse-body" id="charts-body" style="max-height:260px">
+  <div class="collapse-body" id="charts-body" style="max-height:760px">
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-card-title">Pipeline by Category</div>
@@ -3897,14 +3897,29 @@ function toggleCollapse(section) {
     header.classList.add('collapsed');
   } else {
     body.classList.remove('collapsed');
-    body.style.maxHeight = section === 'map' ? '504px' : section === 'hot' ? '200px' : '260px';
+    // Measure the real content height so nothing clips (charts/hot cards stack
+    // taller on mobile than the old fixed 200/260px caps). Fallback for map,
+    // whose content is sized once Leaflet initializes below.
+    body.style.maxHeight = (body.scrollHeight || (section === 'map' ? 504 : 760)) + 'px';
     header.classList.remove('collapsed');
     if (section === 'map') {
-      if (!tsiMap) { setTimeout(() => { initMap(); updateMap(currentFilteredRows()); }, 50); }
-      else { setTimeout(() => { tsiMap.invalidateSize(); updateMap(currentFilteredRows()); }, 310); }
+      if (!tsiMap) { setTimeout(() => { initMap(); updateMap(currentFilteredRows()); refreshCollapseHeights(); }, 50); }
+      else { setTimeout(() => { tsiMap.invalidateSize(); updateMap(currentFilteredRows()); refreshCollapseHeights(); }, 310); }
     }
   }
 }
+
+// Keep each open collapse section tall enough for its content — recomputed on
+// load and window resize (mobile stacks charts/cards taller than desktop).
+function refreshCollapseHeights() {
+  ['hot','charts','map'].forEach(sec => {
+    const body = document.getElementById(sec + '-body');
+    if (body && !body.classList.contains('collapsed') && body.scrollHeight) {
+      body.style.maxHeight = body.scrollHeight + 'px';
+    }
+  });
+}
+window.addEventListener('resize', () => { clearTimeout(window._collResizeT); window._collResizeT = setTimeout(refreshCollapseHeights, 150); });
 
 // ── CHART STATE ───────────────────────────────────────────────
 let chartDonut = null, chartBar = null, chartProb = null;
@@ -10417,6 +10432,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const rows = currentFilteredRows();
     updateMap(rows);
   }, 400);
+  // Size the open collapse sections to their real content once laid out, so the
+  // charts / hot cards aren't clipped (they stack taller on mobile).
+  setTimeout(refreshCollapseHeights, 250);
+  setTimeout(refreshCollapseHeights, 700);
 });
 // Identity: try SharePoint first, fall back to manual
 initUserIdentity().then(() => showLastEditOnLoad());
