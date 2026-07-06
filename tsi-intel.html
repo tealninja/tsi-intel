@@ -2527,6 +2527,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 
 .quotes-empty { text-align:center; padding:48px 20px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-lg); }
 .q-status-pill { display:inline-block; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.04em; }
+.q-rev-badge { font-family:var(--font-mono); font-size:9px; color:var(--color-text-secondary); background:var(--color-border); border-radius:99px; padding:1px 6px; cursor:help; white-space:nowrap; }
 .q-status-Draft { background:rgba(100,100,100,0.15); color:var(--color-text-secondary); }
 .q-status-Sent { background:rgba(196,162,48,0.18); color:var(--tsi-amber); }
 .q-status-Accepted { background:rgba(110,140,52,0.2); color:var(--tsi-succ-green); }
@@ -11852,7 +11853,8 @@ startAdminPoll();
   <div class="drawer-footer">
     <button class="btn-cancel-drawer" onclick="closeQuoteBuilder()">Cancel</button>
     <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable proposal (PDF)">🖨 Print / PDF</button>
-    <button class="btn-save-opp" id="q-save-btn" onclick="saveQuote()">Save Quote</button>
+    <button class="btn-cancel-drawer" id="q-save-btn" onclick="saveDraft()" title="Save without publishing">Save draft</button>
+    <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Mark Sent; bumps the revision on re-publish">Publish ▸</button>
   </div>
 </div><!-- /quote-drawer -->
 
@@ -12399,8 +12401,8 @@ function setQMode(m){
   const detail=document.getElementById('q-mode-banner-detail');
   if(detail) detail.textContent = API_WORKER_URL ? '(The quotes API is unreachable — retry, or contact whoever deploys the worker.)' : '(No API is configured for this build.)';
   const dw=document.getElementById('q-drawer-mode-warn'); if(dw) dw.style.display = local ? 'block' : 'none';
-  const sb=document.getElementById('q-save-btn');
-  if(sb){ sb.classList.toggle('local-save', local); sb.textContent = local ? 'Save (local only)' : 'Save to D1'; }
+  const sb=document.getElementById('q-publish-btn');
+  if(sb){ sb.classList.toggle('local-save', local); sb.textContent = local ? 'Publish (local) ▸' : 'Publish ▸'; }
 }
 async function retryQuoteBackend(){
   showToast('Checking connection…','var(--tsi-teal)');
@@ -12528,9 +12530,13 @@ async function renderQuotesList(){
   const empty=document.getElementById('quotes-empty'), wrap=document.getElementById('quotes-table-wrap'), cnt=document.getElementById('quote-count');
   if(!qs.length){ empty.style.display=''; wrap.style.display='none'; cnt.textContent=''; return; }
   empty.style.display='none'; wrap.style.display='';
-  document.getElementById('quotes-body').innerHTML = rows.map(q=>`
+  document.getElementById('quotes-body').innerHTML = rows.map(q=>{
+    const revs=q.revisions||[]; const nRev=revs.length;
+    const revTitle = nRev ? revs.map(r=>`${r.rev} · ${(r.published_at||'').slice(0,10)} · ${qmoney(r.total,r.currency||q.currency)}`).join('\n') : 'Not yet published';
+    const revBadge = `<span class="q-rev-badge" title="${qattr(revTitle)}">${qesc(q.rev||'R0')}${nRev>1?' · '+nRev:''}</span>`;
+    return `
     <tr>
-      <td><span class="prod-pn">${qesc(q.id)}</span>${q.rev&&q.rev!=='R0'?` <span style="font-size:9px;color:var(--color-text-muted)">${qesc(q.rev)}</span>`:''}</td>
+      <td><span class="prod-pn">${qesc(q.id)}</span> ${revBadge}</td>
       <td>${qesc(q.customer_name||'—')}${q.contact_name?`<div style="font-size:10px;color:var(--color-text-muted)">${qesc(q.contact_name)}</div>`:''}</td>
       <td style="font-size:11px">${qesc(q.project||'—')}</td>
       <td style="text-align:center">${q.n_lines!=null?q.n_lines:((q.lines||[]).length)}</td>
@@ -12543,7 +12549,7 @@ async function renderQuotesList(){
         <button class="q-row-action" onclick="printQuoteById('${qattr(q.id)}')" title="Print / PDF">🖨</button>
         <button class="q-row-action del" onclick="deleteQuote('${qattr(q.id)}')" title="Delete">🗑</button>
       </td>
-    </tr>`).join('');
+    </tr>`; }).join('');
   cnt.textContent = rows.length+' quote'+(rows.length!==1?'s':'')+(_qMode==='db'?' · D1':' · local');
 }
 async function loadOneQuote(id){
@@ -12616,6 +12622,7 @@ async function openQuoteBuilder(id){
   populateQuoteAccounts(); populateQuoteCatPicker(); renderQuickAdd();
   if(id){ const q=await loadOneQuote(id); if(!q){ showToast('Quote not found','var(--tsi-coral)'); return; }
     _qWorking=JSON.parse(JSON.stringify(q)); _qWorking.lines=_qWorking.lines||[]; _qExisting=true;
+    _qWorking._loadedStatus=q.status;   // remember published-state for rev bumping
     document.getElementById('quote-drawer-title').textContent='Edit Quote';
   } else { _qWorking=blankQuote(); _qExisting=false; document.getElementById('quote-drawer-title').textContent='New Quote'; }
   fillQuoteForm(); renderQuoteLines(); recalcQuoteTotals();
@@ -12629,7 +12636,7 @@ function closeQuoteBuilder(){
 }
 function fillQuoteForm(){
   const q=_qWorking; const S=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v==null?'':v; };
-  document.getElementById('quote-drawer-num').textContent=q.id;
+  const numEl=document.getElementById('quote-drawer-num'); numEl.textContent=q.id; numEl.title='Auto-generated quote number';
   S('q-customer',q.customer_name); document.getElementById('q-customer-org').value=q.customer_org_seed_id||'';
   S('q-customer-address',q.customer_address); S('q-contact-name',q.contact_name); S('q-contact-email',q.contact_email); S('q-contact-phone',q.contact_phone);
   S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
@@ -12760,15 +12767,35 @@ async function persistQuote(q, isNew){
   }
   const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'local';
 }
-async function saveQuote(){
+function bumpRev(rev){ const m=/R(\d+)/.exec(rev||'R0'); return 'R'+((m?+m[1]:0)+1); }
+function saveDraft(){ if(!_qWorking) return; const s=document.getElementById('q-status'); if(s && s.value!=='Draft' && !(_qWorking._loadedStatus && _qWorking._loadedStatus!=='Draft')) s.value='Draft'; saveQuote({verb:'Saved draft '+_qWorking.id}); }
+function publishQuote(){
+  if(!_qWorking) return; readQuoteForm(); const q=_qWorking;
+  if(!q.customer_name){ const c=document.getElementById('q-customer'); c.focus(); c.style.borderColor='var(--tsi-coral)'; setTimeout(()=>c.style.borderColor='',1500); showToast('Add a customer name','var(--tsi-coral)'); return; }
+  if(!q.lines.length){ showToast('Add at least one line item','var(--tsi-coral)'); return; }
+  const now=new Date().toISOString();
+  // Re-publishing an already-published quote (status was not Draft when loaded) → new revision.
+  const wasPublished = q._loadedStatus && q._loadedStatus!=='Draft';
+  const newRev = wasPublished ? bumpRev(q.rev||'R0') : (q.rev||'R0');
+  const rf=document.getElementById('q-rev'); if(rf) rf.value=newRev;
+  const sf=document.getElementById('q-status'); if(sf) sf.value='Sent';
+  q.published_at=now;
+  q.revisions = q.revisions||[];
+  q.revisions.push({ rev:newRev, published_at:now, by:currentUserId(), total:q._total,
+    currency:q.currency, n_lines:q.lines.length, lines:JSON.parse(JSON.stringify(q.lines)) });
+  saveQuote({verb:'Published '+q.id+' '+newRev});
+}
+async function saveQuote(opts){
   if(!_qWorking) return; readQuoteForm(); const q=_qWorking;
   if(!q.customer_name){ const c=document.getElementById('q-customer'); c.focus(); c.style.borderColor='var(--tsi-coral)'; setTimeout(()=>c.style.borderColor='',1500); showToast('Add a customer name','var(--tsi-coral)'); return; }
   if(!q.lines.length){ showToast('Add at least one line item','var(--tsi-coral)'); return; }
   q.updated_at=new Date().toISOString(); if(!q.created_at) q.created_at=q.updated_at;
   const where=await persistQuote(q, !_qExisting);
+  q._loadedStatus=q.status;   // reflect the just-saved status for subsequent publishes
   closeQuoteBuilder(); renderQuotesList();
-  if(where==='db') showToast('✓ Quote '+q.id+' saved to the D1 database','var(--tsi-succ-green)');
-  else showToast('⚠ '+q.id+' saved to THIS BROWSER ONLY — not the database','var(--tsi-coral)');
+  const verb=(opts&&opts.verb)||('Saved '+q.id);
+  if(where==='db') showToast('✓ '+verb+' — saved to D1','var(--tsi-succ-green)');
+  else showToast('⚠ '+verb+' — THIS BROWSER ONLY (not the database)','var(--tsi-coral)');
 }
 
 // ── PRINT / PDF (Biocarbon LLC proposal) ──

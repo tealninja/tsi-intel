@@ -72,7 +72,20 @@ Roles (cumulative ladder):
   mode badges, tree grid, sub-tabs…) as part of the **design system / style set**,
   so features compose consistently. Ties into the extensibility work above.
 
+## 📋 Quote Builder — next up (discussed)
+- [ ] **AI quote builder** — natural-language → drafted line items. Two paths:
+  in-app via the worker /api/ai proxy (uses API tokens) OR via the claude.ai MCP
+  connector (no tokens). Needs a decision + the worker deployed.
+- [ ] **Quote templates** — save a quote's lines + terms + config as a reusable
+  template (Store('quote_templates')); start a new quote from one.
+- [ ] **Export** — beyond Print/PDF: downloadable file (PDF / Excel / Word?) — confirm format.
+- [ ] Full **rev history in D1** — rev # + status persist as columns today; the detailed
+  per-revision snapshots are local-only (add a `revisions` JSON column / collection later).
+
 ## ✅ Recently done
+- [x] **Quote lifecycle** — Save-draft / Publish buttons; **rev control** (auto-bumps
+  R0→R1 on re-publish, keeps a revision history w/ hover timeline); auto-generated
+  quote № surfaced as read-only.
 - [x] **Quote Builder line items** — fixed the mobile bug where qty/unit-price were
   clipped off-screen (wide table → responsive wrapping rows); added **drag-to-reorder**
   (handle), a **product autocomplete** search (with "add as custom line"), keeping the
