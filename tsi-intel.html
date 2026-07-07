@@ -12625,6 +12625,9 @@ startAdminPoll();
 .pz-slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--acc,#00929f)}
 .pz-eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--pz-faint);margin-bottom:18px;flex-wrap:wrap}
 .pz-eyebrow .on{color:var(--acc,#00929f);font-weight:700}
+.pz-eye-link{cursor:pointer;transition:color .12s}
+.pz-eye-link:hover{color:var(--pz-ink)}
+.pz-eye-link.on:hover{color:var(--acc,#00929f);text-decoration:underline;text-underline-offset:3px}
 .pz-eyebrow .sep{opacity:.35}.pz-eyebrow .pos{margin-left:auto;color:var(--pz-faint);letter-spacing:.05em}
 .pz-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:12px}
 .pz-logo{width:auto;height:56px;max-width:150px;object-fit:contain;border-radius:8px;background:#fff;padding:6px 8px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.12)}
@@ -14354,7 +14357,7 @@ function presoSectionHTML(s){
     }).join('')
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
-    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="pz-eye-link ${x.key===sec.key?'on':''}" onclick="presoJumpToSection('${qattr(x.key)}')" title="Go to ${qattr(x.label)}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
     <div class="pz-sec-big">${qesc(sec.label)}</div>
     <div class="pz-sec-blurb">${qesc(sec.blurb)}</div>
     <div style="display:flex;gap:22px;margin-bottom:20px">
@@ -14402,7 +14405,7 @@ function presoOppSlide(o,sec,s){
   const detHtml=(detClean && (detClean.replace(/<[^>]*>/g,'').trim() || /<(li|img)\b/i.test(detClean)))
     ? `<div class="pz-box"><div class="pz-lbl">Details</div><div class="pz-details">${detClean}</div></div>` : '';
   return `<div class="pz-slide" style="--acc:${sec.acc}">
-    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="pz-eye-link ${x.key===sec.key?'on':''}" onclick="presoJumpToSection('${qattr(x.key)}')" title="Go to ${qattr(x.label)}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
     <div class="pz-head">
       <div style="display:flex;gap:16px;align-items:center;min-width:0">
         ${(function(){const lg=(typeof oppAcctLogo==='function')?oppAcctLogo(o):''; return lg?`<img class="pz-logo" src="${qattr(lg)}" alt="" onerror="this.style.display='none'">`:'';})()}
@@ -14436,7 +14439,7 @@ function presoQuoteSlide(o,sec,s){
   const lines=(o.lines||[]);
   const chips=lines.slice(0,8).map(l=>`<span class="pz-chip" style="background:#0e7490">${qesc((l.qty?l.qty+'× ':'')+(l.description||l.code||'item'))}</span>`).join('');
   return `<div class="pz-slide" style="--acc:${sec.acc}">
-    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="pz-eye-link ${x.key===sec.key?'on':''}" onclick="presoJumpToSection('${qattr(x.key)}')" title="Go to ${qattr(x.label)}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
     <div class="pz-head">
       <div><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div>${o.loc?`<div class="pz-loc">📍 ${qesc(o.loc)}</div>`:''}</div>
       <div class="pz-flag" style="color:#0e7490;border-color:rgba(14,116,144,.5);background:rgba(14,116,144,.1)">${qesc(o.status||'Quote')}${o.quote_date?' · '+qesc(o.quote_date):''}</div>
