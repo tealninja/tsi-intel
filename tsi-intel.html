@@ -1732,6 +1732,9 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .acct-media>summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--color-text-secondary)}
 .acct-media>summary:hover{color:var(--tsi-teal)}
 .am-editor{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.acct-map-clear{margin-left:6px;border:1px solid var(--tsi-coral);background:rgba(224,90,74,.08);color:var(--tsi-coral);
+  border-radius:999px;padding:1px 9px;font-size:10px;font-weight:600;cursor:pointer;vertical-align:middle}
+.acct-map-clear:hover{background:var(--tsi-coral);color:#fff}
 .acct-loctype{font-weight:600;border-radius:999px;padding:1px 9px;font-size:11px}
 .acct-loctype.corp{background:rgba(25,68,108,.12);color:var(--tsi-deep-blue)}
 .acct-loctype.prod{background:rgba(0,146,159,.12);color:var(--tsi-teal)}
@@ -10286,7 +10289,8 @@ function renderAcctMap() {
       a.id === _acctSelectedGroup || a.parentId === _acctSelectedGroup
     );
     const grp = data.groups.find(g => g.id === _acctSelectedGroup);
-    if (filterLabel) filterLabel.textContent = '— filtered to ' + (grp?.name || _acctSelectedGroup);
+    if (filterLabel) filterLabel.innerHTML = '— filtered to <b>' + qesc(grp?.name || _acctSelectedGroup)
+      + '</b> <button class="acct-map-clear" onclick="clearAcctMapFilter()" title="Clear filter — show all accounts">✕ clear</button>';
   } else {
     allMatchingSites = data.accounts;
     if (filterLabel) filterLabel.textContent = '— all groups';
@@ -10508,6 +10512,11 @@ function renderAcctMapStats(sites, dealsForSite, openDeals) {
 
 function filterAcctMapToGroup(groupId) {
   _acctSelectedGroup = groupId;
+  renderAcctSidebar();
+  renderAcctMap();
+}
+function clearAcctMapFilter() {
+  _acctSelectedGroup = null;
   renderAcctSidebar();
   renderAcctMap();
 }
@@ -11946,7 +11955,7 @@ startAdminPoll();
       <div id="acct-map-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;max-width:900px"></div>
 
       <div id="acct-map" style="height:520px;max-width:900px;border-radius:var(--radius-md);background:var(--color-bg)"></div>
-      <div id="acct-map-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:10px"></div>
+      <div id="acct-map-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:10px;max-width:900px"></div>
     </div>
 
   </div>
