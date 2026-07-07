@@ -738,6 +738,11 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   border-radius:4px; font-size:12px; font-weight:700; cursor:pointer; color:var(--color-text-secondary); line-height:1; }
 .q-rte-b:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
 .q-rte-b.bul { font-weight:500; }
+.q-terms-box { margin-top:10px; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:8px 11px; background:var(--color-surface); }
+.q-terms-box > summary { cursor:pointer; font-size:11px; font-weight:600; color:var(--color-text-secondary); }
+.q-terms-box > summary:hover { color:var(--tsi-teal); }
+.q-terms-box[open] > summary { margin-bottom:8px; }
+.q-terms-box .q-rte { font-size:11px; }
 .drow-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
 .drow-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
 
@@ -11944,6 +11949,10 @@ startAdminPoll();
         <div><label>Delivery Terms</label><div class="dtextarea q-rte" id="q-delivery" contenteditable="true" data-ph="Delivery terms…"></div></div>
       </div>
       <div class="drow"><label>Notes</label><div class="dtextarea q-rte" id="q-notes" contenteditable="true" data-ph="Notes…"></div></div>
+      <details class="q-terms-box">
+        <summary>📎 Terms &amp; Conditions — standard terms attached (click to view / edit)</summary>
+        <div class="dtextarea q-rte" id="q-terms" contenteditable="true" data-ph="Terms &amp; Conditions…" style="max-height:300px"></div>
+      </details>
     </div>
   </div>
   <div id="q-drawer-mode-warn" class="q-drawer-mode-warn" style="display:none">
@@ -12614,6 +12623,7 @@ Quote based on a single production run unless otherwise stated.`;
 const Q_DEFAULT_PAYMENT  = `50% With Purchase Order\n50% Net 30 from sample ready-to-ship, following invoice`;
 const Q_DEFAULT_DELIVERY = `Freight by customer, EX-WORKS:\nBiocarbon / Telfair Forest Products, 11 Industrial Blvd, Lumber City, GA 31549, USA`;
 const Q_TERMS = `These Terms and Conditions are incorporated into and form part of the foregoing quotation. Seller shall supply the materials and/or services in the volume, at the time, and in the manner described in this quotation ("Goods"). This quotation is issued exclusively to the named legal entity; Purchase Orders issued by other entities require written approval prior to acceptance. Pricing excludes all local, state, federal and other fees or taxes unless stated. Yield and output characteristics are indicative only and subject to natural feedstock variability.`;
+const Q_TERMS_FULL = `These Terms and Conditions are incorporated into and form part of the foregoing quotation.<br><b>Scope</b><br>Seller shall supply the materials and/or services ion the volume, at the time, and in the manner described in this quotation (“Goods”) in accordance with the specifications stated herein. Any changes must be mutually agreed in writing.<br><b>Price and Taxes</b><br>Prices are as stated in this quotation. Unless expressly stated otherwise, prices exclude all local, state, federal, and other applicable taxes, duties, or fees. Buyer is responsible for all such charges.<br><b>Payment terms</b><br>Payment shall be made in accordance with the Payment Terms stated in this quotation. Late payments shall accrue interest at 1.5% per month or the maximum rate permitted by law, whichever is lower.<br><b>Delivery and Risk of Loss</b><br>Delivery terms are EX WORKS (Incoterms® 2020) Seller’s facility in Lumber City, Georgia, USA, unless otherwise stated. Risk of loss transfers to Buyer upon transfer to Buyer’s transportation in accordance with EXW.<br><b>Delivery Time</b><br>If there is a delivery time specified in the quotation; Seller shall have a thirty (30) grace period following the agreed-upon date to provide material.<br><b>Cancellation</b><br><b>By Buyer</b><br><b>By Seller</b><br><b>Pickup, Delivery, and Storage</b><br>Buyer shall take delivery of the Goods within thirty (30) days of written notice that the Goods are ready for pickup or shipment.<br>If Buyer fails to take delivery within such period:<br>Seller may charge reasonable storage fees,<br>Seller may invoice the remaining balance immediately, and/or<br>Seller may, at its discretion, dispose of or destroy the Goods without further liability.<br>If Seller arranges shipment, at Buyer’s request, Buyer must accept delivery upon tender. Failure to accept delivery shall be treated as failure to take delivery under this clause.<br><b>Experimental / Evaluation Use Only</b><br>The Goods are provided to Buyer solely for research, testing, and evaluation purposes by Buyer.<br>The Goods:<br>Are not certified for commercial resale,<br>Are not intended for consumer use,<br>May vary in composition and performance,<br>Are provided for industrial testing purposes only.<br>Buyer assumes all responsibility for handling, storage, testing, and use.<br><b>Resale</b><br>Buyer shall not sell, transfer, or otherwise provide the Goods to any third party without prior written notice to Seller identifying the intended recipient and the purpose of the transfer. Seller shall have ten (10) business days following receipt of such notice to approve or object in writing. Approved transfers are subject to the same restrictions contained in these Terms and Conditions, and Buyer shall be responsible for the recipient&#x27;s compliance. Seller retains the right to withhold approval at Seller&#x27;s sole discretion. Buyer shall not sell, transfer, distribute, or otherwise provide the Goods to any third party without Seller’s prior written consent.<br>The Goods are provided exclusively for Buyer’s internal evaluation purposes.<br><b>Material Quality and Disclaimer</b><br>Where material is supplied to an agreed specification, that specification will be attached as Appendix A and forms part of this quotation. Biomass materials naturally vary in composition and characteristics; Seller does not guarantee uniformity beyond what is expressly stated in Appendix A at time of shipment, not in any future shipment of Goods bearing the same description. Material is otherwise provided &quot;as is,&quot; with no implied warranties of merchantability, fitness for purpose, or suitability for any specific application. Buyer assumes all risk associated with use and testing of the Goods.<br><b>Limitation of liability</b><br>Seller’s total liability arising out of or related to this quotation or any resulting purchase order shall not exceed the total amount paid by Buyer under the applicable purchase order. In no event shall Seller be liable for indirect, incidental, special, or consequential damages, including lost profits or business interruption.<br><b>Intellectual Property Protection</b><br>Nothing in this quotation transfers any intellectual property rights. All process know-how, trade secrets, methodologies, and proprietary technology remain the exclusive property of Seller.<br>Buyer shall not analyze, reverse engineer, or attempt to replicate Seller’s process technology.<br>No Implied License<br>Provision of Goods does not grant Buyer any license to directly or indirectly use or seek benefit from  Seller’s trademarks, process technology, or proprietary methods beyond evaluation of the supplied Goods, nor odes Buyer before Seller’s agent for any purpose.<br><b>Confidentiality</b><br>All technical, commercial, and pricing information provided by Seller, and any data or findings derived from Buyer&#x27;s evaluation of the Goods, are confidential and may not be disclosed or published externally without Seller&#x27;s prior written consent. Buyer may share such information internally and with professional advisors bound by equivalent confidentiality obligations. These obligations apply regardless of whether a separate non-disclosure agreement exists between the parties. These confidentiality obligations apply regardless of whether the parties execute a separate non-disclosure agreement.<br>Publicity Restriction<br>Buyer shall not reference Seller’s name, trademarks, or involvement in any publication, press release, marketing material, or public disclosure without prior written consent.<br><b>Indemnification</b><br>Buyer shall indemnify and hold Seller harmless from and against any claims, demands, harm or loss arising from or related to Buyer’s handling, testing, modification, or use of the Goods or failure to comply with Seller’s obligations hereunder.  In the event of a breach or threatened breach by Buyer or Buyer’s transferee of any covenant or obligation of either owing to Seller, Seller shall be entitled to recovery of all damages suffered as a result thereof, whether by contract or tort, including obtaining an injunction to prevent such breach without the obligation to first show actual loss and without the posting of any bond or surety.<br>Compliance With Laws<br>Buyer is responsible for compliance with all applicable environmental, safety, import/export, and handling regulations in connection with the Goods.<br><b>Force Majeure</b><br>Seller shall not be liable for delays or failure to perform resulting from events beyond its reasonable control, including but not limited to acts force majeure, labor disputes, supply chain disruptions, governmental actions, or transportation delays or the acts or omissions of Seller.<br><b>Governing Law</b><br>This quotation and any resulting purchase order shall be governed by and construed in accordance with the laws of the State of Georgia, USA, without regard to conflict of law principles. The United Nations Convention on Contracts for the International Sale of Goods (CISG) shall not apply.<br>Entire agreement<br>This quotation, together with these Terms and Conditions, constitutes the entire agreement between the parties and supersedes prior communications. Any additional or conflicting terms in Buyer’s purchase order are rejected unless expressly agreed in writing by Seller.<br><b>Acceptance</b><br>Acceptance of this quotation constitutes acceptance and approval of the foregoing Terms and Conditions with regard to any subsequent purchase order of the Buyer.<br>Signature<br>Name<br>Title<br>Date`;
 
 // "Biocarbon / Torrefaction samples & services" categories — surfaced first.
 const QUOTE_FOCUS_CATS = ['Torrefaction Samples','Biocarbon Services','Testing & Analysis (3rd Party)',
@@ -12870,7 +12880,7 @@ function blankQuote(){
     contact_name:'', contact_email:'', contact_phone:'', project:'',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
-    description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'',
+    description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'', terms:Q_TERMS_FULL,
     discount:0, discount_mode:'pct', freight:0, tax_pct:0, subtotal:0, total:0, lines:[] };
 }
 // ── Rich-text (contenteditable) helpers for the quote prose fields ──
@@ -12922,6 +12932,7 @@ function fillQuoteForm(){
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
   S('q-description',q.description); S('q-scope',q.scope); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
+  S('q-terms', q.terms!=null && q.terms!=='' ? q.terms : Q_TERMS_FULL);
 }
 function onQuoteCurrencyChange(){ if(_qWorking){ _qWorking.currency=document.getElementById('q-currency').value; renderQuoteLines(); recalcQuoteTotals(); } }
 function addQuoteLine(seedId){
@@ -13035,6 +13046,7 @@ function readQuoteForm(){
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
   q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.assumptions=V('q-assumptions').trim();
   q.payment_terms=V('q-payment').trim(); q.delivery_terms=V('q-delivery').trim(); q.notes=V('q-notes').trim();
+  q.terms=V('q-terms').trim();
   recalcQuoteTotals();
 }
 async function persistQuote(q, isNew){
@@ -13135,7 +13147,7 @@ function printQuote(q){
     ${q.delivery_terms?`<h3>Delivery Terms</h3><div class="prose">${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3>Payment Terms</h3><div class="prose">${blk(q.payment_terms)}</div>`:''}
     ${q.notes?`<h3>Notes</h3><div class="prose">${blk(q.notes)}</div>`:''}
-    <div class="terms"><b>Terms &amp; Conditions.</b> ${qesc(Q_TERMS)}</div>
+    <h3>Terms &amp; Conditions</h3><div class="terms">${blk(q.terms||Q_TERMS_FULL)}</div>
     <script>window.onload=function(){setTimeout(function(){window.print();},450);};<\/script>
   </body></html>`;
   const w=window.open('','_blank'); if(!w){ showToast('Pop-up blocked — allow pop-ups to print','var(--tsi-coral)'); return; }
@@ -13191,7 +13203,7 @@ function exportQuoteWord(q){
     ${q.delivery_terms?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(q.payment_terms)}</div>`:''}
     ${q.notes?`<h3 ${h3}>Notes</h3><div ${prose}>${blk(q.notes)}</div>`:''}
-    <p style="font-size:8.5pt;color:#888;border-top:1px solid #eee;margin-top:16pt;padding-top:8pt"><b>Terms &amp; Conditions.</b> ${qesc(Q_TERMS)}</p>`;
+    <h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(q.terms||Q_TERMS_FULL)}</div>`;
   const doc=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head><meta charset='utf-8'><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
     <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
