@@ -711,6 +711,16 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   flex-shrink:0;
 }
 .drawer-header h2 { font-family:var(--font-display); font-size:18px; font-weight:400; flex:1; }
+.drawer-nav { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+.drawer-nav-btn {
+  background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.2);
+  color:white; width:26px; height:26px; border-radius:6px; cursor:pointer;
+  font-size:17px; line-height:1; display:flex; align-items:center; justify-content:center;
+  transition:background 0.15s;
+}
+.drawer-nav-btn:hover:not(:disabled) { background:rgba(255,255,255,0.24); }
+.drawer-nav-btn:disabled { opacity:0.3; cursor:default; }
+.drawer-nav-pos { font-size:11px; color:rgba(255,255,255,0.75); font-variant-numeric:tabular-nums; min-width:44px; text-align:center; }
 .drawer-close {
   background:none; border:none; color:rgba(255,255,255,0.7);
   font-size:20px; cursor:pointer; padding:0 4px; line-height:1;
@@ -4974,15 +4984,60 @@ let _drawerEditId = null;   // null = new, string = editing
 let _drawerClima  = null;   // Chart.js instance for climatogram
 let _drawerTags   = [];     // current tag keys in drawer
 let _drawerLinks  = [];     // ids of related opportunities (program phases) in drawer
+let _drawerNavList = [];    // ordered opp ids the drawer pages through (prev/next arrows)
+let _drawerDirty   = false; // has the user edited any field since the drawer opened?
 let _drawerLat    = null;
 let _drawerLon    = null;
 let _geoACTimer   = null;
 
-function openOppDrawer(editId) {
+// Show/position the prev/next paging controls in the drawer header.
+function updateDrawerNavUI() {
+  const nav = document.getElementById('drawer-nav');
+  if (!nav) return;
+  const list = _drawerNavList || [];
+  const i = list.indexOf(_drawerEditId);
+  if (!_drawerEditId || i < 0 || list.length < 2) { nav.style.display = 'none'; return; }
+  nav.style.display = 'flex';
+  document.getElementById('drawer-nav-pos').textContent = (i + 1) + ' / ' + list.length;
+  document.getElementById('drawer-prev').disabled = (i <= 0);
+  document.getElementById('drawer-next').disabled = (i >= list.length - 1);
+}
+// Page to the previous/next opportunity in the paging list. If the current
+// record has unsaved edits, save them first so nothing is lost while paging.
+function oppDrawerNav(dir) {
+  const list = _drawerNavList || [];
+  const i = list.indexOf(_drawerEditId);
+  if (i < 0) return;
+  const nId = list[i + dir];
+  if (!nId) return;
+  const acctFilled = (document.getElementById('d-acct')?.value || '').trim();
+  if (_drawerDirty && acctFilled) {
+    saveOppDrawer();                       // persists + closes the drawer
+  }
+  openOppDrawer(nId, { keepNav: true });   // reopens on the neighbour, same list
+}
+
+function openOppDrawer(editId, opts) {
+  opts = opts || {};
+  // Mark the drawer dirty on any real user edit (programmatic .value sets don't
+  // fire these), so paging knows whether to save. Wired once.
+  if (!window._drawerDirtyWired) {
+    window._drawerDirtyWired = true;
+    const dd = document.getElementById('opp-drawer');
+    if (dd) { dd.addEventListener('input', () => { _drawerDirty = true; });
+              dd.addEventListener('change', () => { _drawerDirty = true; }); }
+  }
   populateOppAccountOptions();
   mountRteToolbars('#opp-drawer');
   _drawerEditId = editId || null;
   const isEdit  = !!editId;
+  // Build the prev/next paging list from the current filtered pipeline order,
+  // unless we're navigating within it (keepNav) — so paging stays stable even
+  // as saves re-sort the underlying table.
+  if (!opts.keepNav) {
+    const ids = (typeof currentFilteredRows==='function' ? currentFilteredRows() : []).map(o => o.id);
+    _drawerNavList = (isEdit && ids.includes(editId)) ? ids : (isEdit ? [editId] : []);
+  }
   document.getElementById('drawer-title').textContent = isEdit ? 'Edit Opportunity' : 'New Opportunity';
 
   if (isEdit) {
@@ -5059,10 +5114,13 @@ function openOppDrawer(editId) {
 
   rebuildDrawerTags();
   rebuildDrawerLinks();
+  _drawerDirty = false;      // fresh load — no unsaved edits yet
+  updateDrawerNavUI();
 
   // Open
   document.getElementById('opp-drawer-overlay').classList.add('open');
   document.getElementById('opp-drawer').classList.add('open');
+  const _db = document.querySelector('#opp-drawer .drawer-body'); if(_db) _db.scrollTop = 0;  // reset scroll when paging
   if(editId) {
     trackOppView(editId); usageLog('opp_view', editId);
     // Acquire lock + check if someone else has it
@@ -5161,6 +5219,7 @@ function rebuildDrawerTags() {
 
 function removeDrawerTag(key) {
   _drawerTags = _drawerTags.filter(t => t !== key);
+  _drawerDirty = true;
   rebuildDrawerTags();
 }
 
@@ -5200,6 +5259,7 @@ function rebuildDrawerLinks(){
 }
 function removeDrawerLink(id){
   _drawerLinks = _drawerLinks.filter(x => x !== id);
+  _drawerDirty = true;
   rebuildDrawerLinks();
 }
 function addDrawerLinkFromInput(){
@@ -11031,6 +11091,11 @@ startAdminPoll();
 <div class="opp-drawer-overlay" id="opp-drawer-overlay" onclick="closeOppDrawer()"></div>
 <div class="opp-drawer" id="opp-drawer">
   <div class="drawer-header">
+    <div class="drawer-nav" id="drawer-nav" style="display:none">
+      <button class="drawer-nav-btn" id="drawer-prev" onclick="oppDrawerNav(-1)" title="Previous opportunity (saves your changes)">‹</button>
+      <span class="drawer-nav-pos" id="drawer-nav-pos"></span>
+      <button class="drawer-nav-btn" id="drawer-next" onclick="oppDrawerNav(1)" title="Next opportunity (saves your changes)">›</button>
+    </div>
     <h2 id="drawer-title">New Opportunity</h2>
     <button class="drawer-close" onclick="closeOppDrawer()">✕</button>
   </div>
