@@ -215,6 +215,11 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .card{background:var(--color-surface);border:0.5px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--sp-3)}
 .card-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:var(--sp-2)}
 .update-ta{width:100%;height:260px;padding:10px;border:1px solid var(--color-border-mid);border-radius:var(--radius-md);font-size:12px;font-family:var(--font-ui);resize:none;background:var(--color-bg);color:var(--color-text-primary);outline:none;line-height:1.5}
+.parser-drop{border:2px dashed var(--color-border-mid);border-radius:var(--radius-md);padding:16px;text-align:center;cursor:pointer;margin-bottom:10px;background:var(--color-bg);transition:border-color var(--transition),background var(--transition)}
+.parser-drop:hover,.parser-drop.dragover{border-color:var(--tsi-teal);background:rgba(0,146,159,.05)}
+.parser-drop .pd-inner{font-size:12px;color:var(--color-text-secondary);pointer-events:none}
+.parser-drop .pd-link{color:var(--tsi-teal);text-decoration:underline}
+.parser-drop .pd-note{font-size:11px;color:var(--color-text-muted);margin-top:4px}
 .update-ta:focus{border-color:var(--tsi-teal)}
 .parsed-card{background:var(--color-bg);border-radius:var(--radius-md);padding:10px;margin-bottom:8px;border:0.5px solid var(--color-border)}
 .pc-head{font-weight:500;color:var(--color-heading);margin-bottom:5px;font-size:12px}
@@ -2998,7 +3003,12 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 <div id="view-parser" class="view">
   <div class="parser-layout">
     <div class="card">
-      <div class="card-title">📧 Paste Raw Update</div>
+      <div class="card-title">📧 Paste or Drop a Raw Update</div>
+      <div id="parser-drop" class="parser-drop" ondragover="parserDragOver(event)" ondragleave="parserDragLeave(event)" ondrop="parserDrop(event)" onclick="document.getElementById('parser-file').click()">
+        <input type="file" id="parser-file" multiple accept=".txt,.csv,.tsv,.md,.eml,.json,.xlsx,.xls" style="display:none" onchange="parserFiles(this.files)">
+        <div class="pd-inner">⬇ <b>Drag &amp; drop</b> emails (.eml), Excel (.xlsx/.csv) or text — or <span class="pd-link">browse</span>
+          <div class="pd-note" id="parser-drop-note">Extracts the text into the box below for the AI to parse.</div></div>
+      </div>
       <textarea class="update-ta" id="raw-update"
         placeholder="Paste any format — email, bullet points, field notes. AI extracts structured opportunity data."></textarea>
       <div style="margin-top:var(--sp-2)">
@@ -13646,6 +13656,43 @@ async function presoResetCfg(){
   if(typeof showToast==='function') showToast('Deck reset to auto-classification','var(--tsi-teal)');
 }
 function presoPresentFromBuilder(){ closePresoBuilder(); openPreso(); }
+
+/* ── Parse Updates: drag-and-drop file import (email / Excel / CSV / text) ── */
+function parserDragOver(e){ e.preventDefault(); document.getElementById('parser-drop').classList.add('dragover'); }
+function parserDragLeave(e){ const d=document.getElementById('parser-drop'); if(!d.contains(e.relatedTarget)) d.classList.remove('dragover'); }
+function parserDrop(e){ e.preventDefault(); document.getElementById('parser-drop').classList.remove('dragover'); parserFiles(e.dataTransfer.files); }
+async function parserFiles(files){
+  const ta=document.getElementById('raw-update'); const note=document.getElementById('parser-drop-note');
+  const arr=[...(files||[])]; if(!arr.length) return;
+  for(const f of arr){
+    if(note) note.textContent='Reading '+f.name+'…';
+    try{
+      const ext=(f.name.split('.').pop()||'').toLowerCase();
+      let text='';
+      if(ext==='xlsx'||ext==='xls'){ text=await parserReadExcel(f); }
+      else { text=await f.text(); if(ext==='eml') text=parserStripEml(text); }
+      ta.value += (ta.value.trim()?'\n\n':'') + '— '+f.name+' —\n' + text.trim();
+    }catch(err){ ta.value += '\n\n[Could not read '+f.name+': '+(err&&err.message||err)+']'; }
+  }
+  if(note) note.textContent = arr.length+' file'+(arr.length>1?'s':'')+' added — click ✨ Extract to parse.';
+  try{ document.getElementById('parser-file').value=''; }catch(_){}
+}
+function parserStripEml(raw){ const i=raw.search(/\r?\n\r?\n/); return i>=0 ? raw.slice(i).trim() : raw; }
+async function parserReadExcel(f){
+  await loadSheetJS();
+  const buf=await f.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  return wb.SheetNames.map(n=>'['+n+']\n'+XLSX.utils.sheet_to_csv(wb.Sheets[n])).join('\n\n');
+}
+let _sheetjsP=null;
+function loadSheetJS(){
+  if(window.XLSX) return Promise.resolve();
+  if(_sheetjsP) return _sheetjsP;
+  _sheetjsP=new Promise((res,rej)=>{ const s=document.createElement('script');
+    s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('Excel parser unavailable (offline)')); document.head.appendChild(s); });
+  return _sheetjsP;
+}
 
 // Products-tab "+ Quote" hook (if the Products table exposes it later).
 function quoteFromSeed(seedId){ openQuoteBuilder(null).then(()=>addQuoteLine(seedId)); }
