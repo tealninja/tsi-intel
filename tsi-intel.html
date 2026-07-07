@@ -7125,7 +7125,7 @@ const DEFAULT_ACCOUNTS = [
   { id:'AG-GP', parentId:null, name:'Georgia-Pacific (GP)', industry:'OSB', acctMatch:'Georgia-Pacific (GP)', loc:'', plantType:'', lat:null, lon:null, notes:'Challenging relationship.' },
   { id:'AG-ARB', parentId:null, name:'Arbec', industry:'OSB', acctMatch:'Arbec', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-NF', parentId:null, name:'Nature\'s Flame', industry:'Biomass Pellets', acctMatch:'Nature\'s Flame', loc:'', plantType:'', lat:null, lon:null, notes:'' },
-  { id:'AG-PNRE', parentId:null, name:'PNRE', industry:'Biomass Pellets', acctMatch:'PNRE', loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-PNRE', parentId:null, name:'Pacific Northwest Renewable Energy (PNRE)', industry:'Biomass Pellets', acctMatch:'PNRE', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-SPE', parentId:null, name:'Spectrum', industry:'Biomass Pellets', acctMatch:'Spectrum', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-ENV', parentId:null, name:'Enviva', industry:'Biomass Pellets', acctMatch:'Enviva', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-BER', parentId:null, name:'Berneck', industry:'MDF/Particle Board', acctMatch:'Berneck', loc:'', plantType:'', lat:null, lon:null, notes:'PSA 124/2026 signed June 2026.' },
@@ -7258,7 +7258,9 @@ function normalizeSubAccountNames(accounts) {
     while (i < words.length && strip.has(norm(words[i]))) { taken.push(words[i]); i++; }
     const rest = words.slice(i).join(' ');
     if (!taken.length || !rest) return;   // nothing recognizable stripped / nothing left
-    const prefix = paren || (taken.length === 1 && taken[0].length <= 4 ? taken[0].toUpperCase() : taken.join(' '));
+    // Preserve the site's own casing for the prefix (keeps "LP", "WF" but also
+    // "Drax", "Huber" — don't force-uppercase proper names). Prefer the paren code.
+    const prefix = paren || taken.join(' ');
     site.name = prefix + ' - ' + rest;
     changed = true;
   });
@@ -7350,6 +7352,30 @@ function loadAccounts() {
           }
         });
         if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // PNRE full name (Pacific Northwest Renewable Energy). Guarded to the default.
+      if (data.accounts) {
+        const pnre = data.accounts.find(a => a.id === 'AG-PNRE');
+        if (pnre && pnre.name === 'PNRE') {
+          pnre.name = 'Pacific Northwest Renewable Energy (PNRE)';
+          localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+        }
+      }
+      // Pinnacle → Drax: Pinnacle Renewable Energy was acquired by Drax. Merge any
+      // Pinnacle parent account's sites under Drax and drop the Pinnacle parent.
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-DRX')) {
+        const pinn = data.accounts.filter(a => !a.parentId && /pinnacle/i.test(a.name || ''));
+        if (pinn.length) {
+          const pinnIds = new Set(pinn.map(p => p.id));
+          data.accounts.forEach(a => {
+            if (a.parentId && pinnIds.has(a.parentId)) {
+              a.parentId = 'AG-DRX'; a.acctMatch = 'Drax';
+              a.name = (a.name || '').replace(/^\s*pinnacle\b[\s-]*/i, 'Drax ');  // Pinnacle X → Drax X
+            }
+          });
+          data.accounts = data.accounts.filter(a => !pinnIds.has(a.id));
+          localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+        }
       }
       // Backfill: additional Huber Engineered Woods locations (huberwood.com).
       if (data.accounts && data.accounts.some(a => a.id === 'AG-HUB')) {
@@ -7452,6 +7478,8 @@ function getAccounts() {
 
 // ── ACCOUNTS MODULE JS ────────────────────────────────────────
 let _acctSelectedGroup = null;
+let _acctDotScale = 1;   // accounts-map marker-size multiplier (slider)
+function setAcctDotScale(v){ _acctDotScale = parseFloat(v) || 1; renderAcctMap(); }
 let _acctSelectedSite  = null;
 let _acctMapGroups     = new Set();  // legend multi-select filter (parent-group ids)
 
@@ -10674,12 +10702,12 @@ function renderAcctMap() {
     let radius, fillOpacity, weight;
     if (deals.length > 0) {
       // Bubble sized by total open deal value at this site
-      radius = Math.max(8, Math.sqrt(totalVal / maxSiteVal) * 26);
+      radius = Math.max(8, Math.sqrt(totalVal / maxSiteVal) * 26) * _acctDotScale;
       fillOpacity = 0.75;
       weight = 2;
     } else {
       // No open deals — small neutral-weight dot, still colored by group
-      radius = 5;
+      radius = 5 * _acctDotScale;
       fillOpacity = 0.55;
       weight = 1;
     }
@@ -10738,7 +10766,7 @@ function renderAcctMap() {
     const gid = acct ? (acct.parentId || acct.id) : null;
     const color = gid ? getGroupColor(gid) : '#00929F';
     const marker = L.circleMarker(c, {
-      radius:8, fillColor:color, color:'#fff', weight:2, fillOpacity:0.45, dashArray:'3,3',
+      radius:8*_acctDotScale, fillColor:color, color:'#fff', weight:2, fillOpacity:0.45, dashArray:'3,3',
     }).bindPopup(`
       <div style="min-width:160px">
         <b>${o.acct}</b><br>
@@ -12356,6 +12384,10 @@ startAdminPoll();
         <select id="acct-map-continent-filter" onchange="renderAcctMap()" class="filter-select">
           <option value="">All Regions</option>
         </select>
+        <label style="font-size:11px;color:var(--color-text-secondary);display:flex;align-items:center;gap:5px" title="Marker size">
+          ● <input type="range" id="acct-dot-scale" min="0.5" max="3" step="0.1" value="1"
+                   oninput="setAcctDotScale(this.value)" style="width:90px;accent-color:var(--tsi-teal)">
+        </label>
         <button class="btn-export-jpg" onclick="exportMapPng2('acct-map')">⬇ PNG</button>
       </div>
 
