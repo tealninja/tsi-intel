@@ -7164,11 +7164,27 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-LPMAN',  parentId:'AG-LP', name:'LP Maniwaki',      industry:'', acctMatch:'LP', loc:'Maniwaki, QC, Canada',    plantType:'OSB',      lat:46.38, lon:-75.97,  notes:'' },
   { id:'S-LPPV',   parentId:'AG-LP', name:'LP Peace Valley',  industry:'', acctMatch:'LP', loc:'Peace Valley, BC, Canada',plantType:'OSB',      lat:56.24, lon:-121.20, notes:'near Fort St. John' },
   { id:'S-LPROX',  parentId:'AG-LP', name:'LP Roxboro',       industry:'', acctMatch:'LP', loc:'Roxboro, NC, USA',        plantType:'OSB',      lat:36.39, lon:-78.98,  notes:'' },
-  { id:'S-WFGP', parentId:'AG-WF', name:'WF Grande Prairie', industry:'', acctMatch:'West Fraser', loc:'Grande Prairie, AB, Canada', plantType:'OSB', lat:55.17, lon:-118.79, notes:'' },
-  { id:'S-WFJO', parentId:'AG-WF', name:'WF Joanna', industry:'', acctMatch:'West Fraser', loc:'Joanna, SC, USA', plantType:'OSB', lat:34.41, lon:-81.83, notes:'' },
-  { id:'S-WFJF', parentId:'AG-WF', name:'WF Jefferson', industry:'', acctMatch:'West Fraser', loc:'Jefferson, TX, USA', plantType:'OSB', lat:32.76, lon:-94.35, notes:'' },
-  { id:'S-WFAL', parentId:'AG-WF', name:'WF Allendale', industry:'', acctMatch:'WEAL', loc:'Allendale, SC, USA', plantType:'OSB', lat:33.01, lon:-81.31, notes:'' },
+  { id:'S-WFGP', parentId:'AG-WF', name:'WF Grande Prairie', industry:'', acctMatch:'West Fraser', loc:'Grande Prairie, AB, Canada', plantType:'OSB', lat:55.17, lon:-118.79, notes:'Highway 40 South, P.O. Bag 6700' },
+  { id:'S-WFJO', parentId:'AG-WF', name:'WF Joanna', industry:'', acctMatch:'West Fraser', loc:'Joanna, SC, USA', plantType:'OSB', lat:34.41, lon:-81.83, notes:'564 Woodyard Road, Kinards SC' },
+  { id:'S-WFJF', parentId:'AG-WF', name:'WF Jefferson', industry:'', acctMatch:'West Fraser', loc:'Jefferson, TX, USA', plantType:'OSB', lat:32.76, lon:-94.35, notes:'500 Nexfor Blvd' },
+  { id:'S-WFAL', parentId:'AG-WF', name:'WF Allendale', industry:'', acctMatch:'West Fraser', loc:'Allendale, SC, USA', plantType:'OSB', lat:33.01, lon:-81.31, notes:'9918 Buffords Bridge Hwy, Fairfax SC' },
   { id:'S-WFNB', parentId:'AG-WF', name:'WF Newberry', industry:'', acctMatch:'West Fraser', loc:'Newberry, SC, USA', plantType:'OSB', lat:34.27, lon:-81.61, notes:'' },
+  // ── Additional West Fraser locations from westfraser.com (mills + offices) ──
+  // Former Norbord OSB network tagged OSB; sawmills/plywood left untagged to verify.
+  { id:'S-WFBEM', parentId:'AG-WF', name:'WF Bemidji',       industry:'', acctMatch:'West Fraser', loc:'Solway, MN, USA',            plantType:'OSB', plantTags:['OSB'], lat:47.52, lon:-95.13,  notes:'4409 Northwood Road NW' },
+  { id:'S-WFCHA', parentId:'AG-WF', name:'WF Chambord',      industry:'', acctMatch:'West Fraser', loc:'Chambord, QC, Canada',       plantType:'OSB', plantTags:['OSB'], lat:48.44, lon:-72.06,  notes:'572, Route 155' },
+  { id:'S-WFGEN', parentId:'AG-WF', name:'WF Genk',          industry:'', acctMatch:'West Fraser', loc:'Genk, Belgium',              plantType:'OSB', plantTags:['OSB'], lat:50.97, lon:5.50,    notes:'Eikelaarstraat 33' },
+  { id:'S-WFINV', parentId:'AG-WF', name:'WF Inverness',     industry:'', acctMatch:'West Fraser', loc:'Inverness, Scotland, UK',    plantType:'OSB', plantTags:['OSB'], lat:57.54, lon:-4.05,   notes:'Morayhill, Dalcross' },
+  { id:'S-WFLAS', parentId:'AG-WF', name:'WF La Sarre',      industry:'', acctMatch:'West Fraser', loc:'La Sarre, QC, Canada',       plantType:'OSB', plantTags:['OSB'], lat:48.80, lon:-79.20,  notes:'210, 9e avenue est' },
+  { id:'S-WFBAR', parentId:'AG-WF', name:'WF Barwick',       industry:'', acctMatch:'West Fraser', loc:'Barwick, ON, Canada',        plantType:'', plantTags:[], lat:48.72, lon:-93.95,  notes:'181 Nighswander Road · lumber?' },
+  { id:'S-WFCOR', parentId:'AG-WF', name:'WF Cordele',       industry:'', acctMatch:'West Fraser', loc:'Cordele, GA, USA',           plantType:'', plantTags:[], lat:31.96, lon:-83.78,  notes:'964 Highway 280 W · lumber?' },
+  { id:'S-WFGUN', parentId:'AG-WF', name:'WF Guntown',       industry:'', acctMatch:'West Fraser', loc:'Guntown, MS, USA',           plantType:'', plantTags:[], lat:34.44, lon:-88.66,  notes:'1194 Highway 145 · lumber?' },
+  { id:'S-WFHUG', parentId:'AG-WF', name:'WF Huguley',       industry:'', acctMatch:'West Fraser', loc:'Lanett, AL, USA',            plantType:'', plantTags:[], lat:32.85, lon:-85.22,  notes:'4400 Barton Industrial Blvd · plywood?' },
+  { id:'S-WFNAC', parentId:'AG-WF', name:'WF Nacogdoches',   industry:'', acctMatch:'West Fraser', loc:'Nacogdoches, TX, USA',       plantType:'', plantTags:[], lat:31.60, lon:-94.65,  notes:'2301 SE Stallings Drive · plywood?' },
+  { id:'S-WFCOW', parentId:'AG-WF', name:'WF Cowie Office',  industry:'', acctMatch:'West Fraser', loc:'Cowie, Stirlingshire, UK',   plantType:'', plantTags:[], locType:'corporate', lat:56.08, lon:-3.87, notes:'10 Station Road · Regional office' },
+  { id:'S-WFMEM', parentId:'AG-WF', name:'WF Memphis Office',industry:'', acctMatch:'West Fraser', loc:'Cordova, TN, USA',           plantType:'', plantTags:[], locType:'corporate', lat:35.16, lon:-89.77, notes:'57 Germantown Court, Ste 300 · US operations office' },
+  { id:'S-WFQUE', parentId:'AG-WF', name:'WF Quesnel Office',industry:'', acctMatch:'West Fraser', loc:'Quesnel, BC, Canada',        plantType:'', plantTags:[], locType:'corporate', lat:52.98, lon:-122.49, notes:'1250 Brownmiller Road · Canadian operations office' },
+  { id:'S-WFVAN', parentId:'AG-WF', name:'WF Vancouver HQ',  industry:'', acctMatch:'West Fraser', loc:'Vancouver, BC, Canada',      plantType:'', plantTags:[], locType:'corporate', lat:49.28, lon:-123.12, notes:'885 West Georgia St, Ste 1500 · Corporate HQ' },
   { id:'S-HUBBB', parentId:'AG-HUB', name:'Huber Broken Bow', industry:'', acctMatch:'Huber', loc:'Broken Bow, OK, USA', plantType:'OSB', lat:34.02, lon:-94.74, notes:'' },
   { id:'S-HUBSH', parentId:'AG-HUB', name:'Huber Shuqualak', industry:'', acctMatch:'Huber', loc:'Shuqualak, MS, USA', plantType:'OSB', lat:32.99, lon:-88.57, notes:'' },
   { id:'S-HUBSC', parentId:'AG-HUB', name:'Huber Spring City', industry:'', acctMatch:'Huber', loc:'Spring City, TN, USA', plantType:'OSB', lat:35.69, lon:-84.86, notes:'' },
@@ -7314,6 +7330,18 @@ function loadAccounts() {
       if (data.accounts && data.accounts.some(a => a.id === 'AG-WEY')) {
         let added = false;
         ['S-WEYGR','S-WEYHB','S-WEYSU'].forEach(id => {
+          if (!data.accounts.some(a => a.id === id)) {
+            const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
+            if (seed) { data.accounts.push({ ...seed }); added = true; }
+          }
+        });
+        if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: additional West Fraser mills + offices (westfraser.com).
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-WF')) {
+        let added = false;
+        ['S-WFBEM','S-WFCHA','S-WFGEN','S-WFINV','S-WFLAS','S-WFBAR','S-WFCOR',
+         'S-WFGUN','S-WFHUG','S-WFNAC','S-WFCOW','S-WFMEM','S-WFQUE','S-WFVAN'].forEach(id => {
           if (!data.accounts.some(a => a.id === id)) {
             const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
             if (seed) { data.accounts.push({ ...seed }); added = true; }
