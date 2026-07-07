@@ -7150,6 +7150,19 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-LPARG', parentId:'AG-LP', name:'LP Argentina', industry:'', acctMatch:'LP', loc:'Argentina', plantType:'OSB', lat:-34.6, lon:-58.4, notes:'' },
   { id:'S-LPPG', parentId:'AG-LP', name:'LP Ponta Grossa', industry:'', acctMatch:'LP', loc:'Ponta Grossa, Brazil', plantType:'OSB', lat:-25.09, lon:-50.16, notes:'' },
   { id:'S-LPPA', parentId:'AG-LP', name:'LP Panguipulli', industry:'', acctMatch:'LP', loc:'Panguipulli, Chile', plantType:'OSB', lat:-39.64, lon:-72.08, notes:'' },
+  // ── Additional LP mills from lpcorp.com/locations (Siding + OSB) ──
+  { id:'S-LPBATH', parentId:'AG-LP', name:'LP Bath',          industry:'', acctMatch:'LP', loc:'Bath, NY, USA',            plantType:'Siding',   lat:42.34, lon:-77.32,  notes:'SmartSide siding' },
+  { id:'S-LPGB',   parentId:'AG-LP', name:'LP Green Bay',     industry:'', acctMatch:'LP', loc:'Green Bay, WI, USA',       plantType:'Siding',   lat:44.51, lon:-88.02,  notes:'SmartSide siding' },
+  { id:'S-LPHAY',  parentId:'AG-LP', name:'LP Hayward',       industry:'', acctMatch:'LP', loc:'Hayward, WI, USA',         plantType:'Siding',   lat:46.01, lon:-91.48,  notes:'SmartSide siding' },
+  { id:'S-LPHOU',  parentId:'AG-LP', name:'LP Houlton',       industry:'', acctMatch:'LP', loc:'Houlton, ME, USA',        plantType:'Siding',   lat:46.13, lon:-67.84,  notes:'SmartSide siding' },
+  { id:'S-LPRR',   parentId:'AG-LP', name:'LP Roaring River', industry:'', acctMatch:'LP', loc:'Roaring River, NC, USA',  plantType:'Siding',   lat:36.20, lon:-81.01,  notes:'SmartSide siding' },
+  { id:'S-LPSV',   parentId:'AG-LP', name:'LP Swan Valley',   industry:'', acctMatch:'LP', loc:'Swan Valley, MB, Canada', plantType:'Siding',   lat:52.10, lon:-101.10, notes:'SmartSide siding' },
+  { id:'S-LPCAR',  parentId:'AG-LP', name:'LP Carthage',      industry:'', acctMatch:'LP', loc:'Carthage, TX, USA',       plantType:'OSB',      lat:32.16, lon:-94.34,  notes:'' },
+  { id:'S-LPCLK',  parentId:'AG-LP', name:'LP Clarke County', industry:'', acctMatch:'LP', loc:'Clarke County, AL, USA',  plantType:'OSB',      lat:31.91, lon:-87.74,  notes:'Thomasville / Clarke County' },
+  { id:'S-LPFN',   parentId:'AG-LP', name:'LP Ferme-Neuve',   industry:'', acctMatch:'LP', loc:'Ferme-Neuve, QC, Canada', plantType:'Forestry', lat:46.70, lon:-75.44,  notes:'Forestry' },
+  { id:'S-LPMAN',  parentId:'AG-LP', name:'LP Maniwaki',      industry:'', acctMatch:'LP', loc:'Maniwaki, QC, Canada',    plantType:'OSB',      lat:46.38, lon:-75.97,  notes:'' },
+  { id:'S-LPPV',   parentId:'AG-LP', name:'LP Peace Valley',  industry:'', acctMatch:'LP', loc:'Peace Valley, BC, Canada',plantType:'OSB',      lat:56.24, lon:-121.20, notes:'near Fort St. John' },
+  { id:'S-LPROX',  parentId:'AG-LP', name:'LP Roxboro',       industry:'', acctMatch:'LP', loc:'Roxboro, NC, USA',        plantType:'OSB',      lat:36.39, lon:-78.98,  notes:'' },
   { id:'S-WFGP', parentId:'AG-WF', name:'WF Grande Prairie', industry:'', acctMatch:'West Fraser', loc:'Grande Prairie, AB, Canada', plantType:'OSB', lat:55.17, lon:-118.79, notes:'' },
   { id:'S-WFJO', parentId:'AG-WF', name:'WF Joanna', industry:'', acctMatch:'West Fraser', loc:'Joanna, SC, USA', plantType:'OSB', lat:34.41, lon:-81.83, notes:'' },
   { id:'S-WFJF', parentId:'AG-WF', name:'WF Jefferson', industry:'', acctMatch:'West Fraser', loc:'Jefferson, TX, USA', plantType:'OSB', lat:32.76, lon:-94.35, notes:'' },
@@ -7265,6 +7278,21 @@ function loadAccounts() {
           industry:'', acctMatch:'Alfanar', loc:'Teesside, UK', plantType:'Torrefaction',
           lat:54.57, lon:-1.23, notes:'700k TPY torrefied biomass, Pre-SAF. FEED (Stage 1) + fab/install (Stage 2).' });
         localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: additional LP mills (Siding + OSB) added from lpcorp.com.
+      // Pull the canonical records straight from DEFAULT_ACCOUNTS by id so this
+      // list has a single source of truth.
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-LP')) {
+        const LP_NEW = ['S-LPBATH','S-LPGB','S-LPHAY','S-LPHOU','S-LPRR','S-LPSV',
+                        'S-LPCAR','S-LPCLK','S-LPFN','S-LPMAN','S-LPPV','S-LPROX'];
+        let added = false;
+        LP_NEW.forEach(id => {
+          if (!data.accounts.some(a => a.id === id)) {
+            const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
+            if (seed) { data.accounts.push({ ...seed }); added = true; }
+          }
+        });
+        if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
       }
       // Consistent sub-account naming (LP - Sagola, WF - Grande Prairie, …)
       if (data.accounts && normalizeSubAccountNames(data.accounts)) {
