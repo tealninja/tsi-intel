@@ -1732,7 +1732,11 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .acct-media>summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--color-text-secondary)}
 .acct-media>summary:hover{color:var(--tsi-teal)}
 .am-editor{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.acct-loctype{font-weight:600;border-radius:999px;padding:1px 9px;font-size:11px}
+.acct-loctype.corp{background:rgba(25,68,108,.12);color:var(--tsi-deep-blue)}
+.acct-loctype.prod{background:rgba(0,146,159,.12);color:var(--tsi-teal)}
 .am-logo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.am-logo-url{flex:1;min-width:200px;font-size:11px;padding:5px 8px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-text)}
 .am-logo-preview{width:46px;height:46px;object-fit:contain;border:1px solid var(--color-border);border-radius:6px}
 .am-upload,.am-add-photo{display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding:6px 12px;border:1px dashed var(--color-border-mid);border-radius:var(--radius-sm);cursor:pointer;color:var(--tsi-teal)}
 .am-upload:hover,.am-add-photo:hover{border-color:var(--tsi-teal);background:rgba(0,146,159,.05)}
@@ -7245,7 +7249,24 @@ const mediaStore = (typeof Store==='function') ? Store('account_media') : null;
 if (mediaStore) { try { mediaStore.pull().then(()=>{ if(_acctSelectedSite) renderAcctMain(_acctSelectedSite); }); } catch(_){} }
 function getAcctMedia(gid){ return (mediaStore?mediaStore.all():[]).find(m=>m.id===gid) || {id:gid, logo:'', photos:[], prime:0}; }
 async function saveAcctMedia(rec){ if(mediaStore) await mediaStore.put(rec); }
-function acctLogo(gid){ return getAcctMedia(gid).logo||''; }
+function acctLogo(gid){ const m=getAcctMedia(gid); return m.logo||m.logoUrl||''; }
+// Resolve the logo for an opportunity via its account (acctId → parent group).
+function oppAcctLogo(o){
+  if(!o) return '';
+  const data=(typeof getAccounts==='function')?getAccounts():null; if(!data) return '';
+  let acct=null;
+  if(o.acctId) acct=data.accounts.find(a=>a.id===o.acctId);
+  if(!acct && o.acct) acct=data.accounts.find(a=>a.name===o.acct)
+    || data.accounts.find(a=>a.acctMatch && (o.acct.includes(a.acctMatch)||a.acctMatch.includes(o.acct)));
+  if(!acct) return '';
+  const gid=acct.parentId||acct.id;
+  return acctLogo(gid);
+}
+async function saveAcctLogoUrl(gid, url){
+  const m=getAcctMedia(gid); m.logoUrl=(url||'').trim(); await saveAcctMedia(m);
+  renderAcctMain(_acctSelectedSite); renderAcctSidebar();
+  showToast(m.logoUrl?'✓ Logo URL saved':'Logo URL cleared','var(--tsi-teal)');
+}
 function acctPrimePhoto(gid){ const m=getAcctMedia(gid); return (m.photos&&m.photos.length)?m.photos[Math.min(m.prime||0,m.photos.length-1)]:''; }
 function compressImage(file, maxDim, quality){
   return new Promise((resolve,reject)=>{
@@ -7288,7 +7309,7 @@ function renderAcctMain(siteId) {
   const group   = data.groups.find(g => g.id === site.groupId);
   const gid     = site.groupId;
   const media   = getAcctMedia(gid);
-  const logo    = media.logo || '';
+  const logo    = media.logo || media.logoUrl || '';
   const prime   = acctPrimePhoto(gid);
   const contacts = data.contacts.filter(c => (c.accountIds||[]).includes(siteId));
   const equipment= data.equipment.filter(e => e.siteId === siteId);
@@ -7315,7 +7336,8 @@ function renderAcctMain(siteId) {
         <div style="min-width:0">
           <div class="acct-site-name">${site.name}</div>
           <div class="acct-site-meta">
-            <span>🏭 ${site.plantType||'—'}</span>
+            <span class="acct-loctype ${site.locType==='corporate'?'corp':'prod'}">${site.locType==='corporate'?'🏢 Corporate':'🏭 Production'}</span>
+            ${site.plantType?`<span>${qesc(site.plantType)}</span>`:''}
             <span>📍 ${site.loc||'—'}</span>
             ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
             ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
@@ -7329,8 +7351,15 @@ function renderAcctMain(siteId) {
       <summary>📷 Logo &amp; Photos${media.photos&&media.photos.length?` · ${media.photos.length} photo${media.photos.length>1?'s':''}`:''}</summary>
       <div class="am-editor">
         <div class="am-logo-row">
-          <label class="am-upload">⬆ ${logo?'Replace':'Add'} logo<input type="file" accept="image/*" onchange="uploadAcctLogo(this,'${gid}')" hidden></label>
-          ${logo?`<img class="am-logo-preview" src="${logo}"><button class="lc-act del" onclick="removeAcctLogo('${gid}')">Remove logo</button>`:'<span class="am-hint">Parent-account logo shown on the account header</span>'}
+          <label class="am-upload">⬆ ${media.logo?'Replace':'Add'} file<input type="file" accept="image/*" onchange="uploadAcctLogo(this,'${gid}')" hidden></label>
+          ${logo?`<img class="am-logo-preview" src="${logo}" onerror="this.style.opacity=.3">`:'<span class="am-hint">Parent-account logo — shown on the account header, pipeline & presentation</span>'}
+          ${media.logo?`<button class="lc-act del" onclick="removeAcctLogo('${gid}')">Remove file</button>`:''}
+        </div>
+        <div class="am-logo-row" style="margin-top:6px">
+          <input class="am-logo-url" id="am-logo-url-${gid}" value="${qattr(media.logoUrl||'')}" placeholder="…or paste a public logo image URL (https://…)"
+                 onkeydown="if(event.key==='Enter')saveAcctLogoUrl('${gid}',this.value)">
+          <button class="lc-act" onclick="saveAcctLogoUrl('${gid}',document.getElementById('am-logo-url-${gid}').value)">Save URL</button>
+          ${media.logoUrl?`<button class="lc-act del" onclick="saveAcctLogoUrl('${gid}','')">Clear URL</button>`:''}
         </div>
         <div class="am-photos-grid">
           ${(media.photos||[]).map((ph,i)=>`<div class="am-thumb ${i===(media.prime||0)?'prime':''}"><img src="${ph}"><div class="am-thumb-actions"><button title="Set as prime photo" onclick="setAcctPrime('${gid}',${i})">${i===(media.prime||0)?'★':'☆'}</button><button title="Remove photo" onclick="removeAcctPhoto('${gid}',${i})">✕</button></div></div>`).join('')}
@@ -10541,8 +10570,9 @@ function openSiteDrawer(accountId) {
   allContacts.forEach(c => { window._contactNameToId[c.name] = c.id; });
 
   // Clear / fill fields
-  const fields = ['s-name','s-acctmatch','s-loc-search','s-city','s-state','s-country','s-lat','s-lon','s-notes'];
+  const fields = ['s-name','s-acctmatch','s-loc-search','s-city','s-state','s-country','s-lat','s-lon','s-notes','s-plantType'];
   fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const _ltDef=document.getElementById('s-loctype'); if(_ltDef) _ltDef.value='production';
   document.getElementById('s-group').value = '';
   document.getElementById('s-group-id').value = '';
   const indEl = document.getElementById('s-industry'); if (indEl) indEl.value = '';
@@ -10558,6 +10588,8 @@ function openSiteDrawer(accountId) {
     document.getElementById('s-name').value      = existing.name || '';
     document.getElementById('s-acctmatch').value = existing.acctMatch || '';
     document.getElementById('s-industry').value  = existing.industry || '';
+    const _lt=document.getElementById('s-loctype'); if(_lt) _lt.value = existing.locType || (existing.parentId?'production':'corporate');
+    const _pt=document.getElementById('s-plantType'); if(_pt) _pt.value = existing.plantType || '';
     document.getElementById('s-loc-search').value= existing.loc || '';
     document.getElementById('s-city').value      = existing.city || '';
     document.getElementById('s-state').value     = existing.state || '';
@@ -10676,6 +10708,8 @@ function saveSiteDrawer() {
     parentId:   parentId,
     name:       name,
     industry:   document.getElementById('s-industry')?.value.trim() || '',
+    locType:    document.getElementById('s-loctype')?.value || 'production',
+    plantType:  document.getElementById('s-plantType')?.value.trim() || '',
     acctMatch:  document.getElementById('s-acctmatch').value.trim() || name,
     loc:        document.getElementById('s-loc-search').value.trim(),
     city:       document.getElementById('s-city').value.trim(),
@@ -11441,6 +11475,19 @@ startAdminPoll();
         <div class="drow">
           <label>Industry</label>
           <input class="dinput" id="s-industry" placeholder="e.g. OSB/LVL, Torrefaction/SAF">
+        </div>
+      </div>
+      <div class="drow-2">
+        <div class="drow">
+          <label>Location Type</label>
+          <select class="dselect" id="s-loctype">
+            <option value="production">Production / Plant</option>
+            <option value="corporate">Corporate / HQ</option>
+          </select>
+        </div>
+        <div class="drow">
+          <label>Plant Type <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— e.g. OSB, Pellets, Torrefaction</span></label>
+          <input class="dinput" id="s-plantType" placeholder="e.g. OSB, Pellets, MDF, Torrefaction">
         </div>
       </div>
       </div><!-- /dsec-body -->
@@ -12580,6 +12627,7 @@ startAdminPoll();
 .pz-eyebrow .on{color:var(--acc,#00929f);font-weight:700}
 .pz-eyebrow .sep{opacity:.35}.pz-eyebrow .pos{margin-left:auto;color:var(--pz-faint);letter-spacing:.05em}
 .pz-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:12px}
+.pz-logo{width:auto;height:56px;max-width:150px;object-fit:contain;border-radius:8px;background:#fff;padding:6px 8px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .pz-acct{font-size:38px;font-weight:800;line-height:1.03;letter-spacing:-.5px}
 .pz-ptype{font-size:18px;color:var(--pz-muted);margin-top:6px;font-weight:500}
 .pz-loc{font-size:14px;color:var(--pz-faint);margin-top:9px}
@@ -12641,10 +12689,13 @@ startAdminPoll();
 .pz-sec-big{font-size:52px;font-weight:800;letter-spacing:-1px;margin:6px 0 8px}
 .pz-sec-blurb{font-size:17px;color:var(--pz-muted);margin-bottom:22px}
 .pz-sec-list{display:flex;flex-direction:column;gap:8px}
-.pz-sec-item{display:flex;align-items:baseline;gap:12px;padding:9px 8px;border-bottom:1px solid var(--pz-line);border-radius:8px;cursor:pointer;transition:.12s}
+.pz-sec-item{display:flex;flex-direction:column;gap:6px;padding:9px 8px;border-bottom:1px solid var(--pz-line);border-radius:8px;cursor:pointer;transition:.12s}
 .pz-sec-item:hover{background:var(--pz-panel2)}
 .pz-sec-item:hover .pz-sec-go{opacity:1;transform:translateX(0)}
+.pz-si-main{display:flex;align-items:baseline;gap:12px}
 .pz-sec-item .a{font-weight:700}.pz-sec-item .t{color:var(--pz-muted)}.pz-sec-item .v{margin-left:auto;color:var(--pz-faint);font-variant-numeric:tabular-nums}
+.pz-si-tags{display:flex;flex-wrap:wrap;gap:5px}
+.pz-si-tag{font-size:10.5px;font-weight:600;color:#fff;padding:2px 7px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
 .pz-sec-go{color:var(--pz-faint);opacity:0;transform:translateX(-4px);transition:.15s;align-self:center}
 #pz-ovmap .leaflet-interactive{cursor:pointer}
 /* rail */
@@ -14176,7 +14227,15 @@ function presoOverviewHTML(s){
     ['Combined value',presoMoney(totVal)],['Weighted value',presoMoney(wVal)]];
   const agenda=sections.map(sec=>{
     const jobs=s.bySect[sec.key]||[]; const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
-    const chips=jobs.map(o=>`<span class="pz-ag-job" style="--acc:${sec.acc}" onclick="event.stopPropagation();presoJumpToId('${qattr(o.id)}')" title="${qattr((o.type||'')+' · '+presoMoney(o.val))}">${qesc(o.acct)}${o.__quote?' <span class="pz-ag-sample">sample</span>':''}</span>`).join('');
+    // Distinguish chips for the same account (multiple phases/opps) so they don't
+    // read as duplicate "tags" — append the phase / type / stage that differs.
+    const acctCount={}; jobs.forEach(o=>{ acctCount[o.acct]=(acctCount[o.acct]||0)+1; });
+    const chips=jobs.map(o=>{
+      const dup=acctCount[o.acct]>1;
+      const extra=(o.phase||o.type||o.stage||'').trim();
+      const label=(dup&&extra)?`${o.acct} · ${extra}`:o.acct;
+      return `<span class="pz-ag-job" style="--acc:${sec.acc}" onclick="event.stopPropagation();presoJumpToId('${qattr(o.id)}')" title="${qattr(o.acct+' — '+(o.type||'')+' · '+presoMoney(o.val))}">${qesc(label)}${o.__quote?' <span class="pz-ag-sample">sample</span>':''}</span>`;
+    }).join('');
     return `<div class="pz-ag-sec">
       <div class="pz-ag-row" onclick="presoJumpToSection('${qattr(sec.key)}')" title="Go to the ${qattr(sec.label)} section">
         <span class="pz-ag-dot" style="background:${sec.acc}"></span>
@@ -14286,7 +14345,13 @@ async function presoRenderClima(job){
 function presoSectionHTML(s){
   const sec=s.section, jobs=s.jobs;
   const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
-  const list=jobs.length ? jobs.map(o=>`<div class="pz-sec-item" onclick="presoJumpToId('${qattr(o.id)}')" title="Open this opportunity"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div>`).join('')
+  const list=jobs.length ? jobs.map(o=>{
+      const tg=presoScopeTags(o.tags);
+      const tagHtml=tg.length?`<div class="pz-si-tags">${tg.map(t=>`<span class="pz-si-tag" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</div>`:'';
+      return `<div class="pz-sec-item" onclick="presoJumpToId('${qattr(o.id)}')" title="Open this opportunity">
+        <div class="pz-si-main"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div>
+        ${tagHtml}</div>`;
+    }).join('')
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
     <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
@@ -14339,7 +14404,10 @@ function presoOppSlide(o,sec,s){
   return `<div class="pz-slide" style="--acc:${sec.acc}">
     <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
     <div class="pz-head">
-      <div><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div><div class="pz-loc">📍 ${qesc(presoLoc(o))}</div></div>
+      <div style="display:flex;gap:16px;align-items:center;min-width:0">
+        ${(function(){const lg=(typeof oppAcctLogo==='function')?oppAcctLogo(o):''; return lg?`<img class="pz-logo" src="${qattr(lg)}" alt="" onerror="this.style.display='none'">`:'';})()}
+        <div style="min-width:0"><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div><div class="pz-loc">📍 ${qesc(presoLoc(o))}</div></div>
+      </div>
       <div class="pz-flag">${qesc(o.stage||'—')}${o.close?' · closes '+qesc(o.close):''}</div>
     </div>
     ${ribbon}
