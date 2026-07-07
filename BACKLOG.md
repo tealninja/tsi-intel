@@ -162,7 +162,18 @@ Roles (cumulative ladder):
   POSTs the correct `{id,section,ord,excluded}` payload; live D1 `collections` round-trip
   (insert→read→delete) confirmed. **Remaining: deploy the worker** so the route exists (below).
 - [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
-  richer sample-quote slides, PDF/Word export of the deck.
+  richer sample-quote slides.
+- [ ] **Deck export to PPTX** (PptxGenJS via CDN, TSI-themed) so it's distributable /
+  Canva-importable (Canva imports .pptx). Raised alongside "export to ppt or Canva".
+- [ ] **"What to present" settings** — Auto / **Smart rules** (updated-within, closes-within,
+  value ≥ X, stages, group-by) / Manual, plus an **AI describe box** ("everything updated
+  recently closing in 90 days over $X, grouped by line of business") → fills the rules
+  (needs the worker /api/ai). The in-between between auto and manual.
+
+## 🗂️ Pipeline
+- [ ] **Stage view** — a kanban of the pipeline (columns = Lead→Qualified→…→PO Received,
+  opp cards stacked under each), reusing the deck-builder DnD; drag a card to change stage.
+  Toggle with the table view.
 
 ## ✅ Recently done
 - [x] **Word (.doc) export** — editable proposal download (Biocarbon letterhead, pricing
