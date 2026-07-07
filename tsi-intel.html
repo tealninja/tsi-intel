@@ -825,6 +825,16 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 }
 .drawer-tag-item .dtag-x { opacity:.7; font-size:10px; cursor:pointer; }
 .drawer-tag-item .dtag-x:hover { opacity:1; }
+.drawer-link-item {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:600;
+  color:var(--tsi-deep-blue); background:rgba(0,146,159,.12);
+  border:1px solid rgba(0,146,159,.4);
+}
+.drawer-link-item .dl-open { cursor:pointer; border-bottom:1px dashed currentColor; }
+.drawer-link-item .dl-open:hover { color:var(--tsi-teal); }
+.drawer-link-item .dtag-x { opacity:.7; font-size:11px; cursor:pointer; }
+.drawer-link-item .dtag-x:hover { opacity:1; color:var(--tsi-coral); }
 .drawer-tag-input {
   border:none; outline:none; background:transparent;
   font-size:12px; font-family:var(--font-ui); min-width:80px;
@@ -4947,6 +4957,7 @@ function renderBugs() {
 let _drawerEditId = null;   // null = new, string = editing
 let _drawerClima  = null;   // Chart.js instance for climatogram
 let _drawerTags   = [];     // current tag keys in drawer
+let _drawerLinks  = [];     // ids of related opportunities (program phases) in drawer
 let _drawerLat    = null;
 let _drawerLon    = null;
 let _geoACTimer   = null;
@@ -4999,6 +5010,8 @@ function openOppDrawer(editId) {
     _drawerLat = o.lat || null;
     _drawerLon = o.lon || null;
     _drawerTags = [...(o.tags || [])];
+    setDrawerField('d-phase', o.phase || '');
+    _drawerLinks = relatedOppIds(o.id);   // union of both directions (self-heals legacy one-sided links)
     // Restore climate if available
     if (o._monthlyHigh && o._monthlyLow && o._monthlyMean && o._monthlyPrecip) {
       drawClimatogram(o._monthlyHigh, o._monthlyMean, o._monthlyLow, o._monthlyPrecip);
@@ -5018,7 +5031,9 @@ function openOppDrawer(editId) {
     { const _dd=document.getElementById('d-details'); if(_dd) _dd.innerHTML = ''; }
     setDrawerField('d-lead', 'TF');
     setDrawerField('d-cat',  'Dryer System');
+    setDrawerField('d-phase', '');
     _drawerTags = [];
+    _drawerLinks = [];
     _drawerLat = null; _drawerLon = null;
     const _ws2 = document.getElementById('d-weather-section');
     if(_ws2) _ws2.style.display = 'none';
@@ -5027,6 +5042,7 @@ function openOppDrawer(editId) {
   }
 
   rebuildDrawerTags();
+  rebuildDrawerLinks();
 
   // Open
   document.getElementById('opp-drawer-overlay').classList.add('open');
@@ -5130,6 +5146,85 @@ function rebuildDrawerTags() {
 function removeDrawerTag(key) {
   _drawerTags = _drawerTags.filter(t => t !== key);
   rebuildDrawerTags();
+}
+
+// ── Related opportunities (program phases: FEED → EPC → fab/install …) ──────
+// A short, human label for an opp used in link pickers/chips.
+function oppLinkLabel(o){
+  const money = (o.val!=null) ? ' · ' + fmt(o.val) : '';
+  return `${o.acct} — ${o.type||'opportunity'}${money}`;
+}
+// Fill the datalist of linkable opportunities (every open/won opp except this one
+// and ones already linked). Maps the display string back to an opp id.
+function populateLinkOppOptions(){
+  const dl = document.getElementById('link-opp-options');
+  if (!dl) return;
+  window._linkOppMap = {};
+  const opts = DATA
+    .filter(o => o.id !== _drawerEditId && !_drawerLinks.includes(o.id))
+    .map(o => { const lbl = oppLinkLabel(o); window._linkOppMap[lbl] = o.id; return `<option value="${qattr(lbl)}">`; });
+  dl.innerHTML = opts.join('');
+}
+function rebuildDrawerLinks(){
+  const wrap = document.getElementById('d-links-wrap');
+  const inp  = document.getElementById('d-link-input');
+  if (!wrap || !inp) return;
+  wrap.querySelectorAll('.drawer-link-item').forEach(el => el.remove());
+  _drawerLinks.forEach(id => {
+    const o = DATA.find(r => r.id === id);
+    const label = o ? `${o.acct}${o.phase?' · '+o.phase:(o.type?' · '+o.type:'')}` : id;
+    const sp = document.createElement('span');
+    sp.className = 'drawer-link-item';
+    sp.title = 'Jump to this opportunity';
+    sp.innerHTML = `🔗 <span class="dl-open" onclick="event.stopPropagation();openOppDrawer('${qattr(id)}')">${qesc(label)}</span>`
+      + ` <span class="dtag-x" onclick="event.stopPropagation();removeDrawerLink('${qattr(id)}')">×</span>`;
+    wrap.insertBefore(sp, inp);
+  });
+  populateLinkOppOptions();   // keep the picker in sync (exclude already-linked)
+}
+function removeDrawerLink(id){
+  _drawerLinks = _drawerLinks.filter(x => x !== id);
+  rebuildDrawerLinks();
+}
+function addDrawerLinkFromInput(){
+  const inp = document.getElementById('d-link-input');
+  if (!inp) return;
+  const id = (window._linkOppMap || {})[inp.value.trim()];
+  if (id && id !== _drawerEditId && !_drawerLinks.includes(id)) {
+    _drawerLinks.push(id);
+    rebuildDrawerLinks();
+  }
+  inp.value = '';
+}
+// Resolve the full related set for an opp id, BIDIRECTIONALLY: opps this one links
+// to, plus opps that link to it. Used by the presentation and badges so a link
+// only has to be recorded on one side.
+function relatedOppIds(id){
+  const set = new Set();
+  const self = (typeof DATA!=='undefined'?DATA:[]).find(o => o.id === id);
+  (self && self.linkedIds || []).forEach(x => set.add(x));
+  (typeof DATA!=='undefined'?DATA:[]).forEach(o => { if (o.linkedIds && o.linkedIds.includes(id)) set.add(o.id); });
+  set.delete(id);
+  return [...set];
+}
+// Keep links symmetric: when opp `oppId` declares links `links`, add oppId to each
+// linked opp, and drop it from any opp that is no longer linked. Persists each
+// changed sibling (KV) so removal works from either side.
+function syncOppLinks(oppId, links){
+  const affected = new Set(links);
+  DATA.forEach(o => { if (o.id !== oppId && o.linkedIds && o.linkedIds.includes(oppId)) affected.add(o.id); });
+  affected.forEach(id => {
+    if (id === oppId) return;
+    const o = DATA.find(r => r.id === id); if (!o) return;
+    o.linkedIds = o.linkedIds || [];
+    const shouldLink = links.includes(id), has = o.linkedIds.includes(oppId);
+    if (shouldLink && !has) o.linkedIds.push(oppId);
+    else if (!shouldLink && has) o.linkedIds = o.linkedIds.filter(x => x !== oppId);
+    else return;   // already in the right state
+    markDirty(id);
+    if (API_WORKER_URL) fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(id),
+      { method:'PUT', headers:workerHeaders(), body:JSON.stringify(o) }).catch(()=>{});
+  });
 }
 
 // Wire tag input autocomplete
@@ -5441,6 +5536,8 @@ function saveOppDrawer() {
     source:     document.getElementById('d-source').value.trim(),
     status:     'O',
     tags:       [..._drawerTags],
+    phase:      document.getElementById('d-phase')?.value.trim() || '',
+    linkedIds:  [..._drawerLinks],
     notes:      document.getElementById('d-notes').value.trim(),
     details:    (function(){ const el=document.getElementById('d-details'); return el ? rteToValue(el.innerHTML) : ''; })(),
     lat:        _drawerLat,
@@ -5480,6 +5577,7 @@ function saveOppDrawer() {
   opp.history.unshift({at:new Date().toISOString(),by:getUserInitials()||'?',action:_isNew?'Opportunity created':'Record updated'});
   if(opp.history.length>50) opp.history.splice(50);
   markDirty(opp.id);
+  syncOppLinks(opp.id, opp.linkedIds || []);   // keep the relationship symmetric on both opps
   window._drawerWeather = null;
   closeOppDrawer();
   populateFilters();
@@ -11015,6 +11113,33 @@ startAdminPoll();
       </div><!-- /dsec-body -->
     </div>
 
+    <!-- PROGRAM / PHASES (link related opportunities: FEED → contract → …) -->
+    <div class="dsec" id="dsec-program">
+      <div class="dsec-title" onclick="toggleDsec('program')">
+        <span>Program &amp; Phases <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— FEED → full contract, multi-stage</span></span>
+        <span class="dsec-chevron">▾</span>
+      </div>
+      <div class="dsec-body">
+      <div class="drow">
+        <label>Phase <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— this opportunity's stage in the program</span></label>
+        <input class="dinput" id="d-phase" list="phase-options" placeholder="e.g. FEED, EPC Contract, Fab &amp; Install…" autocomplete="off">
+        <datalist id="phase-options">
+          <option value="Pre-FEED"><option value="FEED"><option value="FEED / Pre-Order">
+          <option value="EPC Contract"><option value="Fabrication &amp; Installation">
+          <option value="Equipment Supply"><option value="Aftermarket / CO">
+        </datalist>
+      </div>
+      <div class="drow" style="margin-top:10px">
+        <label>Related opportunities <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— other phases of the same program</span></label>
+        <div class="drawer-tag-editor" id="d-links-wrap" onclick="const _li=document.getElementById('d-link-input');if(_li)_li.focus()">
+          <input class="drawer-tag-input" id="d-link-input" list="link-opp-options" placeholder="Search an opportunity to link…"
+                 autocomplete="off" onchange="addDrawerLinkFromInput()">
+        </div>
+        <datalist id="link-opp-options"></datalist>
+      </div>
+      </div><!-- /dsec-body -->
+    </div>
+
     <!-- LOCATION -->
     <div class="dsec" id="dsec-location">
       <div class="dsec-title" onclick="toggleDsec('location')">
@@ -13849,11 +13974,23 @@ async function presoBuildDeck(){
     bySect[k].push(it); });
   // honor presenter ordering within each section
   Object.values(bySect).forEach(list=>list.sort((a,b)=>((_presoCfg[a.id]?.ord??9999)-(_presoCfg[b.id]?.ord??9999))));
-  // sibling links within the deck (per section, by account base)
+  // sibling links within the deck:
+  //  1) EXPLICIT — related opportunities set on the drawer (bidirectional), deck-wide
+  //  2) fallback — same account base name within the section
+  // Explicit links win and are listed first.
+  const _deckById={}; Object.values(bySect).forEach(list=>list.forEach(it=>{ _deckById[it.id]=it; }));
   Object.values(bySect).forEach(list=>{
     const groups={};
     list.forEach(o=>{ const b=presoAcctBase(o.acct); (groups[b]=groups[b]||[]).push(o); });
-    list.forEach(o=>{ o.__sibs=(groups[presoAcctBase(o.acct)]||[]).filter(s=>s.id!==o.id); });
+    list.forEach(o=>{
+      const explicit=(o.__quote||typeof relatedOppIds!=='function') ? [] :
+        relatedOppIds(o.id).map(id=>_deckById[id]).filter(Boolean);
+      const acctSibs=(groups[presoAcctBase(o.acct)]||[]).filter(s=>s.id!==o.id);
+      const seen=new Set([o.id]); const merged=[];
+      explicit.concat(acctSibs).forEach(s=>{ if(s && !seen.has(s.id)){ seen.add(s.id); merged.push(s); } });
+      o.__sibs=merged;
+      o.__hasExplicit=explicit.length>0;
+    });
   });
   const deck=[{type:'overview', bySect, sections}];
   sections.forEach(s=>{
@@ -14091,16 +14228,20 @@ function presoOppSlide(o,sec,s){
   const coords=presoCoords(presoLoc(o));
   const pin=coords?`<div class="pz-map"><div class="gb"></div><div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div><div class="nm">${qesc(presoLoc(o))}</div></div>`
     :`<div class="pz-map"><div class="gb"></div><div class="nm">${qesc(presoLoc(o))}</div></div>`;
-  // stage-link ribbon
+  // program / stage-link ribbon — explicit phase + linked opportunities first,
+  // falling back to a parsed "Stage N of M" and same-account siblings.
   let ribbon='';
+  const phase=(o.phase||'').trim();
   const stageM=(spec+' '+(o.type||'')).match(/stage\s+(\d+)\s+of\s+(\d+)/i);
   const sibs=o.__sibs||[];
-  if(stageM||sibs.length){
+  if(phase||stageM||sibs.length){
     let bits=[];
-    if(stageM) bits.push(`<b>Stage ${stageM[1]} of ${stageM[2]}</b>`);
+    if(phase) bits.push(`<b>${qesc(phase)}</b>`);
+    else if(stageM) bits.push(`<b>Stage ${stageM[1]} of ${stageM[2]}</b>`);
     if(sibs.length){
-      const links=sibs.map(sb=>`<a onclick="presoJumpToId('${qattr(sb.id)}')">${qesc(sb.type||sb.acct)}</a>`).join(' · ');
-      bits.push(`part of <b>${qesc(presoAcctBase(o.acct)?o.acct.replace(/\s*#?\d+\s*$/,''):o.acct)}</b> — also: ${links}`);
+      const links=sibs.map(sb=>`<a onclick="presoJumpToId('${qattr(sb.id)}')" title="${qattr(sb.acct+' — '+(sb.type||''))}">${qesc(sb.phase||sb.type||sb.acct)}</a>`).join(' · ');
+      const base=presoAcctBase(o.acct)?o.acct.replace(/\s*#?\d+\s*$/,''):o.acct;
+      bits.push(`${o.__hasExplicit?'linked':'part of <b>'+qesc(base)+'</b> —'} ${o.__hasExplicit?'phases:':'also:'} ${links}`);
     }
     ribbon=`<div class="pz-ribbon">🔗 ${bits.join(' &nbsp;·&nbsp; ')}</div>`;
   }
