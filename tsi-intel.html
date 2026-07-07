@@ -11008,6 +11008,10 @@ startAdminPoll();
           <input class="drawer-tag-input" id="d-tag-input" placeholder="Type to add tag…">
         </div>
       </div>
+      <div class="drow" style="margin-top:12px">
+        <label>Details <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— rich-text scope narrative, shown in the presentation</span></label>
+        <div class="dtextarea q-rte" id="d-details" contenteditable="true" data-ph="Scope narrative, technical context, background, key stakeholders, decision drivers…" style="min-height:120px"></div>
+      </div>
       </div><!-- /dsec-body -->
     </div>
 
@@ -11165,19 +11169,6 @@ startAdminPoll();
           <label>Delivery Quarter</label>
           <input class="dinput" id="d-delivery" placeholder="e.g. 2027-Q2">
         </div>
-      </div>
-      </div><!-- /dsec-body -->
-    </div>
-
-    <!-- DETAILS (rich text) -->
-    <div class="dsec" id="dsec-details">
-      <div class="dsec-title" onclick="toggleDsec('details')">
-        <span>Details</span>
-        <span class="dsec-chevron">▾</span>
-      </div>
-      <div class="dsec-body">
-      <div class="drow">
-        <div class="dtextarea q-rte" id="d-details" contenteditable="true" data-ph="Scope narrative, technical context, background, key stakeholders, decision drivers…" style="min-height:120px"></div>
       </div>
       </div><!-- /dsec-body -->
     </div>
@@ -12393,6 +12384,9 @@ startAdminPoll();
 .pz-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px}
 .pz-chip{font-size:13.5px;font-weight:600;color:#fff;padding:6px 12px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
 .pz-spec{font-size:16px;line-height:1.7;color:var(--pz-ink);white-space:pre-wrap}
+.pz-details{font-size:14.5px;line-height:1.6;color:var(--pz-ink)}
+.pz-details p{margin:0 0 8px}.pz-details ul,.pz-details ol{margin:4px 0 8px 20px;padding:0}
+.pz-details li{margin:2px 0}.pz-details b,.pz-details strong{color:var(--pz-ink)}
 .pz-spec .x{color:var(--acc,#00929f);font-weight:700}
 .pz-caps{display:flex;gap:22px;flex-wrap:wrap}
 .pz-cap .big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:var(--acc,#00929f)}
@@ -14001,9 +13995,13 @@ function presoRenderOvMap(s){
       const light=document.getElementById('preso-overlay').classList.contains('preso-light');
       map=L.map(el,{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([25,0],2);
       _presoMap=map;
+      // Match the Summary map exactly (it renders reliably): @2x tiles, tileSize
+      // 512, zoomOffset -1, and NO crossOrigin. crossOrigin:true made the browser
+      // fetch tiles in CORS mode and Carto's response blocked them → blank map.
       L.tileLayer(light
-        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18,crossOrigin:true}).addTo(map);
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
       const pts=[];
       (s.sections||PRESO_SECTIONS).forEach(sec=>{
         (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoCoords(presoLoc(o)); if(!c) return;
@@ -14107,6 +14105,11 @@ function presoOppSlide(o,sec,s){
     ribbon=`<div class="pz-ribbon">🔗 ${bits.join(' &nbsp;·&nbsp; ')}</div>`;
   }
   const capsHtml=caps.length?`<div class="pz-lbl" style="margin-bottom:10px">Capacity</div><div class="pz-caps">${caps.map(c=>`<div class="pz-cap"><div class="big" style="color:${sec.acc}">${qesc(c.big)}</div><div class="csub">${qesc(c.sub)}</div></div>`).join('')}</div>`:'';
+  // Details — the rich-text narrative from the opportunity drawer (sanitized).
+  const detRaw=(o.details||'').trim();
+  const detClean=detRaw?rteSanitize(detRaw):'';
+  const detHtml=(detClean && (detClean.replace(/<[^>]*>/g,'').trim() || /<(li|img)\b/i.test(detClean)))
+    ? `<div class="pz-box"><div class="pz-lbl">Details</div><div class="pz-details">${detClean}</div></div>` : '';
   return `<div class="pz-slide" style="--acc:${sec.acc}">
     <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
     <div class="pz-head">
@@ -14117,6 +14120,7 @@ function presoOppSlide(o,sec,s){
     <div class="pz-grid">
       <div>
         <div class="pz-box"><div class="pz-lbl">Scope of Supply</div>${chips?`<div class="pz-chips">${chips}</div>`:''}${specHtml}</div>
+        ${detHtml}
         <div class="pz-box"><div class="pz-lbl">Install &amp; Commissioning</div>
           <div class="pz-inst">${inst.map(p=>`<span class="pz-pill${p.on?' on':''}">${qesc(p.label)}</span>`).join('')}</div>
           ${o.freightTerms?`<div style="font-size:12.5px;color:#5f7288;margin-top:11px">Freight: ${qesc(o.freightTerms)}</div>`:''}</div>
