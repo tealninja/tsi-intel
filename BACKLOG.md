@@ -11,11 +11,13 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
 - [x] Pipeline **Value** shows thousands separators (commas).
-- [ ] Account list: make it **obvious it scrolls** (affordance/fade/scrollbar).
-- [ ] Account detail: **map is tiny, climatogram dominates** — size evenly or stack vertically.
-- [ ] **Summary** tab: scroll only the top cards, not the whole page.
-- [ ] **Quote drawer too wide on mobile** — fix width.
-- [ ] **Full mobile audit** of every tab on load.
+- [x] Account list **obvious scroll** — resolved by removing the 260px cap (full list flows).
+- [x] Account detail: map + climatogram **stack vertically on mobile** (were cramped side-by-side);
+  even 1fr/1fr on desktop.
+- [x] **Summary** KPI cards → **horizontal scroll strip** on mobile (was 5 squished columns).
+- [x] **Quote drawer** verified fine at phone width (full-width single column); "too wide" was
+  landscape/tablet only.
+- [~] **Full mobile audit** — accounts, pipeline, products, quotes, summary, quote drawer checked.
 
 **Navigation / IA restructure** — ✅ DONE
 - [x] **Imminent** → a *filter* on Pipeline (⚡ chip, IMMINENT_IDS), Imminent tab removed.

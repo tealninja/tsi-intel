@@ -1676,7 +1676,15 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .acct-back-btn{display:none;align-items:center;gap:6px;margin:10px 14px 2px;padding:7px 12px;
   border:1px solid var(--color-border-mid);border-radius:var(--radius-md);background:var(--color-surface);
   color:var(--tsi-teal);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui)}
+/* Account detail: map + climatogram — even split on desktop, stacked on mobile */
+.am-mapclima{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:768px){
+  /* Account detail: stack the map above the climatogram (were cramped side-by-side) */
+  .am-mapclima{grid-template-columns:1fr}
+  #am-site-map{height:220px!important}
+  /* Summary: KPI cards become a horizontal scroll strip instead of 5 squished columns */
+  #sum-kpis{grid-template-columns:none!important;display:flex!important;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px}
+  #sum-kpis > *{flex:0 0 auto;min-width:150px}
   .acct-layout{grid-template-columns:1fr;height:auto}
   .acct-sidebar{max-height:none;border-right:none;border-bottom:1px solid var(--color-border)}
   /* The detail/map panels are pinned to grid-column:2 for the desktop two-pane
@@ -6974,7 +6982,7 @@ function renderAcctMain(siteId) {
     ${(site.lat && site.lon) ? `
     <!-- MAP + CLIMATOGRAM -->
     <div class="acct-section" style="padding:12px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="am-mapclima">
         <div id="am-site-map" style="height:200px;border-radius:var(--radius-md);background:var(--color-bg);overflow:hidden"></div>
         <div>
           <div id="am-clima-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px"></div>
