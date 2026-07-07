@@ -28,8 +28,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 **Accounts features**
 - [ ] **Account media**: store parent-account **logos** (for the view) + **photos** per account,
   with **one prime photo** for the card. (Blobs → Cloudflare **R2**; needs worker + deploy.)
-- [ ] **Unassigned leads inbox**: quick, high-level capture ("was at the mill, engineer wants
-  new seals, follow up") + the landing spot for **webform / email** requests.
+- [x] **Unassigned leads inbox** — "📥 Leads" launcher (user bar, with a new-count badge)
+  opens a drawer: quick-capture (note / company / contact / source) + a triageable inbox.
+  Actions: **→ Opportunity** (opens a prefilled new pipeline opp, stage Lead), Dismiss/Restore,
+  delete. Stored via `Store('leads')` (local now, D1 on deploy). Ready to receive web-form /
+  email requests once a worker route posts into the same collection.
 
 **Quote generator**
 - [x] **Print/PDF + Word** now use **theme colors + fonts** (deep-blue #19446C + teal

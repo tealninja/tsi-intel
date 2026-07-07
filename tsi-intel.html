@@ -2772,6 +2772,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     placeholder="JT" title="Your initials — used for last-updated tracking"
     oninput="saveUserInitials()" onblur="this.value=this.value.toUpperCase()">
   <span class="user-last-updated" id="last-updated-label"></span>
+  <button class="import-btn" onclick="openLeadsDrawer()" title="Capture & triage unassigned leads">📥 Leads<span class="leads-badge" id="leads-badge" style="display:none">0</span></button>
   <button class="import-btn" onclick="document.getElementById('opp-upload-input').click()">⬆ Import JSON</button>
   <button class="import-btn" id="sync-btn" onclick="manualSync()" style="display:none">☁ Sync</button>
   <button class="view-toggle-btn" id="compact-btn" onclick="toggleCompact()" title="Toggle compact view">⊟ Compact</button>
@@ -11977,6 +11978,51 @@ startAdminPoll();
   </div>
 </div><!-- /quote-drawer -->
 
+<!-- ══ LEADS INBOX DRAWER ══ -->
+<style>
+.leads-badge{display:inline-block;margin-left:5px;background:var(--tsi-coral);color:#fff;border-radius:9px;font-size:10px;font-weight:700;padding:0 6px;min-width:16px;text-align:center;line-height:16px}
+.lead-card{border:1px solid var(--color-border);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:8px;background:var(--color-surface)}
+.lead-card.dismissed{opacity:.55}
+.lead-card .lc-note{font-size:12.5px;color:var(--color-text-primary);white-space:pre-wrap;line-height:1.45}
+.lead-card .lc-meta{font-size:11px;color:var(--color-text-muted);margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lc-status{font-size:9.5px;font-weight:700;text-transform:uppercase;padding:1px 7px;border-radius:99px}
+.lc-status.new{background:rgba(0,146,159,.12);color:var(--tsi-teal)}
+.lc-status.triaged{background:rgba(196,162,48,.15);color:var(--tsi-amber)}
+.lc-status.converted{background:rgba(110,140,52,.15);color:var(--tsi-succ-green)}
+.lc-status.dismissed{background:var(--color-hover);color:var(--color-text-muted)}
+.lc-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.lc-act{font-size:11px;padding:4px 9px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);background:var(--color-bg);cursor:pointer;color:var(--color-text-secondary)}
+.lc-act:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
+.lc-act.conv{border-color:var(--tsi-teal);color:var(--tsi-teal);font-weight:600}
+.lc-act.del:hover{border-color:var(--tsi-coral);color:var(--tsi-coral)}
+</style>
+<div class="opp-drawer-overlay" id="leads-drawer-overlay" onclick="closeLeadsDrawer()"></div>
+<div class="opp-drawer" id="leads-drawer">
+  <div class="drawer-header">
+    <h2>📥 Leads Inbox</h2>
+    <button class="drawer-close" onclick="closeLeadsDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="dsec">
+      <div class="dsec-title">Quick capture</div>
+      <div class="drow"><label>What happened / what do they need?</label>
+        <textarea class="dtextarea" id="lead-note" placeholder="e.g. Was at the Martco mill — the plant engineer wants new dryer seals; follow up next week."></textarea></div>
+      <div class="drow-2">
+        <div><label>Company / Account</label><input class="dinput" id="lead-company" list="lead-acct-options" placeholder="Optional" autocomplete="off"><datalist id="lead-acct-options"></datalist></div>
+        <div><label>Contact</label><input class="dinput" id="lead-contact" placeholder="Name / email / phone"></div>
+      </div>
+      <div class="drow-2">
+        <div><label>Source</label><select class="dselect" id="lead-source"><option>In person</option><option>Email</option><option>Web form</option><option>Phone</option><option>Referral</option><option>Other</option></select></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn-save-opp" style="width:100%" onclick="addLead()">+ Add lead</button></div>
+      </div>
+    </div>
+    <div class="dsec">
+      <div class="dsec-title">Inbox <span id="lead-count" class="q-line-count"></span></div>
+      <div id="leads-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ PROJECT TRACK — present mode ══════════════ -->
 <style>
 .preso-launch{background:linear-gradient(135deg,#19446c,#00929f);color:#fff;border:none;border-radius:8px;
@@ -13702,6 +13748,88 @@ function loadSheetJS(){
     s.onload=res; s.onerror=()=>rej(new Error('Excel parser unavailable (offline)')); document.head.appendChild(s); });
   return _sheetjsP;
 }
+
+/* ══════════════ LEADS INBOX ══════════════
+   Lightweight capture for unassigned / high-level leads ("was at the mill,
+   engineer wants seals") — also the landing spot for web-form / email requests.
+   Server-backed via Store('leads') (local cache now, D1 when the worker deploys);
+   triage: convert → a new pipeline opportunity, dismiss, delete. */
+const leadStore = (typeof Store==='function') ? Store('leads') : null;
+function leadsAll(){ return leadStore ? leadStore.all() : []; }
+async function refreshLeads(){ if(leadStore){ try{ await leadStore.pull(); }catch{} } updateLeadsBadge(); }
+function updateLeadsBadge(){
+  const n = leadsAll().filter(l=>(l.status||'new')==='new').length;
+  const b = document.getElementById('leads-badge'); if(b){ b.textContent=n; b.style.display=n?'':'none'; }
+}
+function populateLeadAccounts(){
+  const dl=document.getElementById('lead-acct-options'); if(!dl) return;
+  const accts=[...new Set((typeof DATA!=='undefined'?DATA:[]).map(o=>o.acct).filter(Boolean))].sort();
+  dl.innerHTML=accts.map(a=>`<option value="${qattr(a)}">`).join('');
+}
+async function openLeadsDrawer(){
+  populateLeadAccounts();
+  await refreshLeads();
+  renderLeadsList();
+  document.getElementById('leads-drawer-overlay').classList.add('open');
+  document.getElementById('leads-drawer').classList.add('open');
+}
+function closeLeadsDrawer(){
+  document.getElementById('leads-drawer-overlay').classList.remove('open');
+  document.getElementById('leads-drawer').classList.remove('open');
+}
+async function addLead(){
+  const note=(document.getElementById('lead-note').value||'').trim();
+  if(!note){ showToast('Add a note first','var(--tsi-coral)'); return; }
+  const lead={ id:'LEAD-'+Date.now().toString(36).toUpperCase()+'-'+Math.floor(Math.random()*900+100),
+    note, company:(document.getElementById('lead-company').value||'').trim(),
+    contact:(document.getElementById('lead-contact').value||'').trim(),
+    source:document.getElementById('lead-source').value, status:'new',
+    createdBy:(typeof currentUserId==='function'?currentUserId():(getUserInitials()||'anon')), createdAt:new Date().toISOString() };
+  if(leadStore) await leadStore.put(lead);
+  ['lead-note','lead-company','lead-contact'].forEach(id=>document.getElementById(id).value='');
+  renderLeadsList(); updateLeadsBadge();
+  showToast('✓ Lead captured'+(leadStore&&leadStore.mode()==='db'?' (server)':' (this browser)'), 'var(--tsi-teal)');
+}
+function renderLeadsList(){
+  const wrap=document.getElementById('leads-list'); if(!wrap) return;
+  const leads=leadsAll().slice().sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const lc=document.getElementById('lead-count'); if(lc) lc.textContent = leads.length?('· '+leads.length):'';
+  if(!leads.length){ wrap.innerHTML='<div class="q-lines-empty">No leads yet — capture one above.</div>'; return; }
+  wrap.innerHTML=leads.map(l=>{
+    const st=l.status||'new', when=(l.createdAt||'').slice(0,10);
+    return `<div class="lead-card ${st==='dismissed'?'dismissed':''}">
+      <div class="lc-note">${qesc(l.note||'')}</div>
+      <div class="lc-meta">
+        <span class="lc-status ${qattr(st)}">${qesc(st)}</span>
+        ${l.company?`<span>🏭 ${qesc(l.company)}</span>`:''}
+        ${l.contact?`<span>👤 ${qesc(l.contact)}</span>`:''}
+        <span>${qesc(l.source||'')}</span>
+        <span>${qesc(when)}${l.createdBy?' · '+qesc(l.createdBy):''}</span>
+      </div>
+      <div class="lc-actions">
+        ${st!=='converted'?`<button class="lc-act conv" onclick="convertLeadToOpp('${qattr(l.id)}')">→ Opportunity</button>`:''}
+        ${st!=='dismissed'?`<button class="lc-act" onclick="setLeadStatus('${qattr(l.id)}','dismissed')">Dismiss</button>`:`<button class="lc-act" onclick="setLeadStatus('${qattr(l.id)}','new')">Restore</button>`}
+        <button class="lc-act del" onclick="deleteLead('${qattr(l.id)}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function setLeadStatus(id,status){ const l=leadsAll().find(x=>x.id===id); if(!l) return; l.status=status; if(leadStore) await leadStore.put(l); renderLeadsList(); updateLeadsBadge(); }
+async function deleteLead(id){ if(leadStore) await leadStore.remove(id); renderLeadsList(); updateLeadsBadge(); }
+async function convertLeadToOpp(id){
+  const l=leadsAll().find(x=>x.id===id); if(!l) return;
+  closeLeadsDrawer(); showTab('pipeline');
+  openOppDrawer(null);
+  setDrawerField('d-acct', l.company||'');
+  setDrawerField('d-type', (l.note||'').split('\n')[0].slice(0,80));
+  setDrawerField('d-notes', l.note||'');
+  setDrawerField('d-stage', 'Lead');
+  setDrawerField('d-source', 'Lead inbox'+(l.source?' ('+l.source+')':''));
+  l.status='converted'; l.convertedAt=new Date().toISOString(); if(leadStore) await leadStore.put(l);
+  updateLeadsBadge();
+  showToast('Lead opened as a new opportunity — review & save','var(--tsi-teal)');
+}
+if(leadStore) refreshLeads();   // warm the badge on load
 
 // Products-tab "+ Quote" hook (if the Products table exposes it later).
 function quoteFromSeed(seedId){ openQuoteBuilder(null).then(()=>addQuoteLine(seedId)); }
