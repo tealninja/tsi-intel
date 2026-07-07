@@ -7189,6 +7189,10 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-HUBSH', parentId:'AG-HUB', name:'Huber Shuqualak', industry:'', acctMatch:'Huber', loc:'Shuqualak, MS, USA', plantType:'OSB', lat:32.99, lon:-88.57, notes:'' },
   { id:'S-HUBSC', parentId:'AG-HUB', name:'Huber Spring City', industry:'', acctMatch:'Huber', loc:'Spring City, TN, USA', plantType:'OSB', lat:35.69, lon:-84.86, notes:'' },
   { id:'S-HUBCH', parentId:'AG-HUB', name:'Huber Crystal Hill', industry:'', acctMatch:'Huber', loc:'Crystal Hill, VA, USA', plantType:'OSB', lat:37.13, lon:-78.77, notes:'' },
+  // ── Additional Huber Engineered Woods locations (huberwood.com) ──
+  { id:'S-HUBCHAR', parentId:'AG-HUB', name:'Huber Charlotte',  industry:'', acctMatch:'Huber', loc:'Charlotte, NC, USA', plantType:'',    plantTags:[],      locType:'corporate', lat:35.23, lon:-80.84, notes:'Headquarters' },
+  { id:'S-HUBCOM',  parentId:'AG-HUB', name:'Huber Commerce',   industry:'', acctMatch:'Huber', loc:'Commerce, GA, USA',  plantType:'OSB', plantTags:['OSB'], lat:34.20, lon:-83.46, notes:'Manufacturing + Innovation Center' },
+  { id:'S-HUBEAS',  parentId:'AG-HUB', name:'Huber Easton',     industry:'', acctMatch:'Huber', loc:'Easton, ME, USA',    plantType:'OSB', plantTags:['OSB'], lat:46.64, lon:-67.90, notes:'Manufacturing' },
   { id:'S-WEYE', parentId:'AG-WEY', name:'Weyerhaeuser Elkin', industry:'', acctMatch:'Weyerhauser', loc:'Elkin, NC, USA', plantType:'OSB', lat:36.25, lon:-80.85, notes:'' },
   { id:'S-WEYA', parentId:'AG-WEY', name:'Weyerhaeuser Arcadia', industry:'', acctMatch:'Weyerhauser', loc:'Arcadia, LA, USA', plantType:'OSB', lat:32.55, lon:-92.92, notes:'' },
   { id:'S-WEYED', parentId:'AG-WEY', name:'Weyerhaeuser Edson', industry:'', acctMatch:'Weyerhauser', loc:'Edson, AB, Canada', plantType:'OSB', lat:53.58, lon:-116.44, notes:'2509 Aspen Drive · OSB' },
@@ -7330,6 +7334,17 @@ function loadAccounts() {
       if (data.accounts && data.accounts.some(a => a.id === 'AG-WEY')) {
         let added = false;
         ['S-WEYGR','S-WEYHB','S-WEYSU'].forEach(id => {
+          if (!data.accounts.some(a => a.id === id)) {
+            const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
+            if (seed) { data.accounts.push({ ...seed }); added = true; }
+          }
+        });
+        if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: additional Huber Engineered Woods locations (huberwood.com).
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-HUB')) {
+        let added = false;
+        ['S-HUBCHAR','S-HUBCOM','S-HUBEAS'].forEach(id => {
           if (!data.accounts.some(a => a.id === id)) {
             const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
             if (seed) { data.accounts.push({ ...seed }); added = true; }
