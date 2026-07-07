@@ -1732,6 +1732,13 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .acct-media>summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--color-text-secondary)}
 .acct-media>summary:hover{color:var(--tsi-teal)}
 .am-editor{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.acct-legend-item{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;cursor:pointer;
+  border:1px solid transparent;transition:.12s;user-select:none}
+.acct-legend-item:hover{background:var(--color-surface);border-color:var(--color-border-mid)}
+.acct-legend-item.sel{background:rgba(0,146,159,.12);border-color:var(--tsi-teal)}
+.acct-legend-item .alg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
+.acct-legend-item .alg-nm{color:var(--color-text-secondary)}
+.acct-legend-item.sel .alg-nm{color:var(--tsi-teal);font-weight:600}
 .acct-map-clear{margin-left:6px;border:1px solid var(--tsi-coral);background:rgba(224,90,74,.08);color:var(--tsi-coral);
   border-radius:999px;padding:1px 9px;font-size:10px;font-weight:600;cursor:pointer;vertical-align:middle}
 .acct-map-clear:hover{background:var(--tsi-coral);color:#fff}
@@ -7198,6 +7205,7 @@ function getAccounts() {
 // ── ACCOUNTS MODULE JS ────────────────────────────────────────
 let _acctSelectedGroup = null;
 let _acctSelectedSite  = null;
+let _acctMapGroups     = new Set();  // legend multi-select filter (parent-group ids)
 
 function renderAcctSidebar() {
   const q    = (document.getElementById('acct-search')?.value || '').toLowerCase();
@@ -10356,7 +10364,14 @@ function renderAcctMap() {
   // ^ excludes the selected PARENT's own record from its own "sites" list visually,
   //   but a parent with no children and its own coords still shows when nothing's selected.
   const filterLabel = document.getElementById('acct-map-filter-label');
-  if (_acctSelectedGroup) {
+  if (_acctMapGroups.size) {
+    // Legend multi-select — show only the chosen companies (parent + their sites).
+    allMatchingSites = data.accounts.filter(a => _acctMapGroups.has(a.parentId || a.id));
+    const names = [..._acctMapGroups].map(gid => data.groups.find(g => g.id === gid)?.name || gid);
+    const label = names.length <= 2 ? names.join(' + ') : names.length + ' companies';
+    if (filterLabel) filterLabel.innerHTML = '— filtered to <b>' + qesc(label)
+      + '</b> <button class="acct-map-clear" onclick="clearAcctMapFilter()" title="Clear filter — show all accounts">✕ clear</button>';
+  } else if (_acctSelectedGroup) {
     // When a group is selected: show that group's own pin (if it has coords)
     // PLUS all of its child sites.
     allMatchingSites = data.accounts.filter(a =>
@@ -10505,16 +10520,20 @@ function renderAcctMap() {
     );
   }
 
-  // ── Legend — one entry per group shown ────────────────────────
+  // ── Legend — every geocoded company, as a click-to-filter toggle ──────
+  // Built from ALL geocoded groups (not just the currently-shown ones) so it
+  // stays a stable palette you can multi-select from. Selected = filtered.
   const legendEl = document.getElementById('acct-map-legend');
   if (legendEl) {
-    const shownGroupIds = [...new Set(sites.map(s => s.parentId || s.id))];
-    legendEl.innerHTML = shownGroupIds.map(gid => {
+    const geoGroupIds = [...new Set(data.accounts.filter(a => a.lat && a.lon).map(s => s.parentId || s.id))]
+      .sort((a,b) => (data.groups.find(g=>g.id===a)?.name||a).localeCompare(data.groups.find(g=>g.id===b)?.name||b));
+    legendEl.innerHTML = geoGroupIds.map(gid => {
       const grp = data.groups.find(g => g.id === gid);
       const color = getGroupColor(gid);
-      return `<span style="display:flex;align-items:center;gap:4px">
-        <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span>
-        <span style="color:var(--color-text-secondary)">${grp?.name||gid}</span>
+      const sel = _acctMapGroups.has(gid);
+      return `<span class="acct-legend-item${sel?' sel':''}" onclick="toggleAcctMapGroup('${gid}')" title="Click to filter the map to this company (pick several)">
+        <span class="alg-dot" style="background:${color}"></span>
+        <span class="alg-nm">${qesc(grp?.name||gid)}</span>
       </span>`;
     }).join('');
   }
@@ -10585,12 +10604,21 @@ function renderAcctMapStats(sites, dealsForSite, openDeals) {
 }
 
 function filterAcctMapToGroup(groupId) {
-  _acctSelectedGroup = groupId;
+  // Stat-card click feeds the same multi-select set as the legend.
+  _acctMapGroups.add(groupId);
+  _acctSelectedGroup = null;
   renderAcctSidebar();
+  renderAcctMap();
+}
+function toggleAcctMapGroup(groupId) {
+  if (_acctMapGroups.has(groupId)) _acctMapGroups.delete(groupId);
+  else _acctMapGroups.add(groupId);
+  _acctSelectedGroup = null;   // legend multi-select supersedes the single drill
   renderAcctMap();
 }
 function clearAcctMapFilter() {
   _acctSelectedGroup = null;
+  _acctMapGroups.clear();
   renderAcctSidebar();
   renderAcctMap();
 }
@@ -10971,24 +10999,40 @@ function onOppAcctInput(typedName) {
   }
   if (idField) idField.value = match.id;
 
-  // Auto-fill location fields ONLY if they're currently empty — never
-  // clobber a value the user already typed/geocoded manually for this deal.
-  const cityEl    = document.getElementById('d-city');
-  const stateEl   = document.getElementById('d-state');
-  const countryEl = document.getElementById('d-country');
-  const latEl     = document.getElementById('d-lat'); // only lat is shown in the UI; lon is tracked internally via _drawerLon
+  // Autofill the opportunity's location from the account's site — but ONLY when
+  // the deal has no location yet, so we never clobber one the user set. It stays
+  // fully editable afterward.
+  const locSearch = document.getElementById('d-loc-search');
+  const hasLoc = (_drawerLat && _drawerLon) || (locSearch && locSearch.value.trim());
+  if (hasLoc) return;
 
-  if (match.city && cityEl && !cityEl.value)       cityEl.value = match.city;
-  if (match.state && stateEl && !stateEl.value)    stateEl.value = match.state;
-  if (match.country && countryEl && !countryEl.value) countryEl.value = match.country;
+  // Location source: the account itself if geocoded, else its single geocoded
+  // child site (multiple sites is ambiguous — leave that for the user to pick).
+  let src = null;
+  if (match.lat && match.lon) src = match;
+  else if (!match.parentId) {
+    const kids = getAccounts().accounts.filter(a => a.parentId === match.id && a.lat && a.lon);
+    if (kids.length === 1) src = kids[0];
+  }
+  if (!src) return;
 
-  if (match.lat && match.lon && (!_drawerLat || !_drawerLon)) {
-    _drawerLat = match.lat; _drawerLon = match.lon;
-    if (latEl) latEl.value = match.lat;
-    setTimeout(() => initDrawerMap(match.lat, match.lon), 200);
-    // Pull climate data the same way manual geocoding does, if not already cached
+  const parts   = (src.loc || '').split(',').map(s => s.trim()).filter(Boolean);
+  const city    = src.city    || (parts.length > 1 ? parts[0] : '') || '';
+  const state    = src.state  || (parts.length > 2 ? parts[1] : '') || '';
+  const country = src.country || parts[parts.length - 1] || '';
+  if (locSearch) locSearch.value = src.loc || [city, state, country].filter(Boolean).join(', ');
+  const cityEl=document.getElementById('d-city');    if (cityEl)    cityEl.value    = city;
+  const stateEl=document.getElementById('d-state');  if (stateEl)   stateEl.value   = state;
+  const countryEl=document.getElementById('d-country'); if (countryEl) countryEl.value = country;
+
+  if (src.lat && src.lon) {
+    _drawerLat = src.lat; _drawerLon = src.lon;
+    const latEl = document.getElementById('d-lat'); if (latEl) latEl.value = src.lat;
+    window._drawerLocMeta = { label: (locSearch?locSearch.value:'') || (match.name||'account'), approx:false };
+    setDrawerLocStatus('✓ Location from ' + (match.name || 'account') + ' — editable', 'var(--tsi-succ-green)');
+    setTimeout(() => initDrawerMap(src.lat, src.lon), 200);
     const o = DATA.find(r => r.id === _drawerEditId);
-    if (!o?._monthlyHigh) drawerFetchWeather(match.lat, match.lon);
+    if (!o?._monthlyHigh) drawerFetchWeather(src.lat, src.lon);
   }
 }
 
