@@ -165,10 +165,10 @@ Roles (cumulative ladder):
   richer sample-quote slides.
 - [ ] **Deck export to PPTX** (PptxGenJS via CDN, TSI-themed) so it's distributable /
   Canva-importable (Canva imports .pptx). Raised alongside "export to ppt or Canva".
-- [ ] **"What to present" settings** — Auto / **Smart rules** (updated-within, closes-within,
-  value ≥ X, stages, group-by) / Manual, plus an **AI describe box** ("everything updated
-  recently closing in 90 days over $X, grouped by line of business") → fills the rules
-  (needs the worker /api/ai). The in-between between auto and manual.
+- [x] **"What to present" settings** — "⚙ What to present" modal: **Auto / Smart rules /
+  Hand-picked**. Smart filters (updated-within, closes-within, value ≥ X, stages) + **group-by
+  line / stage / region** (deck sections are now dynamic). **AI describe box** parses a plain-
+  English request → fills the rules via /api/ai (runs on worker deploy; degrades gracefully).
 
 ## 🗂️ Pipeline
 - [ ] **Stage view** — a kanban of the pipeline (columns = Lead→Qualified→…→PO Received,

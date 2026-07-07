@@ -2795,8 +2795,9 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <div class="collapse-body" id="hot-body" style="max-height:760px">
     <div style="padding:10px var(--sp-4) 4px">
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
-        <button class="preso-launch" style="background:#161d27;color:#cdd8e4;border:1px solid #2a3644" onclick="openPresoBuilder()" title="Arrange the deck: drag opportunities between business lines, reorder, or hide them">🗂 Arrange deck</button>
-        <button class="preso-launch" onclick="openPreso()" title="Full-screen walk-through of the open opportunities, grouped by business line">🎤 Present</button>
+        <button class="preso-launch" style="background:#161d27;color:#cdd8e4;border:1px solid #2a3644" onclick="openPresoSettings()" title="Choose what to present: auto, smart rules, or describe it in words">⚙ What to present</button>
+        <button class="preso-launch" style="background:#161d27;color:#cdd8e4;border:1px solid #2a3644" onclick="openPresoBuilder()" title="Hand-pick: drag opportunities between business lines, reorder, or hide them">🗂 Arrange deck</button>
+        <button class="preso-launch" onclick="openPreso()" title="Full-screen walk-through, using the current 'what to present' settings">🎤 Present</button>
       </div>
       <div class="hot-cards" id="hot-cards"></div>
     </div>
@@ -12336,6 +12337,63 @@ startAdminPoll();
   <div class="pb-board" id="pb-board"></div>
 </div>
 
+<!-- ══ WHAT TO PRESENT — settings modal ══ -->
+<style>
+#preso-set-overlay{position:fixed;inset:0;z-index:12100;background:rgba(5,8,12,.55);display:none;align-items:center;justify-content:center;padding:16px}
+#preso-set-overlay.open{display:flex}
+.ps-modal{width:min(560px,100%);max-height:90vh;overflow:auto;background:var(--color-bg);border:1px solid var(--color-border);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.ps-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--color-border)}
+.ps-head h3{font-family:var(--font-display);font-size:18px;font-weight:400;color:var(--color-heading);flex:1;margin:0}
+.ps-body{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+.ps-modes{display:flex;gap:8px;flex-wrap:wrap}
+.ps-mode{flex:1;min-width:120px;border:1px solid var(--color-border-mid);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--color-surface)}
+.ps-mode.on{border-color:var(--tsi-teal);box-shadow:inset 0 0 0 1px var(--tsi-teal)}
+.ps-mode b{display:block;font-size:13px;color:var(--color-heading)}
+.ps-mode span{font-size:11px;color:var(--color-text-muted)}
+.ps-smart{display:none;flex-direction:column;gap:12px;border-top:1px dashed var(--color-border);padding-top:14px}
+.ps-smart.on{display:flex}
+.ps-ai{display:flex;gap:6px}
+.ps-ai input{flex:1;padding:8px 10px;border:1px solid var(--color-border-mid);border-radius:8px;background:var(--color-surface);color:var(--color-text-primary);font-size:12px;font-family:var(--font-ui);outline:none}
+.ps-ai button{padding:0 12px;border:none;border-radius:8px;background:linear-gradient(135deg,#19446c,#00929f);color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.ps-ai-note{font-size:11px;color:var(--color-text-muted);min-height:14px}
+.ps-row{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center}
+.ps-row label{font-size:12px;color:var(--color-text-secondary)}
+.ps-row select,.ps-row input{padding:6px 9px;border:1px solid var(--color-border-mid);border-radius:8px;background:var(--color-surface);color:var(--color-text-primary);font-size:12px;font-family:var(--font-ui);outline:none}
+.ps-stages{display:flex;flex-wrap:wrap;gap:6px}
+.ps-stage{font-size:11px;padding:4px 9px;border:1px solid var(--color-border-mid);border-radius:99px;cursor:pointer;color:var(--color-text-secondary);user-select:none}
+.ps-stage.on{border-color:var(--tsi-teal);background:rgba(0,146,159,.1);color:var(--tsi-teal)}
+.ps-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--color-border)}
+.ps-btn{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-ui);border:1px solid var(--color-border-mid);background:transparent;color:var(--color-text-secondary)}
+.ps-btn.primary{background:var(--tsi-teal);color:#fff;border:none;font-weight:600}
+</style>
+<div id="preso-set-overlay" onclick="if(event.target===this)closePresoSettings()">
+  <div class="ps-modal" role="dialog" aria-label="What to present">
+    <div class="ps-head"><h3>⚙ What to present</h3><button class="drawer-close" onclick="closePresoSettings()" style="color:var(--color-text-muted)">✕</button></div>
+    <div class="ps-body">
+      <div class="ps-modes">
+        <div class="ps-mode" data-mode="auto"   onclick="presoSetMode('auto')"><b>Auto</b><span>All open opportunities</span></div>
+        <div class="ps-mode" data-mode="smart"  onclick="presoSetMode('smart')"><b>Smart rules</b><span>Filter &amp; group</span></div>
+        <div class="ps-mode" data-mode="manual" onclick="presoSetMode('manual')"><b>Hand-picked</b><span>Use “Arrange deck”</span></div>
+      </div>
+      <div class="ps-smart" id="ps-smart">
+        <div>
+          <div class="ps-ai">
+            <input id="ps-ai-input" placeholder="Describe it… e.g. updated in 3 months, closing in 90 days, over $5M, by line of business" onkeydown="if(event.key==='Enter')presoAiBuildRules()">
+            <button onclick="presoAiBuildRules()">✨ Build</button>
+          </div>
+          <div class="ps-ai-note" id="ps-ai-note">Describe what to present in plain English — AI fills the rules below (needs the worker deployed).</div>
+        </div>
+        <div class="ps-row"><label>Updated within</label><select id="ps-updated"><option value="">Any time</option><option value="1">Last month</option><option value="3">Last 3 months</option><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div>
+        <div class="ps-row"><label>Closes within</label><select id="ps-close"><option value="">Any time</option><option value="90">90 days</option><option value="180">180 days</option><option value="365">This year</option><option value="730">2 years</option></select></div>
+        <div class="ps-row"><label>Min value ($)</label><input id="ps-minval" type="number" min="0" step="100000" placeholder="0"></div>
+        <div class="ps-row"><label>Stages</label><div class="ps-stages" id="ps-stages"></div></div>
+        <div class="ps-row"><label>Group by</label><select id="ps-groupby"><option value="line">Line of business</option><option value="stage">Stage</option><option value="region">Region</option></select></div>
+      </div>
+    </div>
+    <div class="ps-foot"><button class="ps-btn" onclick="closePresoSettings()">Cancel</button><button class="ps-btn primary" onclick="presoPresentFromSettings()">🎤 Present ▶</button></div>
+  </div>
+</div>
+
 <script>
 const PRODUCTS_SEED = [
   {"code":"AMS-001","name":"AMS","category":"AMS Services","price":null,"unit":"service","structure":"Product Family","parentCode":"","legacyPn":"AMS-XXXXX","notes":"","seedId":"prod_0011"},
@@ -13460,6 +13518,46 @@ let _presoCfg = {};       // id → {section, ord, excluded} — presenter's ove
 let _presoDeck = [];      // flat list of slide descriptors
 let _presoIdx = 0;
 let _presoMap = null;
+// What-to-present settings: mode auto|smart|manual + smart-rule filters + group-by.
+let _presoSettings = { mode:'auto', updatedWithin:'', closeWithin:'', minValue:0, stages:[], groupBy:'line' };
+let _presoSectionsActive = PRESO_SECTIONS;   // the section set the current deck is grouped by
+
+const PRESO_STAGE_ORDER  = ['Lead','Qualified','Proposal','Negotiation','Verbal','PO Received'];
+const PRESO_STAGE_COLORS = {Lead:'#8a8f98',Qualified:'#00929F',Proposal:'#19446C',Negotiation:'#C4A230',Verbal:'#6E8C34','PO Received':'#2f8f4e'};
+const PRESO_REGION_COLORS= {Americas:'#19446C',Europe:'#6E8C34','Asia-Pacific':'#B45309',Other:'#5f7288'};
+function presoRegionOf(o){
+  const s=((o.country||'')+' '+(o.loc||'')).toLowerCase();
+  if(/uk|united kingdom|england|scotland|wales|ireland|france|germany|spain|italy|europe|netherlands|sweden|finland|poland|teesside/.test(s)) return 'Europe';
+  if(/china|japan|korea|indonesia|malaysia|vietnam|thailand|india|borneo|taiwan|philippines|asia/.test(s)) return 'Asia-Pacific';
+  if(/usa|united states|u\.s|america|canada|mexico|georgia|carolina|arkansas|texas|oregon|louisiana|alabama|brazil|chile|argentina|,\s*[a-z]{2}\b/.test(s)) return 'Americas';
+  return 'Other';
+}
+function presoSectionKeyOf(it, groupBy){
+  if(groupBy==='stage')  return it.stage || 'Lead';
+  if(groupBy==='region') return presoRegionOf(it);
+  return presoClassify(it);
+}
+function presoSectionsFor(groupBy, items){
+  if(groupBy==='stage'){
+    const present=new Set(items.map(i=>i.stage||'Lead'));
+    return PRESO_STAGE_ORDER.filter(s=>present.has(s)).map(s=>({key:s,label:s,acc:PRESO_STAGE_COLORS[s]||'#00929F',blurb:'Pipeline stage'}));
+  }
+  if(groupBy==='region'){
+    const present=new Set(items.map(i=>presoRegionOf(i)));
+    return ['Americas','Europe','Asia-Pacific','Other'].filter(r=>present.has(r)).map(r=>({key:r,label:r,acc:PRESO_REGION_COLORS[r],blurb:'Region'}));
+  }
+  return PRESO_SECTIONS;   // line of business
+}
+function presoPassesRules(it, s){
+  if(s.updatedWithin){ const u=it.updatedAt||it.createdAt;
+    if(u){ const months=(Date.now()-new Date(u).getTime())/(1000*60*60*24*30.4); if(isFinite(months)&&months>Number(s.updatedWithin)) return false; } }
+  if(s.closeWithin){ const cd=(typeof parseCloseDate==='function')?parseCloseDate(it.close):null;
+    if(cd){ const days=(cd.getTime()-Date.now())/(1000*60*60*24); if(days>Number(s.closeWithin)) return false; }
+    else if(!it.__quote) return false; }                              // no close date → excluded when a window is set
+  if(s.minValue && (Number(it.val)||0) < Number(s.minValue)) return false;
+  if(s.stages && s.stages.length && !it.__quote && !s.stages.includes(it.stage)) return false;
+  return true;
+}
 
 // raw heuristic (no overrides) → section key
 function presoHeuristic(o){
@@ -13534,12 +13632,19 @@ async function presoGatherItems(){
   return [...opens, ...quoteItems];
 }
 
-// assemble the deck from items + presenter config (section overrides, order, exclusions)
+// assemble the deck from items + settings (mode/filters/group-by) + presenter config
 async function presoBuildDeck(){
   await presoLoadOverrides();
-  const items = (await presoGatherItems()).filter(it=>!(_presoCfg[it.id] && _presoCfg[it.id].excluded));
-  const bySect={ biomass:[], engwood:[], torref:[], samples:[] };
-  items.forEach(it=>{ let k=presoClassify(it); if(!bySect[k]) k=it.__quote?'samples':'engwood';
+  const S=_presoSettings;
+  let items=(await presoGatherItems()).filter(it=>!(_presoCfg[it.id] && _presoCfg[it.id].excluded));
+  if(S.mode==='smart') items=items.filter(it=>presoPassesRules(it,S));
+  const groupBy=(S.mode==='smart') ? (S.groupBy||'line') : 'line';
+  if(groupBy!=='line') items=items.filter(it=>!it.__quote);   // stage/region views are pipeline-only
+  const sections=presoSectionsFor(groupBy, items);
+  _presoSectionsActive=sections;
+  const bySect={}; sections.forEach(sec=>bySect[sec.key]=[]);
+  items.forEach(it=>{ let k=presoSectionKeyOf(it,groupBy);
+    if(!(k in bySect)){ if(groupBy==='line') k=it.__quote?'samples':'engwood'; else return; }
     bySect[k].push(it); });
   // honor presenter ordering within each section
   Object.values(bySect).forEach(list=>list.sort((a,b)=>((_presoCfg[a.id]?.ord??9999)-(_presoCfg[b.id]?.ord??9999))));
@@ -13549,8 +13654,8 @@ async function presoBuildDeck(){
     list.forEach(o=>{ const b=presoAcctBase(o.acct); (groups[b]=groups[b]||[]).push(o); });
     list.forEach(o=>{ o.__sibs=(groups[presoAcctBase(o.acct)]||[]).filter(s=>s.id!==o.id); });
   });
-  const deck=[{type:'overview', bySect}];
-  PRESO_SECTIONS.forEach(s=>{
+  const deck=[{type:'overview', bySect, sections}];
+  sections.forEach(s=>{
     const jobs=bySect[s.key]||[];
     deck.push({type:'section', section:s, jobs});
     jobs.forEach((job,i)=>deck.push({type:'job', section:s, job, i, n:jobs.length}));
@@ -13563,7 +13668,7 @@ async function openPreso(){
   ov.classList.add('open');
   document.getElementById('pz-stage').innerHTML='<div style="margin:auto;color:#5f7288">Building deck…</div>';
   document.addEventListener('keydown', presoKey);
-  try{ _presoDeck=await presoBuildDeck(); }catch(e){ _presoDeck=[{type:'overview',bySect:{biomass:[],engwood:[],torref:[],samples:[]}}]; }
+  try{ _presoDeck=await presoBuildDeck(); }catch(e){ _presoSectionsActive=PRESO_SECTIONS; _presoDeck=[{type:'overview',bySect:{},sections:PRESO_SECTIONS}]; }
   _presoIdx=0; presoRender();
 }
 function closePreso(){
@@ -13602,24 +13707,27 @@ function presoRender(){
 }
 
 function presoOverviewHTML(s){
-  const all=[].concat(s.bySect.biomass,s.bySect.engwood,s.bySect.torref);
-  const nJobs=all.length + s.bySect.samples.length;
+  const sections=s.sections||PRESO_SECTIONS;
+  const all=sections.flatMap(sec=>s.bySect[sec.key]||[]);
+  const nJobs=all.length;
   const totVal=all.reduce((a,o)=>a+(Number(o.val)||0),0);
-  const wVal=all.reduce((a,o)=>a+(Number(o.val)||0)*(Number(o.prob)||0),0);
-  const kpis=[['Opportunities',nJobs],['Business lines',PRESO_SECTIONS.filter(x=>(s.bySect[x.key]||[]).length).length],
+  const wVal=all.filter(o=>!o.__quote).reduce((a,o)=>a+(Number(o.val)||0)*(Number(o.prob)||0),0);
+  const gb=(_presoSettings.mode==='smart')?_presoSettings.groupBy:'line';
+  const gbLabel=gb==='stage'?'pipeline stage':gb==='region'?'region':'business line';
+  const kpis=[['Opportunities',nJobs],['Groups',sections.filter(x=>(s.bySect[x.key]||[]).length).length],
     ['Combined value',presoMoney(totVal)],['Weighted value',presoMoney(wVal)]];
-  const agenda=PRESO_SECTIONS.map((sec,ix)=>{
+  const agenda=sections.map(sec=>{
     const jobs=s.bySect[sec.key]||[]; const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
-    return `<div class="pz-ag-row" onclick="presoJumpToSection('${sec.key}')">
+    return `<div class="pz-ag-row" onclick="presoJumpToSection('${qattr(sec.key)}')">
       <span class="pz-ag-dot" style="background:${sec.acc}"></span>
       <span class="pz-ag-nm">${qesc(sec.label)}</span>
-      <span class="pz-ag-bl">${qesc(sec.blurb)}</span>
+      <span class="pz-ag-bl">${qesc(sec.blurb||'')}</span>
       <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?' · '+presoMoney(val):''}</span></div>`;
   }).join('');
   return `<div class="pz-slide" style="--acc:#00929f">
-    <div class="pz-eyebrow"><span class="on">Overview</span><span class="sep">·</span><span>Open opportunities</span></div>
+    <div class="pz-eyebrow"><span class="on">Overview</span><span class="sep">·</span><span>${nJobs} opportunit${nJobs===1?'y':'ies'}</span>${_presoSettings.mode!=='auto'?`<span class="sep">·</span><span>${_presoSettings.mode==='smart'?'smart rules':'hand-picked'}</span>`:''}</div>
     <div class="pz-ov-title">Open Opportunities</div>
-    <div class="pz-ov-sub">Grouped by business line. Use → / ← or click the track below.</div>
+    <div class="pz-ov-sub">Grouped by ${gbLabel}. Use → / ← or click the track below.</div>
     <div class="pz-ov-grid">
       <div><div id="pz-ovmap"></div></div>
       <div>
@@ -13636,10 +13744,10 @@ function presoRenderOvMap(s){
     _presoMap=L.map(el,{zoomControl:true,attributionControl:false}).setView([25,0],2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(_presoMap);
     const pts=[];
-    ['biomass','engwood','torref'].forEach(k=>{
-      (s.bySect[k]||[]).forEach(o=>{ const c=presoCoords(presoLoc(o)); if(!c) return;
+    (s.sections||PRESO_SECTIONS).forEach(sec=>{
+      (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoCoords(presoLoc(o)); if(!c) return;
         const mk=L.circleMarker(c,{radius:Math.max(6,Math.min(24,6+Math.sqrt((o.val||0)/1e6)*1.3)),
-          color:PRESO_SECT[k].acc,fillColor:PRESO_SECT[k].acc,fillOpacity:.75,weight:1.4});
+          color:sec.acc,fillColor:sec.acc,fillOpacity:.75,weight:1.4});
         mk.bindPopup('<b>'+qesc(o.acct)+'</b><br>'+qesc(o.type||'')); mk.addTo(_presoMap); pts.push(c); });
     });
     if(pts.length) _presoMap.fitBounds(pts,{padding:[30,30],maxZoom:5});
@@ -13653,7 +13761,7 @@ function presoSectionHTML(s){
   const list=jobs.length ? jobs.map(o=>`<div class="pz-sec-item"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span></div>`).join('')
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
-    <div class="pz-eyebrow">${PRESO_SECTIONS.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
     <div class="pz-sec-big">${qesc(sec.label)}</div>
     <div class="pz-sec-blurb">${qesc(sec.blurb)}</div>
     <div style="display:flex;gap:22px;margin-bottom:20px">
@@ -13692,7 +13800,7 @@ function presoOppSlide(o,sec,s){
   }
   const capsHtml=caps.length?`<div class="pz-lbl" style="margin-bottom:10px">Capacity</div><div class="pz-caps">${caps.map(c=>`<div class="pz-cap"><div class="big" style="color:${sec.acc}">${qesc(c.big)}</div><div class="csub">${qesc(c.sub)}</div></div>`).join('')}</div>`:'';
   return `<div class="pz-slide" style="--acc:${sec.acc}">
-    <div class="pz-eyebrow">${PRESO_SECTIONS.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
     <div class="pz-head">
       <div><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div><div class="pz-loc">📍 ${qesc(presoLoc(o))}</div></div>
       <div class="pz-flag">${qesc(o.stage||'—')}${o.close?' · closes '+qesc(o.close):''}</div>
@@ -13721,7 +13829,7 @@ function presoQuoteSlide(o,sec,s){
   const lines=(o.lines||[]);
   const chips=lines.slice(0,8).map(l=>`<span class="pz-chip" style="background:#0e7490">${qesc((l.qty?l.qty+'× ':'')+(l.description||l.code||'item'))}</span>`).join('');
   return `<div class="pz-slide" style="--acc:${sec.acc}">
-    <div class="pz-eyebrow">${PRESO_SECTIONS.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">${s.i+1} of ${s.n} · ${qesc(sec.label)}</span></div>
     <div class="pz-head">
       <div><div class="pz-acct">${qesc(o.acct)}</div><div class="pz-ptype">${qesc(o.type||'')}</div>${o.loc?`<div class="pz-loc">📍 ${qesc(o.loc)}</div>`:''}</div>
       <div class="pz-flag" style="color:#0e7490;border-color:rgba(14,116,144,.5);background:rgba(14,116,144,.1)">${qesc(o.status||'Quote')}${o.quote_date?' · '+qesc(o.quote_date):''}</div>
@@ -13746,7 +13854,7 @@ function presoRenderRail(){
   const rail=document.getElementById('pz-rail'); if(!rail) return;
   const cur=_presoDeck[_presoIdx];
   let html=`<span class="pz-rseg"><span class="pz-rnode ${_presoIdx===0?'on':''}" style="--c:#00929f" onclick="presoJump(0)"></span><span class="pz-rname ${_presoIdx===0?'cur':''}" onclick="presoJump(0)">Overview</span></span>`;
-  PRESO_SECTIONS.forEach(sec=>{
+  _presoSectionsActive.forEach(sec=>{
     html+=`<span class="pz-rdash"></span>`;
     const secIdx=_presoDeck.findIndex(d=>d.type==='section'&&d.section.key===sec.key);
     const onSec=cur&&((cur.type==='section'&&cur.section.key===sec.key)||(cur.type==='job'&&cur.section.key===sec.key));
@@ -13757,6 +13865,64 @@ function presoRenderRail(){
     html+=`</span>`;
   });
   rail.innerHTML=html;
+}
+
+/* ─────────────── WHAT TO PRESENT — settings ─────────────── */
+function openPresoSettings(){ presoApplySettingsToForm(); document.getElementById('preso-set-overlay').classList.add('open'); }
+function closePresoSettings(){ document.getElementById('preso-set-overlay').classList.remove('open'); }
+function presoSetMode(m){
+  _presoSettings.mode=m;
+  document.querySelectorAll('#preso-set-overlay .ps-mode').forEach(el=>el.classList.toggle('on', el.dataset.mode===m));
+  const sm=document.getElementById('ps-smart'); if(sm) sm.classList.toggle('on', m==='smart');
+}
+function presoRenderStageChips(){
+  const w=document.getElementById('ps-stages'); if(!w) return;
+  w.innerHTML=PRESO_STAGE_ORDER.map(s=>`<span class="ps-stage ${(_presoSettings.stages||[]).includes(s)?'on':''}" onclick="presoToggleStage('${qattr(s)}',this)">${qesc(s)}</span>`).join('');
+}
+function presoToggleStage(s,el){
+  const set=new Set(_presoSettings.stages||[]);
+  set.has(s)?set.delete(s):set.add(s); _presoSettings.stages=[...set];
+  if(el) el.classList.toggle('on', set.has(s));
+}
+function presoApplySettingsToForm(){
+  const S=_presoSettings; presoSetMode(S.mode||'auto');
+  document.getElementById('ps-updated').value=S.updatedWithin||'';
+  document.getElementById('ps-close').value=S.closeWithin||'';
+  document.getElementById('ps-minval').value=S.minValue||'';
+  document.getElementById('ps-groupby').value=S.groupBy||'line';
+  presoRenderStageChips();
+}
+function presoReadSettingsForm(){
+  _presoSettings.updatedWithin=document.getElementById('ps-updated').value;
+  _presoSettings.closeWithin=document.getElementById('ps-close').value;
+  _presoSettings.minValue=Number(document.getElementById('ps-minval').value)||0;
+  _presoSettings.groupBy=document.getElementById('ps-groupby').value;
+}
+function presoPresentFromSettings(){ presoReadSettingsForm(); closePresoSettings(); openPreso(); }
+function presoApplyRulesJson(j){
+  presoSetMode('smart');
+  const near=(val,opts)=>{ if(val==null) return ''; const n=Number(val); let best='',bd=Infinity; opts.forEach(o=>{ const d=Math.abs(o-n); if(d<bd){bd=d;best=o;} }); return best; };
+  if(j.updatedWithin!=null) document.getElementById('ps-updated').value=near(j.updatedWithin,[1,3,6,12]);
+  if(j.closeWithin!=null)   document.getElementById('ps-close').value=near(j.closeWithin,[90,180,365,730]);
+  if(j.minValue!=null)      document.getElementById('ps-minval').value=Number(j.minValue)||'';
+  if(j.groupBy)             document.getElementById('ps-groupby').value=['line','stage','region'].includes(j.groupBy)?j.groupBy:'line';
+  _presoSettings.stages=Array.isArray(j.stages)?j.stages.filter(s=>PRESO_STAGE_ORDER.includes(s)):[];
+  presoRenderStageChips(); presoReadSettingsForm();
+}
+async function presoAiBuildRules(){
+  const q=(document.getElementById('ps-ai-input').value||'').trim();
+  const note=document.getElementById('ps-ai-note'); if(!q) return;
+  note.textContent='✨ Thinking…';
+  const sys="You convert a sales manager's request into JSON filter rules for a pipeline presentation. Output ONLY compact minified JSON, no prose, with keys: updatedWithin (months as a number or null), closeWithin (days as a number or null), minValue (dollars as a number or null), stages (array, any of: Lead, Qualified, Proposal, Negotiation, Verbal, PO Received), groupBy (one of: line, stage, region). Map 'line of business'/'business line' to line.";
+  try{
+    if(!API_WORKER_URL) throw new Error('no worker');
+    const res=await fetch(API_WORKER_URL+'/api/ai',{method:'POST',headers:workerHeaders(),
+      body:JSON.stringify({tier:(typeof aiTier==='function'?aiTier():'standard'),max_tokens:250,system:sys,messages:[{role:'user',content:q}]})});
+    const data=await res.json();
+    const txt=((data.content||[]).find(b=>b.type==='text')||{}).text||'';
+    presoApplyRulesJson(JSON.parse((txt.match(/\{[\s\S]*\}/)||['{}'])[0]));
+    note.textContent='✓ Rules filled from your description — review & Present.';
+  }catch(e){ note.textContent='AI unavailable (needs the worker deployed) — set the rules manually below.'; }
 }
 
 /* ─────────────── DECK BUILDER (drag & drop) ─────────────── */
