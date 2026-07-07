@@ -82,7 +82,7 @@ body{font-family:var(--font-ui);background:var(--color-bg);color:var(--color-tex
   width:100%;
 }
 .header-left{display:flex;align-items:center;gap:var(--sp-3)}
-.header-logo{height:105px;width:auto;opacity:1;display:block;flex-shrink:0;margin-top:2px;pointer-events:none;position:relative;z-index:1} /* fixed — was calc(var(--header-h)*2.2), which is circular since the logo lives inside the element --header-h measures */
+.header-logo{height:40px;width:auto;opacity:1;display:block;flex-shrink:0;margin-left:14px;pointer-events:none;position:relative;z-index:1} /* sized to sit inside the 48px header-top row. The viewBox (2 -6 308 134) tightly frames the wordmark art — the old 80 40 2280 1000 box framed empty space, so the logo rendered invisible. */
 .header-title{font-family:var(--font-ui);font-size:13px;font-weight:500;color:rgba(255,255,255,0.85);letter-spacing:.01em}
 .header-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px}
 .header-right{display:flex;align-items:center;gap:var(--sp-3)}
@@ -713,7 +713,11 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   transition:color 0.15s;
 }
 .drawer-close:hover { color:white; }
-.drawer-body { overflow-y:auto; overflow-x:hidden; padding:16px 18px 8px; }
+.drawer-body { overflow-y:auto; overflow-x:hidden; padding:16px 18px 8px; min-height:0; }
+/* ^ min-height:0 is essential: the drawer is a grid (auto 1fr auto). A 1fr track
+     defaults to min-height:auto, so tall body content grows the track and pushes
+     the footer off-screen. min-height:0 lets the body scroll internally and keeps
+     the footer (Save/Cancel) pinned to the bottom of the drawer. */
 .drawer-footer {
   padding:12px 18px; border-top:1px solid var(--color-border);
   display:flex; gap:10px; flex-wrap:wrap;
@@ -1161,10 +1165,9 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 
 /* ── MOBILE ───────────────────────────────────────────── */
 @media(max-width:768px) {
-  /* Header — compact. The desktop logo is 105px tall (overflows the 48px bar by
-     design); on phones that overflowed onto the tab row and its 239px width
-     shoved the title + dark-mode toggle off-screen. Shrink it to fit the bar. */
-  .header-logo  { height:56px; margin-top:0; }
+  /* Header — compact. Keep the logo inside the bar so it doesn't shove the
+     title + dark-mode toggle off-screen on phones. */
+  .header-logo  { height:34px; margin-left:8px; }
   .header-title { font-size:12px; }
   .header-sub   { font-size:10px; }
   .header-top   { padding-left:10px; gap:8px; }
@@ -2706,7 +2709,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <div class="header-top">
   <div class="header-left">
     <!-- TSI Logo SVG inline -->
-    <svg class="header-logo" viewBox="80 40 2280 1000" xmlns="http://www.w3.org/2000/svg">
+    <svg class="header-logo" viewBox="2 -6 308 134" xmlns="http://www.w3.org/2000/svg">
       <g transform="matrix(1.3333333,0,0,-1.3333333,0,160.64)"><g transform="scale(0.1)">
         <path d="m 1116.8,456.969 c -8.34,7.59 -12.27,18.14 -11.78,31.679 0.25,6.973 6.39,35.274 18.44,84.911 l 67.05,273.8 h 108.29 l 31.78,131.051 H 1222.9 l 55.52,226.42 -206.81,-121.82 -25.29,-104.6 H 960.191 L 928.41,847.359 h 85.52 l -64.2,-262.718 c -17.8,-72.61 -27.039,-118.961 -27.761,-139.059 -1.528,-42.652 11.422,-75.98 38.851,-99.98 27.442,-23.981 72.34,-35.993 134.69,-35.993 31.99,0 63.28,3.082 93.85,9.231 l 32.4,131.058 c -31.28,-2.878 -50.81,-4.316 -58.61,-4.316 -22.56,0 -38.01,3.789 -46.35,11.387" fill="white"/>
         <path d="m 1860.3,947.648 c -41.96,30.774 -104.99,46.153 -189.07,46.153 -105.83,0 -186.55,-26.063 -242.16,-78.153 -39.89,-37.328 -60.77,-81.816 -62.62,-133.507 -1.86,-51.68 16.53,-93.52 55.16,-125.52 24.7,-20.512 89.73,-48.402 195.11,-83.672 39.32,-13.129 63.32,-24.199 72.03,-33.219 8.27,-9.449 12.2,-20.101 11.77,-32 -0.64,-17.64 -9.58,-32.609 -26.84,-44.921 -24.85,-18.039 -57.38,-27.071 -97.58,-27.071 -38.97,0 -69.46,7.481 -91.47,22.461 -12.42,8.442 -23.5,20.352 -33.32,35.512 h -188.35 c 17.37,-55.973 49.06,-100.102 95.45,-132.109 50.22,-34.672 122.51,-51.993 216.85,-51.993 94.76,0 169,22.77 222.74,68.301 53.71,45.531 81.7,99.262 83.92,161.199 1.72,47.993 -17.32,89 -57.1,123.063 -28.26,24.187 -85.01,48.797 -170.24,73.816 -55.2,16.41 -87.81,27.903 -97.82,34.461 -16.03,10.66 -23.74,24.199 -23.16,40.61 0.58,16 9.18,30.152 25.83,42.453 16.64,12.308 43.43,18.457 80.35,18.457 36.92,0 68.21,-8 93.88,-23.989 8.1,-5.109 14.95,-11.539 21.01,-18.851 h 181.52 c -10.49,49.453 -35.67,89.043 -75.89,118.519" fill="white"/>
@@ -4941,6 +4944,7 @@ let _geoACTimer   = null;
 
 function openOppDrawer(editId) {
   populateOppAccountOptions();
+  mountRteToolbars('#opp-drawer');
   _drawerEditId = editId || null;
   const isEdit  = !!editId;
   document.getElementById('drawer-title').textContent = isEdit ? 'Edit Opportunity' : 'New Opportunity';
@@ -4958,6 +4962,7 @@ function openOppDrawer(editId) {
     setDrawerField('d-lead',     o.lead || 'TF');
     setDrawerField('d-source',   o.source || '');
     setDrawerField('d-notes',    o.notes || '');
+    { const _dd=document.getElementById('d-details'); if(_dd) _dd.innerHTML = rteFromValue(o.details || ''); }
     setDrawerField('d-loc-search', o.loc || '');
     // split loc into city/state/country
     const parts = (o.loc||'').split(',').map(s=>s.trim());
@@ -5001,6 +5006,7 @@ function openOppDrawer(editId) {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    { const _dd=document.getElementById('d-details'); if(_dd) _dd.innerHTML = ''; }
     setDrawerField('d-lead', 'TF');
     setDrawerField('d-cat',  'Dryer System');
     _drawerTags = [];
@@ -5427,6 +5433,7 @@ function saveOppDrawer() {
     status:     'O',
     tags:       [..._drawerTags],
     notes:      document.getElementById('d-notes').value.trim(),
+    details:    (function(){ const el=document.getElementById('d-details'); return el ? rteToValue(el.innerHTML) : ''; })(),
     lat:        _drawerLat,
     lon:        _drawerLon,
     elev:       parseFloat(document.getElementById('d-elev').value) || null,
@@ -6836,6 +6843,10 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-VAN', parentId:'AG-VAN', name:'Van Lung Vietnam', industry:'', acctMatch:'Van Lung', loc:'Vietnam', plantType:'Biomass', lat:16, lon:108, notes:'' },
   { id:'S-BFV', parentId:'AG-BFV', name:'BFV Vietnam', industry:'', acctMatch:'Biomass Fuel Vietnam', loc:'Vietnam', plantType:'Biomass', lat:16, lon:108, notes:'' },
   { id:'S-SAM', parentId:'AG-SAM', name:'Samling Bintulu', industry:'', acctMatch:'Samling', loc:'Bintulu, Sarawak, Malaysia', plantType:'Pellets', lat:3.17, lon:113.04, notes:'' },
+  // Alfanar's SAF/torrefaction plant — the site behind the ALTE-1 (FEED) and ALTE-2
+  // (fab & install) opportunities. Was missing a site record, so Alfanar never
+  // appeared on the accounts map despite carrying its flagship opportunity.
+  { id:'S-ALFTE', parentId:'AG-ALF', name:'Alfanar Teesside (ALTE)', industry:'', acctMatch:'Alfanar', loc:'Teesside, UK', plantType:'Torrefaction', lat:54.57, lon:-1.23, notes:'700k TPY torrefied biomass, Pre-SAF. FEED (Stage 1) + fab/install (Stage 2).' },
 ];
 
 function loadAccounts() {
@@ -6874,6 +6885,17 @@ function loadAccounts() {
         }));
         data.accounts = accounts;
         delete data.groups; delete data.sites;
+        localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+
+      // Backfill: Alfanar's Teesside site was added after initial seed. Existing
+      // installs have Alfanar (AG-ALF) as a parent with no site, so it never
+      // showed on the accounts map despite carrying its flagship opportunity.
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-ALF')
+          && !data.accounts.some(a => a.id === 'S-ALFTE')) {
+        data.accounts.push({ id:'S-ALFTE', parentId:'AG-ALF', name:'Alfanar Teesside (ALTE)',
+          industry:'', acctMatch:'Alfanar', loc:'Teesside, UK', plantType:'Torrefaction',
+          lat:54.57, lon:-1.23, notes:'700k TPY torrefied biomass, Pre-SAF. FEED (Stage 1) + fab/install (Stage 2).' });
         localStorage.setItem(ACCT_KEY, JSON.stringify(data));
       }
       return data;
@@ -10136,6 +10158,50 @@ function renderAcctMap() {
     bounds.push([s.lat, s.lon]);
   });
 
+  // ── Opportunity pins ──────────────────────────────────────────
+  // Some accounts carry open deals but have no geocoded site record (e.g.
+  // Idemitsu, Bionow, Arauco). Plot those deals at their opportunity location
+  // (resolved via LOC_COORDS) so no open deal is invisible on the map. Deals
+  // already represented by a plotted site are skipped.
+  const coveredOppIds = new Set();
+  sites.forEach(s => dealsForSite(s).forEach(o => coveredOppIds.add(o.id)));
+  const inScope = o => allMatchingSites.some(a => a.acctMatch && o.acct &&
+    (o.acct.includes(a.acctMatch) || a.acctMatch.includes(o.acct)));
+  const resolveLoc = loc => {
+    if (!loc) return null;
+    if (LOC_COORDS[loc]) return LOC_COORDS[loc];
+    const k = Object.keys(LOC_COORDS).find(k =>
+      loc.toLowerCase().includes(k.toLowerCase().split(',')[0]) ||
+      k.toLowerCase().includes(loc.toLowerCase().split(',')[0]));
+    return k ? LOC_COORDS[k] : null;
+  };
+  const oppPinKeys = new Set();
+  openDeals.forEach(o => {
+    if (coveredOppIds.has(o.id) || !inScope(o)) return;
+    const loc = o.loc || [o.city, o.country].filter(Boolean).join(', ');
+    const c = resolveLoc(loc);
+    if (!c) return;
+    const key = o.acct + '@' + c[0] + ',' + c[1];
+    if (oppPinKeys.has(key)) return;
+    oppPinKeys.add(key);
+    const acct = allMatchingSites.find(a => a.acctMatch &&
+      (o.acct.includes(a.acctMatch) || a.acctMatch.includes(o.acct)));
+    const gid = acct ? (acct.parentId || acct.id) : null;
+    const color = gid ? getGroupColor(gid) : '#00929F';
+    const marker = L.circleMarker(c, {
+      radius:8, fillColor:color, color:'#fff', weight:2, fillOpacity:0.45, dashArray:'3,3',
+    }).bindPopup(`
+      <div style="min-width:160px">
+        <b>${o.acct}</b><br>
+        <span style="color:var(--color-text-muted);font-size:11px">${loc}</span><br>
+        <span style="color:var(--tsi-teal);font-weight:600;font-size:12px">${fmt(o.val||0)} open</span><br>
+        <span style="color:var(--color-text-muted);font-size:10px;font-style:italic">Opportunity location — no site record yet</span>
+      </div>`);
+    marker.addTo(_acctMap);
+    _acctMapMarkers.push(marker);
+    bounds.push(c);
+  });
+
   if (bounds.length) {
     hideAcctMapEmptyState();
     setTimeout(() => {
@@ -11004,6 +11070,9 @@ startAdminPoll();
       </div>
       </div><!-- /dsec-body -->
     </div>
+    </div><!-- /d-weather-section — this wrapper (opened above) was missing its
+              close, which nested every following section (and the drawer footer)
+              inside .drawer-body, so the footer scrolled away instead of pinning. -->
 
     <!-- TELESCOPE / OPS -->
     <div class="dsec collapsed" id="dsec-telescope">
@@ -11095,6 +11164,19 @@ startAdminPoll();
           <label>Delivery Quarter</label>
           <input class="dinput" id="d-delivery" placeholder="e.g. 2027-Q2">
         </div>
+      </div>
+      </div><!-- /dsec-body -->
+    </div>
+
+    <!-- DETAILS (rich text) -->
+    <div class="dsec" id="dsec-details">
+      <div class="dsec-title" onclick="toggleDsec('details')">
+        <span>Details</span>
+        <span class="dsec-chevron">▾</span>
+      </div>
+      <div class="dsec-body">
+      <div class="drow">
+        <div class="dtextarea q-rte" id="d-details" contenteditable="true" data-ph="Scope narrative, technical context, background, key stakeholders, decision drivers…" style="min-height:120px"></div>
       </div>
       </div><!-- /dsec-body -->
     </div>
@@ -11350,7 +11432,7 @@ startAdminPoll();
 <!-- ══ ONBOARDING MODAL ══ -->
 <div class="onboard-overlay" id="onboard-overlay" style="display:none">
   <div class="onboard-box">
-    <svg class="onboard-logo" viewBox="80 40 2280 1000" xmlns="http://www.w3.org/2000/svg">
+    <svg class="onboard-logo" viewBox="2 -6 308 134" xmlns="http://www.w3.org/2000/svg">
       <g transform="matrix(1.3333333,0,0,-1.3333333,0,160.64)"><g transform="scale(0.1)">
         <path d="m 1116.8,456.969 c -8.34,7.59 -12.27,18.14 -11.78,31.679 0.25,6.973 6.39,35.274 18.44,84.911 l 67.05,273.8 h 108.29 l 31.78,131.051 H 1222.9 l 55.52,226.42 -206.81,-121.82 -25.29,-104.6 H 960.191 L 928.41,847.359 h 85.52 l -64.2,-262.718 c -17.8,-72.61 -27.039,-118.961 -27.761,-139.059 -1.528,-42.652 11.422,-75.98 38.851,-99.98 27.442,-23.981 72.34,-35.993 134.69,-35.993 31.99,0 63.28,3.082 93.85,9.231 l 32.4,131.058 c -31.28,-2.878 -50.81,-4.316 -58.61,-4.316 -22.56,0 -38.01,3.789 -46.35,11.387" fill="var(--tsi-deep-blue)"/>
         <path d="m 1860.3,947.648 c -41.96,30.774 -104.99,46.153 -189.07,46.153 -105.83,0 -186.55,-26.063 -242.16,-78.153 -39.89,-37.328 -60.77,-81.816 -62.62,-133.507 -1.86,-51.68 16.53,-93.52 55.16,-125.52 24.7,-20.512 89.73,-48.402 195.11,-83.672 39.32,-13.129 63.32,-24.199 72.03,-33.219 8.27,-9.449 12.2,-20.101 11.77,-32 -0.64,-17.64 -9.58,-32.609 -26.84,-44.921 -24.85,-18.039 -57.38,-27.071 -97.58,-27.071 -38.97,0 -69.46,7.481 -91.47,22.461 -12.42,8.442 -23.5,20.352 -33.32,35.512 h -188.35 c 17.37,-55.973 49.06,-100.102 95.45,-132.109 50.22,-34.672 122.51,-51.993 216.85,-51.993 94.76,0 169,22.77 222.74,68.301 53.71,45.531 81.7,99.262 83.92,161.199 1.72,47.993 -17.32,89 -57.1,123.063 -28.26,24.187 -85.01,48.797 -170.24,73.816 -55.2,16.41 -87.81,27.903 -97.82,34.461 -16.03,10.66 -23.74,24.199 -23.16,40.61 0.58,16 9.18,30.152 25.83,42.453 16.64,12.308 43.43,18.457 80.35,18.457 36.92,0 68.21,-8 93.88,-23.989 8.1,-5.109 14.95,-11.539 21.01,-18.851 h 181.52 c -10.49,49.453 -35.67,89.043 -75.89,118.519" fill="var(--tsi-deep-blue)"/>
@@ -13262,14 +13344,21 @@ function rteSanitize(html){
 function rteFromValue(v){ v = (v==null?'':String(v)); return /<[a-z/][^>]*>/i.test(v) ? rteSanitize(v) : qesc(v).replace(/\n/g,'<br>'); }
 function rteToValue(html){ const s = rteSanitize(html); const t = document.createElement('div'); t.innerHTML = s;
   return (t.textContent.trim()==='' && !/<(ul|ol|li|img)\b/i.test(s)) ? '' : s; }
+const _RTE_TB = `<div class="q-rte-tb">`
+  + `<button type="button" class="q-rte-b" onmousedown="rteCmd(event,'bold')" title="Bold">B</button>`
+  + `<button type="button" class="q-rte-b" style="font-style:italic" onmousedown="rteCmd(event,'italic')" title="Italic">I</button>`
+  + `<button type="button" class="q-rte-b bul" onmousedown="rteCmd(event,'insertUnorderedList')" title="Bulleted list">• List</button></div>`;
+// Insert a formatting toolbar above each .q-rte in `scope` exactly once.
+function mountRteToolbars(scope){
+  document.querySelectorAll(scope + ' .q-rte').forEach(el=>{
+    if(el.previousElementSibling && el.previousElementSibling.classList.contains('q-rte-tb')) return;
+    el.insertAdjacentHTML('beforebegin', _RTE_TB);
+  });
+}
 let _qRteMounted = false;
 function mountQuoteToolbars(){
   if(_qRteMounted) return; _qRteMounted = true;
-  const tb = `<div class="q-rte-tb">`
-    + `<button type="button" class="q-rte-b" onmousedown="rteCmd(event,'bold')" title="Bold">B</button>`
-    + `<button type="button" class="q-rte-b" style="font-style:italic" onmousedown="rteCmd(event,'italic')" title="Italic">I</button>`
-    + `<button type="button" class="q-rte-b bul" onmousedown="rteCmd(event,'insertUnorderedList')" title="Bulleted list">• List</button></div>`;
-  document.querySelectorAll('#quote-drawer .q-rte').forEach(el=>{ el.insertAdjacentHTML('beforebegin', tb); });
+  mountRteToolbars('#quote-drawer');
 }
 async function openQuoteBuilder(id){
   mountQuoteToolbars();
