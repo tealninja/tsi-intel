@@ -101,8 +101,11 @@ Roles (cumulative ladder):
   ai_tier (power → top/chart model, standard → lighter). Server-side.
 - [~] Phase 2 — **Saved views** (per-user) on Store('saved_views'): **pipeline done**
   (⭐ Views dropdown captures/applies search + filters + close-chip + starred + sort +
-  column filters, tagged to the soft identity). TODO: extend to accounts/quotes tabs;
-  optional shared/team views.
+  column filters, tagged to the soft identity). **Now editable: rename (✎), update-to-current
+  filters (⟳), delete (✕) per view.** TODO: extend to accounts/quotes tabs; shared/team views.
+- [x] **Identity: Cloudflare-hosted web = jteal** — on the deployed app (`*.bodhistoys.com` /
+  `*.workers.dev`, no SharePoint context) the user defaults to jteal@tsi-inc.net (executive
+  tier). SharePoint still wins when present; manual "Who am I" still overrides in-session.
 - [~] Phase 3 — **Follows / faves** on Store('follows'): **pipeline done** — per-user
   🔔 follow toggle per opp (distinct from the team ⭐ star) + a "🔔 Following only"
   filter, captured in saved views. TODO: extend follow to quotes / accounts.
