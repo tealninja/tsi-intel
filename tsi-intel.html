@@ -3186,41 +3186,50 @@ function aiHeaders() {
   return h;
 }
 
-// Load pipeline from Worker on startup (if URL configured)
+// Opportunities are persisted in the D1 'opportunities' collection (via the
+// generic /api/store/* endpoints), with localStorage as the offline cache.
+// oppStore is created lazily on first use so it's after Store() is defined.
+let _oppStore = null;
+function oppStore(){ return _oppStore || (_oppStore = Store('opportunities')); }
+function oppPersist(rec){
+  if (!rec || !rec.id) return;
+  try { oppStore().put(rec); } catch(_){}                    // → D1 'opportunities' collection + cache
+  // Transitional mirror to the legacy KV pipeline so cross-user sync keeps
+  // working even if the D1 worker isn't deployed yet. Remove once fully on D1.
+  if (typeof API_WORKER_URL !== 'undefined' && API_WORKER_URL)
+    fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(rec.id),
+      { method:'PUT', headers:workerHeaders(), body:JSON.stringify(rec) }).catch(()=>{});
+}
+function oppRemove(id){ try { oppStore().remove(id); } catch(_){} }
+
+// Load pipeline on startup: pull the D1 collection; on first run, import the
+// legacy KV pipeline (so nothing edited there is lost) or the embedded seed.
 async function loadFromWorker() {
-  if (!API_WORKER_URL) return false;
   try {
-    const res  = await fetch(API_WORKER_URL + '/api/pipeline', { headers: workerHeaders() });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const records = Array.isArray(data) ? data : (data.records || []);
-    if (!records.length) return false;
-    // Merge: server records win for matching IDs, keep local additions
-    const serverIds = new Set(records.map(r => r.id));
-    const localOnly = DATA.filter(r => !serverIds.has(r.id));
-    DATA = [...records, ...localOnly];
-    return true;
-  } catch (e) {
-    console.warn('Worker load failed, using local data:', e.message);
+    const s = oppStore();
+    await s.pull();
+    let items = s.all();
+    if (!items.length) {
+      let kv = [];
+      if (API_WORKER_URL) {
+        try { const res = await fetch(API_WORKER_URL + '/api/pipeline', { headers: workerHeaders() });
+          if (res.ok) { const d = await res.json(); kv = Array.isArray(d) ? d : (d.records || []); } } catch {}
+      }
+      await s.saveAll(kv.length ? kv : DATA);   // DATA = embedded _PIPELINE seed
+      items = s.all();
+    }
+    if (items.length) {
+      const ids = new Set(items.map(r => r.id));
+      DATA = [...items, ...DATA.filter(r => !ids.has(r.id))];
+      return true;
+    }
     return false;
-  }
+  } catch (e) { console.warn('Opportunity store load failed, using local data:', e.message); return false; }
 }
 
-// Save pipeline to Worker
+// Bulk save (used by import/admin flows) → replace the whole D1 collection.
 async function saveToWorker() {
-  if (!API_WORKER_URL) return false;
-  try {
-    const res = await fetch(API_WORKER_URL + '/api/pipeline', {
-      method: 'POST',
-      headers: workerHeaders(),
-      body: JSON.stringify({ schema_version: 2, records: DATA })
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return true;
-  } catch (e) {
-    console.warn('Worker save failed:', e.message);
-    return false;
-  }
+  try { return await oppStore().saveAll(DATA); } catch (e) { console.warn('Opportunity bulk save failed:', e.message); return false; }
 }
 
 // Sync bugs to Worker
@@ -3414,9 +3423,7 @@ function psbDrop(e,stage){
   const rec=DATA.find(r=>r.id===id); if(!rec || rec.stage===stage){ renderStageBoard(); return; }
   rec.stage=stage; rec.updatedAt=new Date().toISOString(); rec.updatedBy=getUserInitials()||'?'; markDirty(id);
   if(typeof usageLog==='function') usageLog('stage_change', id+' → '+stage);
-  if(typeof API_WORKER_URL!=='undefined' && API_WORKER_URL){
-    fetch(API_WORKER_URL+'/api/pipeline/'+encodeURIComponent(id),{method:'PUT',headers:workerHeaders(),body:JSON.stringify(rec)}).catch(()=>{});
-  }
+  oppPersist(rec);
   renderStageBoard();
   showToast(qesc(rec.acct||'Opportunity')+' → '+stage,'var(--tsi-teal)');
 }
@@ -4613,6 +4620,7 @@ function deleteOpp(id) {
       starredIds.delete(id);
       dirtyIds.delete(id);
       markDirty('_deleted_' + id);
+      oppRemove(id);            // remove from the D1 'opportunities' collection
       usageLog('opp_delete', id);
       renderPipeline();
       renderImminent();
@@ -5439,8 +5447,7 @@ function syncOppLinks(oppId, links){
     else if (!shouldLink && has) o.linkedIds = o.linkedIds.filter(x => x !== oppId);
     else return;   // already in the right state
     markDirty(id);
-    if (API_WORKER_URL) fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(id),
-      { method:'PUT', headers:workerHeaders(), body:JSON.stringify(o) }).catch(()=>{});
+    oppPersist(o);
   });
 }
 
@@ -5830,27 +5837,12 @@ function saveOppDrawer() {
   renderHotCards();
   updateMap(currentFilteredRows());
 
-  // Auto-save to Cloudflare Worker immediately
-  if (API_WORKER_URL) {
-    const isNew = !_drawerEditId;
-    fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(opp.id), {
-      method: 'PUT',
-      headers: workerHeaders(),
-      body: JSON.stringify(opp)
-    }).then(res => {
-      if (res.ok) {
-        showToast(isNew ? '✓ New opportunity saved' : '✓ ' + opp.acct + ' updated', 'var(--tsi-succ-green)');
-      } else if (res.status === 409) {
-        showToast('⚠ Conflict — record updated by someone else', 'var(--tsi-amber)');
-      } else {
-        showToast('⚠ Saved locally — cloud sync failed', 'var(--tsi-amber)');
-      }
-    }).catch(() => {
-      showToast('✓ Saved locally (offline)', 'var(--tsi-teal)');
-    });
-  } else {
-    showToast('✓ ' + opp.acct + ' updated', 'var(--tsi-succ-green)');
-  }
+  // Persist to the D1 'opportunities' collection (cache-first, then server).
+  const isNew = !_drawerEditId;
+  oppStore().put(opp).then(ok => {
+    showToast(ok ? (isNew ? '✓ New opportunity saved' : '✓ ' + opp.acct + ' updated')
+                 : '✓ Saved locally (offline)', ok ? 'var(--tsi-succ-green)' : 'var(--tsi-teal)');
+  });
 
   // Flash save confirmation
   const btn=document.querySelector('.btn-save-opp');
@@ -6435,14 +6427,7 @@ function confirmClose() {
   markDirty(rec.id);
   usageLog(_closeOutcome === 'W' ? 'opp_won' : 'opp_lost', _closeOppId);
 
-  // Auto-save to Worker
-  if (API_WORKER_URL) {
-    fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(rec.id), {
-      method: 'PUT',
-      headers: workerHeaders(),
-      body: JSON.stringify(rec)
-    }).catch(() => {});
-  }
+  oppPersist(rec);
   closeOutcomeModal();
 
   // Re-render all views
@@ -7464,8 +7449,32 @@ function loadAccounts() {
   } catch { return { accounts:[], contacts:[], equipment:[], outages:[], events:[] }; }
 }
 
+// Accounts persist in the D1 'accounts' collection as a single {id:'main'} blob
+// (the account object is compound: accounts/contacts/equipment/outages/events),
+// with localStorage as the offline cache. Whole-object last-write-wins.
+let _accountsStore = null;
+function accountsStore(){ return _accountsStore || (_accountsStore = Store('accounts')); }
 function saveAccounts(data) {
   try { localStorage.setItem(ACCT_KEY, JSON.stringify(data)); } catch {}
+  try { accountsStore().put({ id:'main', data }); } catch(_){}   // → D1 (fire-and-forget)
+}
+// Startup: adopt the server copy if present (then client migrations re-apply on
+// read); otherwise push the local seed/migrated copy up so the server is seeded.
+async function syncAccountsFromServer(){
+  try{
+    const s = accountsStore();
+    await s.pull();
+    const rec = (s.all() || []).find(x => x.id === 'main');
+    if (rec && rec.data && Array.isArray(rec.data.accounts)) {
+      localStorage.setItem(ACCT_KEY, JSON.stringify(rec.data));
+      getAccounts();   // re-apply idempotent migrations to the adopted copy
+      if (typeof renderAcctSidebar === 'function') renderAcctSidebar();
+      if (typeof _acctSelectedSite !== 'undefined' && _acctSelectedSite && typeof renderAcctMain === 'function') renderAcctMain(_acctSelectedSite);
+      if (typeof _acctMapShowing !== 'undefined' && _acctMapShowing && typeof renderAcctMap === 'function') renderAcctMap();
+    } else {
+      s.put({ id:'main', data: loadAccounts() });   // server empty → seed it (migrated)
+    }
+  }catch(e){ console.warn('accounts sync failed:', e.message); }
 }
 
 // getAccounts() returns the unified data, plus computed groups/sites views
@@ -8154,11 +8163,7 @@ function reopenOpp(id) {
   rec.updatedBy    = getUserInitials();
   rec.version      = (rec.version||0) + 1;
   markDirty(id);
-  if (API_WORKER_URL) {
-    fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(id), {
-      method: 'PUT', headers: workerHeaders(), body: JSON.stringify(rec)
-    }).catch(()=>{});
-  }
+  oppPersist(rec);
   populateFilters(); renderPipeline(); renderWon(); renderHotCards();
   showToast('↩ ' + rec.acct + ' reopened', 'var(--tsi-teal)');
 }
@@ -8666,30 +8671,7 @@ function renderHistory(o) {
 }
 
 // ── AUTO-SAVE HELPER ─────────────────────────────────────────
-function autoSaveRecord(o) {
-  if (!API_WORKER_URL) return;
-  fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(o.id), {
-    method: 'PUT', headers: workerHeaders(), body: JSON.stringify(o)
-  }).then(async res => {
-    if (res.status === 409) {
-      // Server has newer version — fetch it, merge our changes, retry once
-      try {
-        const conflict = await res.json();
-        const serverRec = conflict.serverRecord;
-        if (serverRec) {
-          // Merge: take server record as base, overlay our local changes
-          const merged = { ...serverRec, ...o, version: serverRec.version };
-          const idx = DATA.findIndex(r => r.id === o.id);
-          if (idx >= 0) DATA[idx] = merged;
-          // Retry with updated version
-          fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(merged.id), {
-            method: 'PUT', headers: workerHeaders(), body: JSON.stringify(merged)
-          }).catch(() => {});
-        }
-      } catch(e) {}
-    }
-  }).catch(() => {});
-}
+function autoSaveRecord(o) { oppPersist(o); }   // → D1 'opportunities' collection + cache
 
 // ── JPG EXPORT ───────────────────────────────────────────────
 function exportDetailCard(section) {
@@ -11550,6 +11532,7 @@ if(API_WORKER_URL) {
     }
   });
   bugStore.pull().then(() => renderBugs());   // authoritative bugs from D1 (localStorage is cache)
+  syncAccountsFromServer();                    // adopt/seed the D1 'accounts' collection
   startAdminPoll();
 }
 usageLog('session_start');
