@@ -12268,92 +12268,105 @@ startAdminPoll();
 .preso-launch{background:linear-gradient(135deg,#19446c,#00929f);color:#fff;border:none;border-radius:8px;
   padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);box-shadow:0 2px 8px rgba(0,0,0,.18)}
 .preso-launch:hover{filter:brightness(1.08)}
-#preso-overlay{position:fixed;inset:0;z-index:12000;background:#05080c;color:#eaf0f7;
+#preso-overlay{
+  --pz-bg:#05080c; --pz-panel:#161d27; --pz-panel2:#1d2632; --pz-line:#2a3644; --pz-line2:#1e2a37;
+  --pz-ink:#eaf0f7; --pz-muted:#8fa2b7; --pz-faint:#5f7288; --pz-node:#33475b;
+  --pz-slidea:#12202b; --pz-slideb:#0d1117; --pz-shadow:0 24px 60px rgba(0,0,0,.5); --pz-grid:rgba(255,255,255,.05);
+  position:fixed;inset:0;z-index:12000;background:var(--pz-bg);color:var(--pz-ink);
   font-family:'Segoe UI',system-ui,sans-serif;display:none;flex-direction:column}
+#preso-overlay.preso-light{
+  --pz-bg:#eef1f5; --pz-panel:#ffffff; --pz-panel2:#eef2f7; --pz-line:#e2e8f0; --pz-line2:#e6ebf1;
+  --pz-ink:#17222f; --pz-muted:#51617a; --pz-faint:#7a8ba0; --pz-node:#c7d2dd;
+  --pz-slidea:#ffffff; --pz-slideb:#f6f8fb; --pz-shadow:0 16px 40px rgba(20,40,70,.14); --pz-grid:rgba(30,50,80,.06)}
 #preso-overlay.open{display:flex}
-.pz-top{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid #1e2a37;flex:0 0 auto}
+.pz-top{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--pz-line2);flex:0 0 auto}
 .pz-brand{font-weight:800;letter-spacing:.5px}
-.pz-brand small{color:#5f7288;font-weight:600;margin-left:8px;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
+.pz-brand small{color:var(--pz-faint);font-weight:600;margin-left:8px;letter-spacing:.12em;text-transform:uppercase;font-size:11px}
 .pz-top .sp{margin-left:auto}
-.pz-btn{background:#161d27;color:#cdd8e4;border:1px solid #2a3644;border-radius:7px;padding:6px 12px;font-size:12.5px;cursor:pointer}
-.pz-btn:hover{background:#1d2632}
+.pz-btn{background:var(--pz-panel);color:var(--pz-ink);border:1px solid var(--pz-line);border-radius:7px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+.pz-btn:hover{background:var(--pz-panel2)}
 .pz-btn.act{color:#fff;border-color:#00929f;background:rgba(0,146,159,.16)}
-.pz-stage{flex:1 1 auto;overflow:auto;display:flex;justify-content:center;padding:22px}
-.pz-slide{width:100%;max-width:1180px;margin:auto;position:relative;
-  background:radial-gradient(1200px 500px at 12% -10%,#12202b 0%,#0d1117 55%);
-  border:1px solid #2a3644;border-radius:16px;padding:34px 40px 30px;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden}
+/* Fixed-size slide: fills the stage so every slide is identical and never shifts vertically */
+.pz-stage{flex:1 1 auto;overflow:hidden;display:flex;align-items:stretch;justify-content:center;padding:22px}
+.pz-slide{width:100%;max-width:1180px;margin:0 auto;position:relative;
+  background:radial-gradient(1200px 500px at 12% -10%,var(--pz-slidea) 0%,var(--pz-slideb) 55%);
+  border:1px solid var(--pz-line);border-radius:16px;padding:34px 40px 30px;box-shadow:var(--pz-shadow);overflow:auto}
 .pz-slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--acc,#00929f)}
-.pz-eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#5f7288;margin-bottom:18px;flex-wrap:wrap}
+.pz-eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--pz-faint);margin-bottom:18px;flex-wrap:wrap}
 .pz-eyebrow .on{color:var(--acc,#00929f);font-weight:700}
-.pz-eyebrow .sep{opacity:.35}.pz-eyebrow .pos{margin-left:auto;color:#5f7288;letter-spacing:.05em}
+.pz-eyebrow .sep{opacity:.35}.pz-eyebrow .pos{margin-left:auto;color:var(--pz-faint);letter-spacing:.05em}
 .pz-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:12px}
 .pz-acct{font-size:38px;font-weight:800;line-height:1.03;letter-spacing:-.5px}
-.pz-ptype{font-size:18px;color:#8fa2b7;margin-top:6px;font-weight:500}
-.pz-loc{font-size:14px;color:#5f7288;margin-top:9px}
+.pz-ptype{font-size:18px;color:var(--pz-muted);margin-top:6px;font-weight:500}
+.pz-loc{font-size:14px;color:var(--pz-faint);margin-top:9px}
 .pz-flag{white-space:nowrap;font-size:12px;color:#c4a230;border:1px solid rgba(196,162,48,.4);border-radius:999px;padding:5px 12px;background:rgba(196,162,48,.08)}
-.pz-ribbon{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:#9fb2c7;background:#12202b;border:1px solid #26384a;border-radius:8px;padding:7px 12px;margin-bottom:16px}
-.pz-ribbon b{color:#eaf0f7}
+.pz-ribbon{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;color:var(--pz-muted);background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:8px;padding:7px 12px;margin-bottom:16px}
+.pz-ribbon b{color:var(--pz-ink)}
 .pz-ribbon a{color:var(--acc,#00929f);cursor:pointer;text-decoration:none;border-bottom:1px dashed currentColor}
 .pz-grid{display:grid;grid-template-columns:1.55fr .95fr;gap:20px}
-.pz-box{background:#161d27;border:1px solid #2a3644;border-radius:12px;padding:16px 18px}
+.pz-box{background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:12px;padding:16px 18px}
 .pz-box+.pz-box{margin-top:13px}
-.pz-lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5f7288;margin-bottom:11px}
+.pz-lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--pz-faint);margin-bottom:11px}
 .pz-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px}
 .pz-chip{font-size:13.5px;font-weight:600;color:#fff;padding:6px 12px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
-.pz-spec{font-size:16px;line-height:1.7;color:#d3ddea;white-space:pre-wrap}
+.pz-spec{font-size:16px;line-height:1.7;color:var(--pz-ink);white-space:pre-wrap}
 .pz-spec .x{color:var(--acc,#00929f);font-weight:700}
 .pz-caps{display:flex;gap:22px;flex-wrap:wrap}
 .pz-cap .big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:var(--acc,#00929f)}
-.pz-cap .csub{font-size:11px;color:#5f7288;letter-spacing:.09em;text-transform:uppercase;margin-top:5px}
+.pz-cap .csub{font-size:11px;color:var(--pz-faint);letter-spacing:.09em;text-transform:uppercase;margin-top:5px}
 .pz-inst{display:flex;gap:9px;flex-wrap:wrap}
-.pz-pill{font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px solid #2a3644;color:#8fa2b7}
-.pz-pill.on{color:#dcecd2;border-color:rgba(128,152,72,.5);background:rgba(128,152,72,.14)}
-.pz-map{height:150px;border-radius:10px;border:1px solid #2a3644;overflow:hidden;margin-bottom:12px;background:linear-gradient(0deg,#0c161f,#12212e);position:relative}
-.pz-map .gb{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:26px 26px}
+.pz-pill{font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px solid var(--pz-line);color:var(--pz-muted)}
+.pz-pill.on{color:#4a7a2a;border-color:rgba(128,152,72,.5);background:rgba(128,152,72,.14)}
+.pz-map{height:150px;border-radius:10px;border:1px solid var(--pz-line);overflow:hidden;margin-bottom:12px;background:var(--pz-panel);position:relative}
+.pz-map .gb{position:absolute;inset:0;background-image:linear-gradient(var(--pz-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pz-grid) 1px,transparent 1px);background-size:26px 26px}
 .pz-map .pin{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--acc,#00929f);box-shadow:0 0 0 6px color-mix(in srgb,var(--acc,#00929f) 25%,transparent);transform:translate(-50%,-50%)}
-.pz-map .nm{position:absolute;left:12px;bottom:9px;font-size:12px;color:#8fa2b7}
+.pz-map .nm{position:absolute;left:12px;bottom:9px;font-size:12px;color:var(--pz-muted)}
+.pz-clima{height:120px;margin-top:4px}
 .pz-comm{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
-.pz-comm .k{color:#5f7288}.pz-comm .v{color:#eaf0f7;text-align:right;font-variant-numeric:tabular-nums}
+.pz-comm .k{color:var(--pz-faint)}.pz-comm .v{color:var(--pz-ink);text-align:right;font-variant-numeric:tabular-nums}
 #preso-overlay.hide-money .pz-money{filter:blur(7px);opacity:.5;user-select:none}
 /* overview */
 .pz-ov-title{font-size:30px;font-weight:800;margin-bottom:4px}
-.pz-ov-sub{color:#8fa2b7;margin-bottom:20px}
+.pz-ov-sub{color:var(--pz-muted);margin-bottom:20px}
 .pz-ov-grid{display:grid;grid-template-columns:1.3fr .9fr;gap:20px}
-#pz-ovmap{height:340px;border-radius:12px;border:1px solid #2a3644;overflow:hidden;background:#0c161f}
+#pz-ovmap{height:300px;border-radius:12px;border:1px solid var(--pz-line);overflow:hidden;background:var(--pz-panel)}
+.pz-ov-chart{background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:12px;padding:12px 14px;margin-top:14px}
+.pz-ov-chart .pz-lbl{margin-bottom:8px}
 .pz-kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.pz-kpi{background:#161d27;border:1px solid #2a3644;border-radius:12px;padding:14px 16px}
+.pz-kpi{background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:12px;padding:14px 16px}
 .pz-kpi .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
-.pz-kpi .l{font-size:11px;color:#5f7288;text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
-.pz-agenda{background:#161d27;border:1px solid #2a3644;border-radius:12px;padding:8px 6px}
+.pz-kpi .l{font-size:11px;color:var(--pz-faint);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+.pz-agenda{background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:12px;padding:8px 6px}
 .pz-ag-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer}
-.pz-ag-row:hover{background:#1d2632}
+.pz-ag-row:hover{background:var(--pz-panel2)}
 .pz-ag-dot{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
-.pz-ag-nm{font-weight:700}.pz-ag-ct{margin-left:auto;color:#8fa2b7;font-variant-numeric:tabular-nums}
-.pz-ag-bl{color:#5f7288;font-size:12px}
+.pz-ag-nm{font-weight:700}.pz-ag-ct{margin-left:auto;color:var(--pz-muted);font-variant-numeric:tabular-nums}
+.pz-ag-bl{color:var(--pz-faint);font-size:12px}
 /* section divider */
 .pz-sec-big{font-size:52px;font-weight:800;letter-spacing:-1px;margin:6px 0 8px}
-.pz-sec-blurb{font-size:17px;color:#8fa2b7;margin-bottom:22px}
+.pz-sec-blurb{font-size:17px;color:var(--pz-muted);margin-bottom:22px}
 .pz-sec-list{display:flex;flex-direction:column;gap:8px}
-.pz-sec-item{display:flex;align-items:baseline;gap:12px;padding:9px 4px;border-bottom:1px solid #1a2431}
-.pz-sec-item .a{font-weight:700}.pz-sec-item .t{color:#8fa2b7}.pz-sec-item .v{margin-left:auto;color:#5f7288;font-variant-numeric:tabular-nums}
+.pz-sec-item{display:flex;align-items:baseline;gap:12px;padding:9px 4px;border-bottom:1px solid var(--pz-line)}
+.pz-sec-item .a{font-weight:700}.pz-sec-item .t{color:var(--pz-muted)}.pz-sec-item .v{margin-left:auto;color:var(--pz-faint);font-variant-numeric:tabular-nums}
 /* rail */
-.pz-rail{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:11px 22px;border-top:1px solid #1e2a37;font-size:11px;color:#5f7288;overflow-x:auto;white-space:nowrap}
+.pz-rail{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:11px 22px;border-top:1px solid var(--pz-line2);font-size:11px;color:var(--pz-faint);overflow-x:auto;white-space:nowrap}
 .pz-rseg{display:inline-flex;align-items:center;gap:5px}
-.pz-rnode{width:9px;height:9px;border-radius:50%;background:#33475b;cursor:pointer;flex:0 0 auto}
+.pz-rnode{width:9px;height:9px;border-radius:50%;background:var(--pz-node);cursor:pointer;flex:0 0 auto}
 .pz-rnode.on{box-shadow:0 0 0 4px color-mix(in srgb,var(--c,#00929f) 22%,transparent);background:var(--c,#00929f)}
 .pz-rname{text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
-.pz-rname.cur{color:#eaf0f7;font-weight:700}
-.pz-rdash{width:20px;height:1px;background:#2a3644;flex:0 0 auto}
+.pz-rname.cur{color:var(--pz-ink);font-weight:700}
+.pz-rdash{width:20px;height:1px;background:var(--pz-line);flex:0 0 auto}
 .pz-nav{position:fixed;bottom:56px;right:26px;display:flex;gap:8px;z-index:12010}
-.pz-nav button{width:46px;height:46px;border-radius:50%;border:1px solid #2a3644;background:#161d27cc;color:#eaf0f7;font-size:20px;cursor:pointer;backdrop-filter:blur(4px)}
-.pz-nav button:hover{background:#1d2632}
-.pz-empty{color:#5f7288;font-style:italic;font-size:15px;padding:8px 0}
+.pz-nav button{width:46px;height:46px;border-radius:50%;border:1px solid var(--pz-line);background:var(--pz-panel);color:var(--pz-ink);font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.pz-nav button:hover{background:var(--pz-panel2)}
+.pz-empty{color:var(--pz-faint);font-style:italic;font-size:15px;padding:8px 0}
 @media(max-width:760px){.pz-grid,.pz-ov-grid{grid-template-columns:1fr}.pz-acct{font-size:28px}.pz-sec-big{font-size:36px}.pz-slide{padding:22px 20px}}
 </style>
 <div id="preso-overlay" role="dialog" aria-label="Project Track presentation">
   <div class="pz-top">
     <span class="pz-brand">TSI · Project Track<small>Open opportunities</small></span>
     <span class="sp"></span>
+    <button class="pz-btn" id="pz-theme-btn" onclick="presoToggleTheme()" title="Light / dark">🌙 Dark</button>
     <button class="pz-btn" id="pz-money-btn" onclick="presoToggleMoney()" title="Blur commercial figures">Hide $</button>
     <button class="pz-btn" onclick="presoFullscreen()" title="Toggle full screen">⛶ Full screen</button>
     <button class="pz-btn" onclick="closePreso()">✕ Exit</button>
@@ -13746,7 +13759,8 @@ async function presoBuildDeck(){
 async function openPreso(){
   const ov=document.getElementById('preso-overlay');
   ov.classList.add('open');
-  document.getElementById('pz-stage').innerHTML='<div style="margin:auto;color:#5f7288">Building deck…</div>';
+  presoApplyTheme();
+  document.getElementById('pz-stage').innerHTML='<div style="margin:auto;color:var(--pz-faint)">Building deck…</div>';
   document.addEventListener('keydown', presoKey);
   try{ _presoDeck=await presoBuildDeck(); }catch(e){ _presoSectionsActive=PRESO_SECTIONS; _presoDeck=[{type:'overview',bySect:{},sections:PRESO_SECTIONS}]; }
   _presoIdx=0; presoRender();
@@ -13769,6 +13783,19 @@ function presoToggleMoney(){
   const ov=document.getElementById('preso-overlay'); ov.classList.toggle('hide-money');
   document.getElementById('pz-money-btn').classList.toggle('act', ov.classList.contains('hide-money'));
 }
+function presoApplyTheme(){
+  const ov=document.getElementById('preso-overlay');
+  const light=(localStorage.getItem('tsi_preso_theme')||'dark')==='light';
+  ov.classList.toggle('preso-light', light);
+  const btn=document.getElementById('pz-theme-btn'); if(btn) btn.textContent=light?'☀ Light':'🌙 Dark';
+}
+function presoToggleTheme(){
+  const ov=document.getElementById('preso-overlay');
+  const light=ov.classList.toggle('preso-light');
+  const btn=document.getElementById('pz-theme-btn'); if(btn) btn.textContent=light?'☀ Light':'🌙 Dark';
+  try{ localStorage.setItem('tsi_preso_theme', light?'light':'dark'); }catch(_){}
+  presoRender();   // re-render so the map/chart re-tint for the theme
+}
 function presoFullscreen(){
   const ov=document.getElementById('preso-overlay');
   if(document.fullscreenElement){ document.exitFullscreen(); }
@@ -13783,7 +13810,28 @@ function presoRender(){
   else stage.innerHTML=presoJobHTML(slide);
   stage.scrollTop=0;
   presoRenderRail();
-  if(slide.type==='overview') presoRenderOvMap(slide);
+  if(slide.type==='overview'){ presoRenderOvMap(slide); presoRenderOvChart(slide); }
+  else if(slide.type==='job' && slide.job && !slide.job.__quote) presoRenderClima(slide.job);
+}
+// Value-by-group bar chart on the overview (Chart.js)
+let _presoOvChart=null;
+function presoRenderOvChart(s){
+  const el=document.getElementById('pz-ov-canvas'); if(!el || typeof Chart==='undefined') return;
+  const sections=(s.sections||PRESO_SECTIONS).filter(sec=>(s.bySect[sec.key]||[]).length);
+  const labels=sections.map(x=>x.label);
+  const data=sections.map(sec=>(s.bySect[sec.key]||[]).reduce((a,o)=>a+(Number(o.val)||0),0)/1e6);
+  const colors=sections.map(x=>x.acc);
+  const light=document.getElementById('preso-overlay').classList.contains('preso-light');
+  const tick=light?'#51617a':'#8fa2b7';
+  try{ if(_presoOvChart){ _presoOvChart.destroy(); _presoOvChart=null; } }catch(_){}
+  try{
+    _presoOvChart=new Chart(el.getContext('2d'),{ type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:5, maxBarThickness:26 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>'$'+c.parsed.x.toFixed(1)+'M'}}},
+        scales:{ x:{ ticks:{color:tick,callback:v=>'$'+v+'M'}, grid:{color:light?'rgba(30,50,80,.08)':'rgba(255,255,255,.06)'} },
+                 y:{ ticks:{color:tick}, grid:{display:false} } } } });
+  }catch(_){}
 }
 
 function presoOverviewHTML(s){
@@ -13809,7 +13857,9 @@ function presoOverviewHTML(s){
     <div class="pz-ov-title">Open Opportunities</div>
     <div class="pz-ov-sub">Grouped by ${gbLabel}. Use → / ← or click the track below.</div>
     <div class="pz-ov-grid">
-      <div><div id="pz-ovmap"></div></div>
+      <div><div id="pz-ovmap"></div>
+        <div class="pz-ov-chart pz-money"><div class="pz-lbl">Value by ${qesc(gbLabel)} ($M)</div><div style="height:160px"><canvas id="pz-ov-canvas"></canvas></div></div>
+      </div>
       <div>
         <div class="pz-kpis">${kpis.map(k=>`<div class="pz-kpi"><div class="n${k[0].includes('value')?' pz-money':''}">${k[1]}</div><div class="l">${k[0]}</div></div>`).join('')}</div>
         <div class="pz-agenda">${agenda}</div>
@@ -13818,11 +13868,15 @@ function presoOverviewHTML(s){
 }
 function presoRenderOvMap(s){
   const el=document.getElementById('pz-ovmap'); if(!el) return;
-  if(typeof L==='undefined'){ el.innerHTML='<div style="padding:14px;color:#5f7288;font-size:13px">Map unavailable offline</div>'; return; }
+  if(typeof L==='undefined'){ el.innerHTML='<div style="padding:14px;color:var(--pz-faint);font-size:13px">Map unavailable offline</div>'; return; }
   try{
     if(_presoMap){ _presoMap.remove(); _presoMap=null; }
+    el.innerHTML='';
+    const light=document.getElementById('preso-overlay').classList.contains('preso-light');
     _presoMap=L.map(el,{zoomControl:true,attributionControl:false}).setView([25,0],2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(_presoMap);
+    L.tileLayer(light
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18,crossOrigin:true}).addTo(_presoMap);
     const pts=[];
     (s.sections||PRESO_SECTIONS).forEach(sec=>{
       (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoCoords(presoLoc(o)); if(!c) return;
@@ -13830,9 +13884,52 @@ function presoRenderOvMap(s){
           color:sec.acc,fillColor:sec.acc,fillOpacity:.75,weight:1.4});
         mk.bindPopup('<b>'+qesc(o.acct)+'</b><br>'+qesc(o.type||'')); mk.addTo(_presoMap); pts.push(c); });
     });
-    if(pts.length) _presoMap.fitBounds(pts,{padding:[30,30],maxZoom:5});
-    setTimeout(()=>_presoMap&&_presoMap.invalidateSize(),60);
-  }catch(e){ el.innerHTML='<div style="padding:14px;color:#5f7288">Map error</div>'; }
+    const fit=()=>{ if(!_presoMap) return; _presoMap.invalidateSize(); if(pts.length) _presoMap.fitBounds(pts,{padding:[30,30],maxZoom:5}); };
+    // Leaflet needs the container laid out; call a few times as the overlay settles.
+    [80,280,600].forEach(t=>setTimeout(fit,t));
+  }catch(e){ el.innerHTML='<div style="padding:14px;color:var(--pz-faint)">Map error</div>'; }
+}
+// Compact site climatogram on job slides (best-effort, cached, non-blocking)
+let _presoClima=null;
+function presoDrawClima(job){
+  const box=document.getElementById('pz-clima-box'), canvas=document.getElementById('pz-clima-canvas');
+  if(!box||!canvas||typeof Chart==='undefined'||!job._clima) return;
+  // only draw if this job is still the active slide
+  const cur=_presoDeck[_presoIdx]; if(!cur||cur.job!==job) return;
+  const w=job._clima;
+  const light=document.getElementById('preso-overlay').classList.contains('preso-light');
+  const tick=light?'#51617a':'#8fa2b7';
+  try{ if(_presoClima){ _presoClima.destroy(); _presoClima=null; } }catch(_){}
+  box.style.display='';
+  const months=['J','F','M','A','M','J','J','A','S','O','N','D'];
+  try{
+    _presoClima=new Chart(canvas.getContext('2d'),{
+      data:{ labels:months, datasets:[
+        { type:'bar',  label:'Precip', data:w.mPrec, backgroundColor:'rgba(0,146,159,0.20)', yAxisID:'y2', order:2 },
+        { type:'line', label:'High',   data:w.mHigh, borderColor:'#C05234', tension:.3, pointRadius:0, borderWidth:1.6, yAxisID:'y1', order:1 },
+        { type:'line', label:'Mean',   data:w.mMean, borderColor:light?'#19446C':'#5b9bd8', tension:.3, pointRadius:0, borderWidth:1.6, yAxisID:'y1', order:1 },
+        { type:'line', label:'Low',    data:w.mLow,  borderColor:'#4682B4', tension:.3, pointRadius:0, borderWidth:1.6, yAxisID:'y1', order:1 },
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+        tooltip:{callbacks:{title:c=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][c[0].dataIndex]}}},
+        scales:{
+          x:{ ticks:{color:tick,font:{size:9}}, grid:{display:false} },
+          y1:{ type:'linear', position:'left',  ticks:{color:tick,font:{size:8},callback:v=>v+'°'}, grid:{color:light?'rgba(30,50,80,.07)':'rgba(255,255,255,.05)'} },
+          y2:{ type:'linear', position:'right', ticks:{color:tick,font:{size:8}}, grid:{drawOnChartArea:false} },
+        } } });
+  }catch(_){}
+}
+async function presoRenderClima(job){
+  const box=document.getElementById('pz-clima-box'); if(!box) return;
+  const c=presoCoords(presoLoc(job)); if(!c) return;
+  if(job._clima){ presoDrawClima(job); return; }
+  const ly=new Date().getUTCFullYear()-1;
+  let w=null;
+  try{ w=await _fetchClimateArchive(c[0],c[1],`${ly-4}-01-01`,`${ly}-12-31`,5); }
+  catch(_){ try{ w=await _fetchClimateArchive(c[0],c[1],`${ly-1}-01-01`,`${ly}-12-31`,2); }catch(__){ return; } }
+  if(!w) return;
+  job._clima=w;
+  presoDrawClima(job);
 }
 
 function presoSectionHTML(s){
@@ -13902,6 +13999,7 @@ function presoOppSlide(o,sec,s){
             <span class="k">Stage</span><span class="v">${qesc(o.stage||'—')}</span>
             <span class="k">Lead</span><span class="v">${qesc(o.lead||'—')}</span>
           </div></div>
+        ${coords?`<div class="pz-box" id="pz-clima-box" style="display:none"><div class="pz-lbl">Site climate — monthly normals</div><div class="pz-clima"><canvas id="pz-clima-canvas"></canvas></div></div>`:''}
       </div>
     </div></div>`;
 }
