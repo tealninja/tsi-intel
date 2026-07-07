@@ -7210,7 +7210,17 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-ARB', parentId:'AG-ARB', name:'Arbec Miramichi', industry:'', acctMatch:'Arbec', loc:'Miramichi, NB, Canada', plantType:'OSB', lat:47.02, lon:-65.5, notes:'' },
   { id:'S-PNRE', parentId:'AG-PNRE', name:'PNRE Hoquiam', industry:'', acctMatch:'PNRE', loc:'Hoquiam, WA, USA', plantType:'Pellets', lat:46.98, lon:-123.89, notes:'' },
   { id:'S-SPE', parentId:'AG-SPE', name:'Spectrum Adel', industry:'', acctMatch:'Spectrum', loc:'Adel, GA, USA', plantType:'Pellets', lat:31.13, lon:-83.42, notes:'' },
-  { id:'S-ENV', parentId:'AG-ENV', name:'Enviva Southampton', industry:'', acctMatch:'Enviva', loc:'Southampton, VA, USA', plantType:'Pellets', lat:36.73, lon:-77.1, notes:'' },
+  { id:'S-ENV', parentId:'AG-ENV', name:'Enviva Southampton', industry:'', acctMatch:'Enviva', loc:'Southampton County, VA, USA', plantType:'Pellets', lat:36.73, lon:-77.1, notes:'' },
+  // ── Additional Enviva wood-pellet plants (envivabiomass.com) ──
+  { id:'S-ENVAH',  parentId:'AG-ENV', name:'Enviva Ahoskie',      industry:'', acctMatch:'Enviva', loc:'Ahoskie, NC, USA',            plantType:'Pellets', plantTags:['Pellets'], lat:36.29, lon:-76.99, notes:'' },
+  { id:'S-ENVCOT', parentId:'AG-ENV', name:'Enviva Cottondale',   industry:'', acctMatch:'Enviva', loc:'Cottondale, FL, USA',         plantType:'Pellets', plantTags:['Pellets'], lat:30.80, lon:-85.38, notes:'' },
+  { id:'S-ENVEP',  parentId:'AG-ENV', name:'Enviva Epes',         industry:'', acctMatch:'Enviva', loc:'Epes, AL, USA',               plantType:'Pellets', plantTags:['Pellets'], lat:32.70, lon:-88.13, notes:'' },
+  { id:'S-ENVGR',  parentId:'AG-ENV', name:'Enviva Greenwood',    industry:'', acctMatch:'Enviva', loc:'Greenwood, SC, USA',          plantType:'Pellets', plantTags:['Pellets'], lat:34.19, lon:-82.16, notes:'' },
+  { id:'S-ENVHA',  parentId:'AG-ENV', name:'Enviva Hamlet',       industry:'', acctMatch:'Enviva', loc:'Hamlet, NC, USA',             plantType:'Pellets', plantTags:['Pellets'], lat:34.88, lon:-79.69, notes:'' },
+  { id:'S-ENVLU',  parentId:'AG-ENV', name:'Enviva Lucedale',     industry:'', acctMatch:'Enviva', loc:'Lucedale, MS, USA',           plantType:'Pellets', plantTags:['Pellets'], lat:30.92, lon:-88.60, notes:'' },
+  { id:'S-ENVNO',  parentId:'AG-ENV', name:'Enviva Northampton',  industry:'', acctMatch:'Enviva', loc:'Northampton County, NC, USA', plantType:'Pellets', plantTags:['Pellets'], lat:36.44, lon:-77.58, notes:'Garysburg area' },
+  { id:'S-ENVSA',  parentId:'AG-ENV', name:'Enviva Sampson',      industry:'', acctMatch:'Enviva', loc:'Sampson County, NC, USA',     plantType:'Pellets', plantTags:['Pellets'], lat:35.11, lon:-78.13, notes:'Faison area' },
+  { id:'S-ENVWA',  parentId:'AG-ENV', name:'Enviva Waycross',     industry:'', acctMatch:'Enviva', loc:'Waycross, GA, USA',           plantType:'Pellets', plantTags:['Pellets'], lat:31.21, lon:-82.35, notes:'' },
   { id:'S-BER', parentId:'AG-BER', name:'Berneck Araucária', industry:'', acctMatch:'Berneck', loc:'Araucária, PR, Brazil', plantType:'MDF', lat:-25.59, lon:-49.4, notes:'' },
   { id:'S-KAP', parentId:'AG-KAP', name:'Kap Paper Kapuskasing', industry:'', acctMatch:'Kap Paper', loc:'Kapuskasing, ON, Canada', plantType:'MDF', lat:49.42, lon:-82.43, notes:'' },
   { id:'S-HOM', parentId:'AG-HOM', name:'Homanit Alcolu', industry:'', acctMatch:'Homanit', loc:'Alcolu, SC, USA', plantType:'MDF', lat:33.76, lon:-80.2, notes:'' },
@@ -7345,6 +7355,17 @@ function loadAccounts() {
       if (data.accounts && data.accounts.some(a => a.id === 'AG-HUB')) {
         let added = false;
         ['S-HUBCHAR','S-HUBCOM','S-HUBEAS'].forEach(id => {
+          if (!data.accounts.some(a => a.id === id)) {
+            const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
+            if (seed) { data.accounts.push({ ...seed }); added = true; }
+          }
+        });
+        if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: additional Enviva wood-pellet plants (envivabiomass.com).
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-ENV')) {
+        let added = false;
+        ['S-ENVAH','S-ENVCOT','S-ENVEP','S-ENVGR','S-ENVHA','S-ENVLU','S-ENVNO','S-ENVSA','S-ENVWA'].forEach(id => {
           if (!data.accounts.some(a => a.id === id)) {
             const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
             if (seed) { data.accounts.push({ ...seed }); added = true; }
