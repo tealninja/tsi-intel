@@ -1749,6 +1749,7 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   border-radius:999px;padding:1px 9px;font-size:10px;font-weight:600;cursor:pointer;vertical-align:middle}
 .acct-map-clear:hover{background:var(--tsi-coral);color:#fff}
 .acct-loctype{font-weight:600;border-radius:999px;padding:1px 9px;font-size:11px}
+.acct-ptag{font-size:11px;font-weight:600;color:var(--color-text-secondary);background:var(--color-surface);border:1px solid var(--color-border-mid);border-radius:999px;padding:1px 9px}
 .acct-loctype.corp{background:rgba(25,68,108,.12);color:var(--tsi-deep-blue)}
 .acct-loctype.prod{background:rgba(0,146,159,.12);color:var(--tsi-teal)}
 .am-logo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -7139,17 +7140,17 @@ const DEFAULT_ACCOUNTS = [
   { id:'AG-ARA', parentId:null, name:'Arauco', industry:'OSB', acctMatch:'Arauco', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-WFJ', parentId:null, name:'West Fraser / Javelin', industry:'Torrefaction', acctMatch:'West Fraser / Javelin', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   // ── Child sites (parentId points to the parent account id) ──
-  { id:'S-LPSA', parentId:'AG-LP', name:'LP Sagola', industry:'', acctMatch:'LP', loc:'Sagola, MI, USA', plantType:'OSB', lat:46.1, lon:-88.03, notes:'' },
-  { id:'S-LPNE', parentId:'AG-LP', name:'LP Newberry', industry:'', acctMatch:'LP', loc:'Newberry, MI, USA', plantType:'OSB', lat:46.35, lon:-85.51, notes:'' },
-  { id:'S-LPTO', parentId:'AG-LP', name:'LP Tomahawk', industry:'', acctMatch:'LP', loc:'Tomahawk, WI, USA', plantType:'OSB', lat:45.47, lon:-89.73, notes:'' },
-  { id:'S-LPTW', parentId:'AG-LP', name:'LP Two Harbors', industry:'', acctMatch:'LP', loc:'Two Harbors, MN, USA', plantType:'OSB', lat:47.02, lon:-91.67, notes:'' },
+  { id:'S-LPSA', parentId:'AG-LP', name:'LP Sagola', industry:'', acctMatch:'LP', loc:'Sagola, MI, USA', plantType:'Siding', lat:46.1, lon:-88.03, notes:'' },
+  { id:'S-LPNE', parentId:'AG-LP', name:'LP Newberry', industry:'', acctMatch:'LP', loc:'Newberry, MI, USA', plantType:'Siding', lat:46.35, lon:-85.51, notes:'' },
+  { id:'S-LPTO', parentId:'AG-LP', name:'LP Tomahawk', industry:'', acctMatch:'LP', loc:'Tomahawk, WI, USA', plantType:'Siding', lat:45.47, lon:-89.73, notes:'' },
+  { id:'S-LPTW', parentId:'AG-LP', name:'LP Two Harbors', industry:'', acctMatch:'LP', loc:'Two Harbors, MN, USA', plantType:'Siding', lat:47.02, lon:-91.67, notes:'' },
   { id:'S-LPJA', parentId:'AG-LP', name:'LP Jasper', industry:'', acctMatch:'LP', loc:'Jasper, TX, USA', plantType:'OSB', lat:30.92, lon:-94, notes:'' },
   { id:'S-LPHA', parentId:'AG-LP', name:'LP Hanceville', industry:'', acctMatch:'LP', loc:'Hanceville, AL, USA', plantType:'OSB', lat:34.07, lon:-86.77, notes:'' },
-  { id:'S-LPDC', parentId:'AG-LP', name:'LP Dawson Creek', industry:'', acctMatch:'LP', loc:'Dawson Creek, BC, Canada', plantType:'OSB', lat:55.76, lon:-120.24, notes:'' },
+  { id:'S-LPDC', parentId:'AG-LP', name:'LP Dawson Creek', industry:'', acctMatch:'LP', loc:'Dawson Creek, BC, Canada', plantType:'Siding', lat:55.76, lon:-120.24, notes:'' },
   { id:'S-LPLA', parentId:'AG-LP', name:'LP Lautaro', industry:'', acctMatch:'LP (LPLA)', loc:'Lautaro, Chile', plantType:'OSB', lat:-37.56, lon:-72.43, notes:'' },
   { id:'S-LPARG', parentId:'AG-LP', name:'LP Argentina', industry:'', acctMatch:'LP', loc:'Argentina', plantType:'OSB', lat:-34.6, lon:-58.4, notes:'' },
   { id:'S-LPPG', parentId:'AG-LP', name:'LP Ponta Grossa', industry:'', acctMatch:'LP', loc:'Ponta Grossa, Brazil', plantType:'OSB', lat:-25.09, lon:-50.16, notes:'' },
-  { id:'S-LPPA', parentId:'AG-LP', name:'LP Panguipulli', industry:'', acctMatch:'LP', loc:'Panguipulli, Chile', plantType:'OSB', lat:-39.64, lon:-72.08, notes:'' },
+  { id:'S-LPPA', parentId:'AG-LP', name:'LP Panguipulli', industry:'', acctMatch:'LP', loc:'Panguipulli, Chile', plantType:'OSB/Siding', lat:-39.64, lon:-72.08, notes:'' },
   // ── Additional LP mills from lpcorp.com/locations (Siding + OSB) ──
   { id:'S-LPBATH', parentId:'AG-LP', name:'LP Bath',          industry:'', acctMatch:'LP', loc:'Bath, NY, USA',            plantType:'Siding',   lat:42.34, lon:-77.32,  notes:'SmartSide siding' },
   { id:'S-LPGB',   parentId:'AG-LP', name:'LP Green Bay',     industry:'', acctMatch:'LP', loc:'Green Bay, WI, USA',       plantType:'Siding',   lat:44.51, lon:-88.02,  notes:'SmartSide siding' },
@@ -7174,7 +7175,10 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-HUBCH', parentId:'AG-HUB', name:'Huber Crystal Hill', industry:'', acctMatch:'Huber', loc:'Crystal Hill, VA, USA', plantType:'OSB', lat:37.13, lon:-78.77, notes:'' },
   { id:'S-WEYE', parentId:'AG-WEY', name:'Weyerhaeuser Elkin', industry:'', acctMatch:'Weyerhauser', loc:'Elkin, NC, USA', plantType:'OSB', lat:36.25, lon:-80.85, notes:'' },
   { id:'S-WEYA', parentId:'AG-WEY', name:'Weyerhaeuser Arcadia', industry:'', acctMatch:'Weyerhauser', loc:'Arcadia, LA, USA', plantType:'OSB', lat:32.55, lon:-92.92, notes:'' },
-  { id:'S-WEYED', parentId:'AG-WEY', name:'Weyerhaeuser Edson', industry:'', acctMatch:'Weyerhauser', loc:'Edson, AB, Canada', plantType:'OSB', lat:53.58, lon:-116.44, notes:'' },
+  { id:'S-WEYED', parentId:'AG-WEY', name:'Weyerhaeuser Edson', industry:'', acctMatch:'Weyerhauser', loc:'Edson, AB, Canada', plantType:'OSB', lat:53.58, lon:-116.44, notes:'2509 Aspen Drive · OSB' },
+  { id:'S-WEYGR', parentId:'AG-WEY', name:'Weyerhaeuser Grayling',   industry:'', acctMatch:'Weyerhauser', loc:'Grayling, MI, USA',   plantType:'OSB', lat:44.65, lon:-84.78,  notes:'4111 W. 4 Mile Road · OSB' },
+  { id:'S-WEYHB', parentId:'AG-WEY', name:'Weyerhaeuser Hudson Bay', industry:'', acctMatch:'Weyerhauser', loc:'Hudson Bay, SK, Canada', plantType:'OSB', lat:52.85, lon:-102.39, notes:'Highway #9 South · OSB' },
+  { id:'S-WEYSU', parentId:'AG-WEY', name:'Weyerhaeuser Sutton',     industry:'', acctMatch:'Weyerhauser', loc:'Heaters, WV, USA',    plantType:'OSB', lat:38.72, lon:-80.62,  notes:'3601 Gauley Turnpike Road, Sutton OSB Mill' },
   { id:'S-MAROA', parentId:'AG-MAR', name:'Martco Oakdale', industry:'', acctMatch:'Martco', loc:'Oakdale, LA, USA', plantType:'OSB', lat:30.82, lon:-92.66, notes:'' },
   { id:'S-MARCO', parentId:'AG-MAR', name:'Martco Corrigan', industry:'', acctMatch:'Martco', loc:'Corrigan, TX, USA', plantType:'OSB', lat:30.99, lon:-94.83, notes:'' },
   { id:'S-MARAK', parentId:'AG-MAR', name:'Martco Arkansas', industry:'', acctMatch:'Martco', loc:'Arkansas, USA', plantType:'OSB', lat:34.8, lon:-92.2, notes:'' },
@@ -7227,6 +7231,18 @@ function normalizeSubAccountNames(accounts) {
     const prefix = paren || (taken.length === 1 && taken[0].length <= 4 ? taken[0].toUpperCase() : taken.join(' '));
     site.name = prefix + ' - ' + rest;
     changed = true;
+  });
+  return changed;
+}
+// Product types are multi-tag (a mill can be OSB + Siding). Derive plantTags[]
+// from the legacy plantType string for any site that doesn't have it yet.
+function derivePlantTags(accounts) {
+  let changed = false;
+  accounts.forEach(a => {
+    if (a.parentId && !a.plantTags) {
+      a.plantTags = (a.plantType || '').split(/[\/,]/).map(s => s.trim()).filter(Boolean);
+      changed = true;
+    }
   });
   return changed;
 }
@@ -7294,6 +7310,35 @@ function loadAccounts() {
         });
         if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
       }
+      // Backfill: Weyerhaeuser OSB mills (Grayling, Hudson Bay, Sutton).
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-WEY')) {
+        let added = false;
+        ['S-WEYGR','S-WEYHB','S-WEYSU'].forEach(id => {
+          if (!data.accounts.some(a => a.id === id)) {
+            const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
+            if (seed) { data.accounts.push({ ...seed }); added = true; }
+          }
+        });
+        if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Product types are now multi-tag (OSB + Siding on one mill).
+      if (data.accounts && derivePlantTags(data.accounts)) {
+        localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Correct LP siding mills that were seeded as OSB (per lpcorp.com lists).
+      // Guarded: only touch sites still on the untouched OSB default.
+      if (data.accounts) {
+        const LP_FIX = { 'S-LPSA':['Siding'],'S-LPNE':['Siding'],'S-LPTO':['Siding'],
+          'S-LPTW':['Siding'],'S-LPDC':['Siding'],'S-LPPA':['OSB','Siding'] };
+        let fixed = false;
+        Object.entries(LP_FIX).forEach(([id, tags]) => {
+          const a = data.accounts.find(x => x.id === id);
+          if (a && (!a.plantTags || (a.plantTags.length <= 1 && (a.plantTags[0]||'OSB') === 'OSB'))) {
+            a.plantTags = [...tags]; a.plantType = tags.join(' / '); fixed = true;
+          }
+        });
+        if (fixed) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
       // Consistent sub-account naming (LP - Sagola, WF - Grande Prairie, …)
       if (data.accounts && normalizeSubAccountNames(data.accounts)) {
         localStorage.setItem(ACCT_KEY, JSON.stringify(data));
@@ -7302,6 +7347,7 @@ function loadAccounts() {
     }
     // Seed defaults on first load — already unified
     normalizeSubAccountNames(DEFAULT_ACCOUNTS);
+    derivePlantTags(DEFAULT_ACCOUNTS);
     const data = {
       accounts: DEFAULT_ACCOUNTS,
       contacts: [],
@@ -7560,7 +7606,7 @@ function renderAcctMain(siteId) {
           <div class="acct-site-name">${site.name}</div>
           <div class="acct-site-meta">
             <span class="acct-loctype ${site.locType==='corporate'?'corp':'prod'}">${site.locType==='corporate'?'🏢 Corporate':'🏭 Production'}</span>
-            ${site.plantType?`<span>${qesc(site.plantType)}</span>`:''}
+            ${(site.plantTags&&site.plantTags.length?site.plantTags:(site.plantType?[site.plantType]:[])).map(t=>`<span class="acct-ptag">${qesc(t)}</span>`).join('')}
             <span>📍 ${site.loc||'—'}</span>
             ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
             ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
@@ -10480,7 +10526,7 @@ function renderAcctMap() {
   // Populate plant type filter once
   const plantSel = document.getElementById('acct-map-plant-filter');
   if (plantSel && plantSel.options.length < 2) {
-    const types = [...new Set(data.sites.map(s => s.plantType).filter(Boolean))].sort();
+    const types = [...new Set(data.sites.flatMap(s => (s.plantTags&&s.plantTags.length)?s.plantTags:(s.plantType?[s.plantType]:[])).filter(Boolean))].sort();
     plantSel.innerHTML = '<option value="">All Plant Types</option>' +
       types.map(t => `<option value="${t}">${t}</option>`).join('');
   }
@@ -10522,7 +10568,7 @@ function renderAcctMap() {
     allMatchingSites = data.accounts;
     if (filterLabel) filterLabel.textContent = '— all groups';
   }
-  if (plantFilter) allMatchingSites = allMatchingSites.filter(s => s.plantType === plantFilter);
+  if (plantFilter) allMatchingSites = allMatchingSites.filter(s => ((s.plantTags&&s.plantTags.length)?s.plantTags:(s.plantType?[s.plantType]:[])).includes(plantFilter));
   if (continentFilter) allMatchingSites = allMatchingSites.filter(s => classifyGeo(s).continent === continentFilter);
 
   let sites = allMatchingSites.filter(s => s.lat && s.lon);
@@ -10786,6 +10832,24 @@ let _siteGeoACTimer   = null;
 
 let _siteAssociatedContactIds = [];
 let _sitePrimaryContactId     = '';
+let _sitePlantTags            = [];   // product-type tags for the site editor
+
+function rebuildSitePlantTags(){
+  const wrap=document.getElementById('s-plant-wrap'), inp=document.getElementById('s-plant-input');
+  if(!wrap||!inp) return;
+  wrap.querySelectorAll('.drawer-tag-item').forEach(el=>el.remove());
+  _sitePlantTags.forEach(t=>{
+    const sp=document.createElement('span'); sp.className='drawer-tag-item'; sp.style.background='var(--tsi-teal)';
+    sp.innerHTML=`${qesc(t)} <span class="dtag-x" onclick="event.stopPropagation();removeSitePlantTag('${qattr(t)}')">×</span>`;
+    wrap.insertBefore(sp, inp);
+  });
+}
+function addSitePlantTag(v){
+  v=(v||'').trim(); if(!v) return;
+  if(!_sitePlantTags.some(t=>t.toLowerCase()===v.toLowerCase())) _sitePlantTags.push(v);
+  rebuildSitePlantTags();
+}
+function removeSitePlantTag(t){ _sitePlantTags=_sitePlantTags.filter(x=>x!==t); rebuildSitePlantTags(); }
 
 function openSiteDrawer(accountId) {
   const data   = getAccounts();
@@ -10819,9 +10883,10 @@ function openSiteDrawer(accountId) {
   allContacts.forEach(c => { window._contactNameToId[c.name] = c.id; });
 
   // Clear / fill fields
-  const fields = ['s-name','s-acctmatch','s-loc-search','s-city','s-state','s-country','s-lat','s-lon','s-notes','s-plantType'];
+  const fields = ['s-name','s-acctmatch','s-loc-search','s-city','s-state','s-country','s-lat','s-lon','s-notes'];
   fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const _ltDef=document.getElementById('s-loctype'); if(_ltDef) _ltDef.value='production';
+  _sitePlantTags = []; rebuildSitePlantTags();
   document.getElementById('s-group').value = '';
   document.getElementById('s-group-id').value = '';
   const indEl = document.getElementById('s-industry'); if (indEl) indEl.value = '';
@@ -10838,7 +10903,10 @@ function openSiteDrawer(accountId) {
     document.getElementById('s-acctmatch').value = existing.acctMatch || '';
     document.getElementById('s-industry').value  = existing.industry || '';
     const _lt=document.getElementById('s-loctype'); if(_lt) _lt.value = existing.locType || (existing.parentId?'production':'corporate');
-    const _pt=document.getElementById('s-plantType'); if(_pt) _pt.value = existing.plantType || '';
+    _sitePlantTags = (existing.plantTags && existing.plantTags.length)
+      ? [...existing.plantTags]
+      : (existing.plantType || '').split(/[\/,]/).map(s=>s.trim()).filter(Boolean);
+    rebuildSitePlantTags();
     document.getElementById('s-loc-search').value= existing.loc || '';
     document.getElementById('s-city').value      = existing.city || '';
     document.getElementById('s-state').value     = existing.state || '';
@@ -10958,7 +11026,8 @@ function saveSiteDrawer() {
     name:       name,
     industry:   document.getElementById('s-industry')?.value.trim() || '',
     locType:    document.getElementById('s-loctype')?.value || 'production',
-    plantType:  document.getElementById('s-plantType')?.value.trim() || '',
+    plantTags:  [..._sitePlantTags],
+    plantType:  _sitePlantTags.join(' / '),   // legacy string kept in sync for older readers
     acctMatch:  document.getElementById('s-acctmatch').value.trim() || name,
     loc:        document.getElementById('s-loc-search').value.trim(),
     city:       document.getElementById('s-city').value.trim(),
@@ -11762,8 +11831,16 @@ startAdminPoll();
           </select>
         </div>
         <div class="drow">
-          <label>Plant Type <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— e.g. OSB, Pellets, Torrefaction</span></label>
-          <input class="dinput" id="s-plantType" placeholder="e.g. OSB, Pellets, MDF, Torrefaction">
+          <label>Product Types <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— tag one or more (a mill can make OSB &amp; Siding)</span></label>
+          <div class="drawer-tag-editor" id="s-plant-wrap" onclick="const _pi=document.getElementById('s-plant-input');if(_pi)_pi.focus()">
+            <input class="drawer-tag-input" id="s-plant-input" list="plant-type-options" placeholder="Type & Enter — OSB, Siding, Pellets…" autocomplete="off"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addSitePlantTag(this.value);this.value=''}">
+          </div>
+          <datalist id="plant-type-options">
+            <option value="OSB"><option value="Siding"><option value="LVL"><option value="EWP">
+            <option value="MDF"><option value="Particle Board"><option value="Plywood">
+            <option value="Pellets"><option value="Torrefaction"><option value="Biomass"><option value="Forestry">
+          </datalist>
         </div>
       </div>
       </div><!-- /dsec-body -->
