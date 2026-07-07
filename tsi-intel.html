@@ -3116,8 +3116,17 @@ function workerHeaders() {
   if (TSI_API_KEY) h['X-TSI-Key'] = TSI_API_KEY;
   const u = getUserInitials();
   if (u) h['X-TSI-User'] = u;
+  return h;
+}
+// AI tiering needs the user's email, but sending X-TSI-Email on EVERY call adds it
+// to the CORS preflight — and a worker deployed before this header existed will
+// reject the preflight (Access-Control-Allow-Headers won't list it), knocking the
+// whole app into offline/local mode. So it rides only on the /api/ai request,
+// which already requires the newer worker anyway.
+function aiHeaders() {
+  const h = workerHeaders();
   const em = (typeof getUserEmail==='function') ? getUserEmail() : '';
-  if (em) h['X-TSI-Email'] = em;   // worker uses this for AI model tiering (user class)
+  if (em) h['X-TSI-Email'] = em;
   return h;
 }
 
@@ -3934,7 +3943,7 @@ async function sendChat() {
   try {
     const res=await fetch(API_WORKER_URL+'/api/ai',{
       method:"POST",
-      headers:workerHeaders(),
+      headers:aiHeaders(),
       body:JSON.stringify({model:MODEL,tier:aiTier(),max_tokens:1000,system:SYSTEM,messages:history})
     });
     const data=await res.json(); typing.remove();
@@ -3970,7 +3979,7 @@ async function parseUpdate(){
   try{
     const res=await fetch(API_WORKER_URL+'/api/ai',{
       method:"POST",
-      headers:workerHeaders(),
+      headers:aiHeaders(),
       body:JSON.stringify({model:MODEL,max_tokens:1000,
         system:`Extract TSI sales opportunity data. Return ONLY a JSON array, no markdown. Fields: account, location, project_type, est_value, probability, close_date, sales_lead, scope_tags(array), notes. Use TBD for unknown.`,
         messages:[{role:"user",content:raw}]
@@ -6279,16 +6288,8 @@ function getUserName() {
   return _currentUser.name || localStorage.getItem('tsi_user_name_v1') || getUserInitials();
 }
 
-// Worker headers now include identity
-function workerHeaders() {
-  const h = { 'Content-Type': 'application/json' };
-  if (TSI_API_KEY) h['X-TSI-Key'] = TSI_API_KEY;
-  const u = getUserInitials();
-  if (u) h['X-TSI-User'] = u;
-  const em = (typeof getUserEmail==='function') ? getUserEmail() : '';
-  if (em) h['X-TSI-Email'] = em;   // worker uses this for AI model tiering (user class)
-  return h;
-}
+// workerHeaders()/aiHeaders() are defined once, near the top of the app config.
+// (A second identical copy used to live here — removed; the hoisted top one wins.)
 
 // ── RECORD LOCKING ────────────────────────────────────────────
 let _lockRefreshTimer = null;
@@ -6524,7 +6525,7 @@ async function ajSend() {
   try {
     const res = await fetch(API_WORKER_URL + '/api/ai', {
       method: 'POST',
-      headers: workerHeaders(),
+      headers: aiHeaders(),
       body: JSON.stringify({
         model:      MODEL,
         max_tokens: 1200,
@@ -7550,7 +7551,7 @@ async function callAI(messages, system, maxTokens=1000) {
   }
   const res = await fetch(endpoint, {
     method: 'POST',
-    headers: workerHeaders(),
+    headers: aiHeaders(),
     body: JSON.stringify({
       model:      'claude-sonnet-4-6',
       max_tokens: maxTokens,
@@ -12419,17 +12420,29 @@ startAdminPoll();
 .pz-kpi .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
 .pz-kpi .l{font-size:11px;color:var(--pz-faint);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
 .pz-agenda{background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:12px;padding:8px 6px}
+.pz-ag-sec+.pz-ag-sec{border-top:1px solid var(--pz-line2)}
 .pz-ag-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer}
 .pz-ag-row:hover{background:var(--pz-panel2)}
+.pz-ag-row:hover .pz-ag-go{opacity:1;transform:translateX(0)}
 .pz-ag-dot{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
 .pz-ag-nm{font-weight:700}.pz-ag-ct{margin-left:auto;color:var(--pz-muted);font-variant-numeric:tabular-nums}
+.pz-ag-go{color:var(--pz-faint);opacity:0;transform:translateX(-4px);transition:.15s;flex:0 0 auto}
 .pz-ag-bl{color:var(--pz-faint);font-size:12px}
+.pz-ag-jobs{display:flex;flex-wrap:wrap;gap:6px;padding:2px 12px 12px 34px}
+.pz-ag-job{font-size:12px;font-weight:600;color:var(--pz-ink);background:var(--pz-panel2);border:1px solid var(--pz-line);
+  border-left:3px solid var(--acc,#00929f);border-radius:6px;padding:4px 9px;cursor:pointer;transition:.12s;line-height:1.3}
+.pz-ag-job:hover{background:color-mix(in srgb,var(--acc,#00929f) 16%,var(--pz-panel2));border-color:var(--acc,#00929f)}
+.pz-ag-sample{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--pz-faint);font-weight:700}
 /* section divider */
 .pz-sec-big{font-size:52px;font-weight:800;letter-spacing:-1px;margin:6px 0 8px}
 .pz-sec-blurb{font-size:17px;color:var(--pz-muted);margin-bottom:22px}
 .pz-sec-list{display:flex;flex-direction:column;gap:8px}
-.pz-sec-item{display:flex;align-items:baseline;gap:12px;padding:9px 4px;border-bottom:1px solid var(--pz-line)}
+.pz-sec-item{display:flex;align-items:baseline;gap:12px;padding:9px 8px;border-bottom:1px solid var(--pz-line);border-radius:8px;cursor:pointer;transition:.12s}
+.pz-sec-item:hover{background:var(--pz-panel2)}
+.pz-sec-item:hover .pz-sec-go{opacity:1;transform:translateX(0)}
 .pz-sec-item .a{font-weight:700}.pz-sec-item .t{color:var(--pz-muted)}.pz-sec-item .v{margin-left:auto;color:var(--pz-faint);font-variant-numeric:tabular-nums}
+.pz-sec-go{color:var(--pz-faint);opacity:0;transform:translateX(-4px);transition:.15s;align-self:center}
+#pz-ovmap .leaflet-interactive{cursor:pointer}
 /* rail */
 .pz-rail{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:11px 22px;border-top:1px solid var(--pz-line2);font-size:11px;color:var(--pz-faint);overflow-x:auto;white-space:nowrap}
 .pz-rseg{display:inline-flex;align-items:center;gap:5px}
@@ -12463,40 +12476,51 @@ startAdminPoll();
 
 <!-- ══════════════ PROJECT TRACK — deck builder (drag & drop) ══════════════ -->
 <style>
-#presob-overlay{position:fixed;inset:0;z-index:11800;background:#0b0f14;color:#eaf0f7;
+#presob-overlay{position:fixed;inset:0;z-index:11800;
+  --pb-bg:#0b0f14;--pb-ink:#eaf0f7;--pb-line:#1e2a37;--pb-line2:#2a3644;--pb-colline:#22303d;
+  --pb-panel:#12181f;--pb-panel2:#1d2632;--pb-btn:#161d27;--pb-btnink:#cdd8e4;
+  --pb-card:#1b2430;--pb-card2:#212c3a;--pb-cardline:#2c3a49;
+  --pb-muted:#8fa2b7;--pb-faint:#6b8093;--pb-faint2:#4a5c6e;--pb-excl:#14100f;--pb-exclline:#3a2a26;
+  background:var(--pb-bg);color:var(--pb-ink);
   font-family:'Segoe UI',system-ui,sans-serif;display:none;flex-direction:column}
+#presob-overlay.presob-light{
+  --pb-bg:#eef1f5;--pb-ink:#17222f;--pb-line:#dbe2ea;--pb-line2:#e2e8f0;--pb-colline:#e2e8f0;
+  --pb-panel:#ffffff;--pb-panel2:#eef2f7;--pb-btn:#ffffff;--pb-btnink:#334155;
+  --pb-card:#ffffff;--pb-card2:#f3f6fa;--pb-cardline:#dce3ec;
+  --pb-muted:#51617a;--pb-faint:#7a8ba0;--pb-faint2:#9aa8b8;--pb-excl:#faf4f0;--pb-exclline:#ecd9cf}
 #presob-overlay.open{display:flex}
-.pb-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid #1e2a37;flex:0 0 auto;flex-wrap:wrap}
+.pb-top{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--pb-line);flex:0 0 auto;flex-wrap:wrap}
 .pb-title{font-weight:800;letter-spacing:.4px;font-size:15px}
-.pb-hint{color:#6b8093;font-size:12.5px}
-.pb-save{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid #2a3644;color:#6b8093}
-.pb-save.db{color:#8fd6a0;border-color:rgba(110,140,52,.5);background:rgba(110,140,52,.14)}
-.pb-save.local{color:#e0a97a;border-color:rgba(196,120,48,.4);background:rgba(196,120,48,.1)}
-.pb-save.saving{color:#8fa2b7}
+.pb-hint{color:var(--pb-faint);font-size:12.5px}
+.pb-save{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--pb-line2);color:var(--pb-faint)}
+.pb-save.db{color:#5a9a4e;border-color:rgba(110,140,52,.5);background:rgba(110,140,52,.14)}
+.pb-save.local{color:#c07a3a;border-color:rgba(196,120,48,.4);background:rgba(196,120,48,.1)}
+.pb-save.saving{color:var(--pb-muted)}
 .pb-top .sp{margin-left:auto}
-.pb-btn{background:#161d27;color:#cdd8e4;border:1px solid #2a3644;border-radius:7px;padding:7px 13px;font-size:12.5px;cursor:pointer}
-.pb-btn:hover{background:#1d2632}
+.pb-btn{background:var(--pb-btn);color:var(--pb-btnink);border:1px solid var(--pb-line2);border-radius:7px;padding:7px 13px;font-size:12.5px;cursor:pointer}
+.pb-btn:hover{background:var(--pb-panel2)}
 .pb-btn.primary{background:linear-gradient(135deg,#19446c,#00929f);color:#fff;border:none;font-weight:700}
 .pb-board{flex:1 1 auto;display:flex;gap:14px;padding:16px 18px;overflow-x:auto;align-items:flex-start}
-.pb-col{flex:0 0 300px;max-width:300px;background:#12181f;border:1px solid #22303d;border-radius:12px;
+.pb-col{flex:0 0 300px;max-width:300px;background:var(--pb-panel);border:1px solid var(--pb-colline);border-radius:12px;
   display:flex;flex-direction:column;max-height:100%}
-.pb-col.excluded{background:#14100f;border-color:#3a2a26}
+.pb-col.excluded{background:var(--pb-excl);border-color:var(--pb-exclline)}
 .pb-col.drag-over{outline:2px dashed var(--c,#00929f);outline-offset:-3px}
-.pb-col-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #22303d;position:sticky;top:0}
+.pb-col-h{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--pb-colline);position:sticky;top:0;background:var(--pb-panel);border-radius:12px 12px 0 0}
+.pb-col.excluded .pb-col-h{background:var(--pb-excl)}
 .pb-col-dot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
 .pb-col-nm{font-weight:700;font-size:13.5px}
-.pb-col-ct{margin-left:auto;color:#6b8093;font-size:12px;font-variant-numeric:tabular-nums}
+.pb-col-ct{margin-left:auto;color:var(--pb-faint);font-size:12px;font-variant-numeric:tabular-nums}
 .pb-col-body{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:60px;flex:1 1 auto}
-.pb-card{background:#1b2430;border:1px solid #2c3a49;border-left:4px solid var(--c,#00929f);border-radius:9px;
+.pb-card{background:var(--pb-card);border:1px solid var(--pb-cardline);border-left:4px solid var(--c,#00929f);border-radius:9px;
   padding:9px 11px;cursor:grab;user-select:none}
-.pb-card:hover{background:#212c3a}
+.pb-card:hover{background:var(--pb-card2)}
 .pb-card.dragging{opacity:.4}
 .pb-card .a{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
-.pb-card .t{color:#8fa2b7;font-size:12px;margin-top:2px;line-height:1.35}
-.pb-card .m{color:#6b8093;font-size:11px;margin-top:5px;display:flex;gap:8px;flex-wrap:wrap}
-.pb-card .grip{color:#4a5c6e;font-size:13px}
+.pb-card .t{color:var(--pb-muted);font-size:12px;margin-top:2px;line-height:1.35}
+.pb-card .m{color:var(--pb-faint);font-size:11px;margin-top:5px;display:flex;gap:8px;flex-wrap:wrap}
+.pb-card .grip{color:var(--pb-faint2);font-size:13px}
 .pb-badge{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#0e7490;color:#fff}
-.pb-empty{color:#4a5c6e;font-size:12px;font-style:italic;text-align:center;padding:14px 4px}
+.pb-empty{color:var(--pb-faint2);font-size:12px;font-style:italic;text-align:center;padding:14px 4px}
 @media(max-width:760px){.pb-col{flex-basis:82vw;max-width:82vw}}
 </style>
 <div id="presob-overlay" role="dialog" aria-label="Project Track deck builder">
@@ -12505,6 +12529,7 @@ startAdminPoll();
     <span class="pb-hint">Drag cards between lines to re-file · drag within a line to reorder · drop in <b>Not in deck</b> to hide.</span>
     <span class="pb-save" id="pb-save-state" title="Where this arrangement is saved"></span>
     <span class="sp"></span>
+    <button class="pb-btn" id="pb-theme-btn" onclick="presoBuilderToggleTheme()" title="Light / dark">🌙 Dark</button>
     <button class="pb-btn" onclick="presoResetCfg()" title="Clear all overrides — back to auto-classification">↺ Reset to auto</button>
     <button class="pb-btn" onclick="closePresoBuilder()">Close</button>
     <button class="pb-btn primary" onclick="presoPresentFromBuilder()">▶ Present</button>
@@ -13935,16 +13960,20 @@ function presoOverviewHTML(s){
     ['Combined value',presoMoney(totVal)],['Weighted value',presoMoney(wVal)]];
   const agenda=sections.map(sec=>{
     const jobs=s.bySect[sec.key]||[]; const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
-    return `<div class="pz-ag-row" onclick="presoJumpToSection('${qattr(sec.key)}')">
-      <span class="pz-ag-dot" style="background:${sec.acc}"></span>
-      <span class="pz-ag-nm">${qesc(sec.label)}</span>
-      <span class="pz-ag-bl">${qesc(sec.blurb||'')}</span>
-      <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?' · '+presoMoney(val):''}</span></div>`;
+    const chips=jobs.map(o=>`<span class="pz-ag-job" style="--acc:${sec.acc}" onclick="event.stopPropagation();presoJumpToId('${qattr(o.id)}')" title="${qattr((o.type||'')+' · '+presoMoney(o.val))}">${qesc(o.acct)}${o.__quote?' <span class="pz-ag-sample">sample</span>':''}</span>`).join('');
+    return `<div class="pz-ag-sec">
+      <div class="pz-ag-row" onclick="presoJumpToSection('${qattr(sec.key)}')" title="Go to the ${qattr(sec.label)} section">
+        <span class="pz-ag-dot" style="background:${sec.acc}"></span>
+        <span class="pz-ag-nm">${qesc(sec.label)}</span>
+        <span class="pz-ag-bl">${qesc(sec.blurb||'')}</span>
+        <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?' · '+presoMoney(val):''}</span>
+        <span class="pz-ag-go">→</span></div>
+      ${chips?`<div class="pz-ag-jobs">${chips}</div>`:''}</div>`;
   }).join('');
   return `<div class="pz-slide" style="--acc:#00929f">
     <div class="pz-eyebrow"><span class="on">Overview</span><span class="sep">·</span><span>${nJobs} opportunit${nJobs===1?'y':'ies'}</span>${_presoSettings.mode!=='auto'?`<span class="sep">·</span><span>${_presoSettings.mode==='smart'?'smart rules':'hand-picked'}</span>`:''}</div>
     <div class="pz-ov-title">Open Opportunities</div>
-    <div class="pz-ov-sub">Grouped by ${gbLabel}. Use → / ← or click the track below.</div>
+    <div class="pz-ov-sub">Grouped by ${gbLabel}. Click a map pin, a section, or any opportunity name to jump straight to it — or use → / ← and the track below.</div>
     <div class="pz-ov-grid">
       <div><div id="pz-ovmap"></div>
         <div class="pz-ov-chart pz-money"><div class="pz-lbl">Value by ${qesc(gbLabel)} ($M)</div><div style="height:160px"><canvas id="pz-ov-canvas"></canvas></div></div>
@@ -13958,25 +13987,38 @@ function presoOverviewHTML(s){
 function presoRenderOvMap(s){
   const el=document.getElementById('pz-ovmap'); if(!el) return;
   if(typeof L==='undefined'){ el.innerHTML='<div style="padding:14px;color:var(--pz-faint);font-size:13px">Map unavailable offline</div>'; return; }
-  try{
-    if(_presoMap){ _presoMap.remove(); _presoMap=null; }
-    el.innerHTML='';
-    const light=document.getElementById('preso-overlay').classList.contains('preso-light');
-    _presoMap=L.map(el,{zoomControl:true,attributionControl:false}).setView([25,0],2);
-    L.tileLayer(light
-      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18,crossOrigin:true}).addTo(_presoMap);
-    const pts=[];
-    (s.sections||PRESO_SECTIONS).forEach(sec=>{
-      (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoCoords(presoLoc(o)); if(!c) return;
-        const mk=L.circleMarker(c,{radius:Math.max(6,Math.min(24,6+Math.sqrt((o.val||0)/1e6)*1.3)),
-          color:sec.acc,fillColor:sec.acc,fillOpacity:.75,weight:1.4});
-        mk.bindPopup('<b>'+qesc(o.acct)+'</b><br>'+qesc(o.type||'')); mk.addTo(_presoMap); pts.push(c); });
-    });
-    const fit=()=>{ if(!_presoMap) return; _presoMap.invalidateSize(); if(pts.length) _presoMap.fitBounds(pts,{padding:[30,30],maxZoom:5}); };
-    // Leaflet needs the container laid out; call a few times as the overlay settles.
-    [80,280,600].forEach(t=>setTimeout(fit,t));
-  }catch(e){ el.innerHTML='<div style="padding:14px;color:var(--pz-faint)">Map error</div>'; }
+  try{ if(_presoMap){ _presoMap.remove(); _presoMap=null; } }catch(_){}
+  el.innerHTML='';
+  // Build on the next frame (after a 0ms task) so the slide is actually laid out.
+  // Leaflet renders blank/grey if the container has no size at init time — this,
+  // plus the whenReady + timed invalidateSize retries below, makes it reliable
+  // inside the animated overlay.
+  requestAnimationFrame(()=>setTimeout(()=>{
+    const cur=_presoDeck[_presoIdx];
+    if(!document.getElementById('pz-ovmap') || !cur || cur.type!=='overview') return;
+    let map;
+    try{
+      const light=document.getElementById('preso-overlay').classList.contains('preso-light');
+      map=L.map(el,{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([25,0],2);
+      _presoMap=map;
+      L.tileLayer(light
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{maxZoom:18,crossOrigin:true}).addTo(map);
+      const pts=[];
+      (s.sections||PRESO_SECTIONS).forEach(sec=>{
+        (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoCoords(presoLoc(o)); if(!c) return;
+          const mk=L.circleMarker(c,{radius:Math.max(6,Math.min(24,6+Math.sqrt((o.val||0)/1e6)*1.3)),
+            color:sec.acc,fillColor:sec.acc,fillOpacity:.78,weight:1.5});
+          // Click a pin to jump straight to that opportunity's slide.
+          mk.bindTooltip(`${qesc(o.acct)} · ${presoMoney(o.val)} — click to open`,{direction:'top'});
+          mk.on('click',()=>presoJumpToId(o.id));
+          mk.addTo(map); pts.push(c); });
+      });
+      const fit=()=>{ if(_presoMap!==map) return; map.invalidateSize(); if(pts.length) map.fitBounds(pts,{padding:[30,30],maxZoom:5}); };
+      map.whenReady(fit);
+      [60,240,600].forEach(t=>setTimeout(fit,t));
+    }catch(e){ el.innerHTML='<div style="padding:14px;color:var(--pz-faint)">Map error</div>'; }
+  },0));
 }
 // Compact site climatogram on job slides (best-effort, cached, non-blocking)
 let _presoClima=null;
@@ -14024,7 +14066,7 @@ async function presoRenderClima(job){
 function presoSectionHTML(s){
   const sec=s.section, jobs=s.jobs;
   const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
-  const list=jobs.length ? jobs.map(o=>`<div class="pz-sec-item"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span></div>`).join('')
+  const list=jobs.length ? jobs.map(o=>`<div class="pz-sec-item" onclick="presoJumpToId('${qattr(o.id)}')" title="Open this opportunity"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div>`).join('')
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
     <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="${x.key===sec.key?'on':''}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
@@ -14183,7 +14225,7 @@ async function presoAiBuildRules(){
   const sys="You convert a sales manager's request into JSON filter rules for a pipeline presentation. Output ONLY compact minified JSON, no prose, with keys: updatedWithin (months as a number or null), closeWithin (days as a number or null), minValue (dollars as a number or null), stages (array, any of: Lead, Qualified, Proposal, Negotiation, Verbal, PO Received), groupBy (one of: line, stage, region). Map 'line of business'/'business line' to line.";
   try{
     if(!API_WORKER_URL) throw new Error('no worker');
-    const res=await fetch(API_WORKER_URL+'/api/ai',{method:'POST',headers:workerHeaders(),
+    const res=await fetch(API_WORKER_URL+'/api/ai',{method:'POST',headers:aiHeaders(),
       body:JSON.stringify({tier:(typeof aiTier==='function'?aiTier():'standard'),max_tokens:250,system:sys,messages:[{role:'user',content:q}]})});
     const data=await res.json();
     const txt=((data.content||[]).find(b=>b.type==='text')||{}).text||'';
@@ -14201,10 +14243,24 @@ const PB_COLS = [...PRESO_SECTIONS.map(s=>({key:s.key,label:s.label,acc:s.acc}))
 
 async function openPresoBuilder(){
   const ov=document.getElementById('presob-overlay'); ov.classList.add('open');
-  document.getElementById('pb-board').innerHTML='<div style="margin:auto;color:#6b8093">Loading opportunities…</div>';
+  presoBuilderApplyTheme();                       // share the presentation's light/dark choice
+  document.getElementById('pb-board').innerHTML='<div style="margin:auto;color:var(--pb-faint)">Loading opportunities…</div>';
   await presoBuildBoard();                       // presoLoadOverrides() pulls the authoritative copy from D1
   pbSetSaveState(presoSectStore ? presoSectStore.mode() : 'local');
   pbRender();
+}
+// Deck builder shares the tsi_preso_theme choice with the presentation view.
+function presoBuilderApplyTheme(){
+  const ov=document.getElementById('presob-overlay');
+  const light=(localStorage.getItem('tsi_preso_theme')||'dark')==='light';
+  ov.classList.toggle('presob-light', light);
+  const btn=document.getElementById('pb-theme-btn'); if(btn) btn.textContent=light?'☀ Light':'🌙 Dark';
+}
+function presoBuilderToggleTheme(){
+  const ov=document.getElementById('presob-overlay');
+  const light=ov.classList.toggle('presob-light');
+  const btn=document.getElementById('pb-theme-btn'); if(btn) btn.textContent=light?'☀ Light':'🌙 Dark';
+  try{ localStorage.setItem('tsi_preso_theme', light?'light':'dark'); }catch(_){}
 }
 function pbSetSaveState(state){
   const el=document.getElementById('pb-save-state'); if(!el) return;
