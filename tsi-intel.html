@@ -159,6 +159,10 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 
 /* account name */
 .acct-name{font-weight:500;color:var(--color-heading)}
+.row-link-badge{margin-left:6px;font-size:11px;cursor:pointer;opacity:.7;vertical-align:middle;white-space:nowrap}
+.row-link-badge:hover{opacity:1}
+.row-link-badge .rlb-n{font-size:9px;font-weight:700;color:var(--tsi-teal);vertical-align:super;margin-left:1px}
+.tr-starred .row-link-badge .rlb-n{color:#fff}
 .opp-id{font-size:10px;color:var(--color-text-muted);font-family:var(--font-mono)}
 .notes-cell{font-size:11px;color:var(--color-text-secondary);max-width:220px}
 .close-cell{font-size:11px;font-family:var(--font-mono);color:var(--color-text-secondary)}
@@ -3681,7 +3685,19 @@ function renderPipeline() {
     const acctSpan=document.createElement("span"); acctSpan.className="acct-name";
     acctSpan.style.cssText="cursor:pointer;text-decoration:underline;text-decoration-style:dotted";
     acctSpan.title="Click to edit in form"; acctSpan.textContent=o.acct||"—";
-    acctSpan.onclick=()=>openOppDrawer(o.id); tdAcct.appendChild(acctSpan); tr.appendChild(tdAcct);
+    acctSpan.onclick=()=>openOppDrawer(o.id); tdAcct.appendChild(acctSpan);
+    // 🔗 link badge — this opp is part of a multi-phase program (FEED → contract …)
+    const _rel=(typeof relatedOppIds==='function')?relatedOppIds(o.id):[];
+    if(_rel.length){
+      const relOpps=_rel.map(id=>DATA.find(r=>r.id===id)).filter(Boolean);
+      const badge=document.createElement("span");
+      badge.className="row-link-badge";
+      badge.innerHTML="🔗"+(_rel.length>1?`<span class="rlb-n">${_rel.length}</span>`:"");
+      badge.title="Linked: "+relOpps.map(r=>`${r.acct}${r.phase?' ('+r.phase+')':(r.type?' — '+r.type:'')}`).join(", ")+" · click to open";
+      badge.onclick=(e)=>{ e.stopPropagation(); openOppDrawer(_rel[0]); };
+      tdAcct.appendChild(badge);
+    }
+    tr.appendChild(tdAcct);
     tr.appendChild(makeLocCell(o));
     tr.appendChild(makeTextCell(o,"type",null,false));
     tr.appendChild(makeTagCell(o));
@@ -9920,8 +9936,10 @@ function renderTimelineChart(data) {
   if (!rows.length) { canvas.style.display='none'; return; }
   canvas.style.display = '';
 
-  // Chart.js horizontal bar — x=time, y=deal label
-  const labels   = rows.map(r => r.o.acct + ' ' + r.o.id);
+  // Chart.js horizontal bar — x=time, y=deal label.
+  // Second label line = scope tags, so each deal line shows its tags too.
+  const tagStrOf = o => (o.tags||[]).map(t => (TAG_DEFS[t]||[t])[0]).join(' · ');
+  const labels   = rows.map(r => { const ts = tagStrOf(r.o); return ts ? [r.o.acct + ' ' + r.o.id, ts] : (r.o.acct + ' ' + r.o.id); });
   const starts   = rows.map(r => now.getTime());
   const ends     = rows.map(r => r.end.getTime());
   const colors   = rows.map(r => (CAT_COLORS[r.o.cat] || '#888888') + 'BB');
@@ -9958,10 +9976,12 @@ function renderTimelineChart(data) {
             title: ctx => rows[ctx[0].dataIndex]?.o.acct,
             label: ctx => {
               const r = rows[ctx.dataIndex];
+              const ts = tagStrOf(r.o);
               return [
                 r.o.type,
                 fmt(r.o.val||0) + ' · ' + Math.round((r.o.prob||0)*100) + '%',
                 'Close: ' + (r.o.close||'TBD'),
+                ...(ts ? ['Tags: ' + ts] : []),
               ];
             }
           }
