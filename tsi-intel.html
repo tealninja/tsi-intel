@@ -397,6 +397,25 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 
 /* close filter chips */
 .close-chips { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+/* Pipeline view toggle + stage board (kanban) */
+.pip-view-toggle{display:inline-flex;border:1px solid var(--color-border-mid);border-radius:var(--radius-md);overflow:hidden}
+.pip-view-toggle .pvt-btn{border:none;background:var(--color-surface);color:var(--color-text-secondary);font-size:12px;padding:0 12px;height:34px;cursor:pointer;font-family:var(--font-ui)}
+.pip-view-toggle .pvt-btn.active{background:var(--tsi-teal);color:#fff}
+.pip-stage-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;align-items:flex-start}
+.psb-col{flex:0 0 262px;max-width:262px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 300px)}
+.psb-col.drag-over{outline:2px dashed var(--tsi-teal);outline-offset:-3px}
+.psb-col-h{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--color-border);position:sticky;top:0;background:var(--color-surface);border-radius:12px 12px 0 0}
+.psb-dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.psb-nm{font-weight:600;font-size:13px}
+.psb-ct{margin-left:auto;color:var(--color-text-muted);font-size:11px;font-variant-numeric:tabular-nums}
+.psb-body{padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:44px}
+.psb-card{background:var(--color-bg);border:1px solid var(--color-border);border-left:3px solid var(--c,var(--tsi-teal));border-radius:8px;padding:8px 10px;cursor:grab}
+.psb-card:hover{border-color:var(--color-border-mid)}
+.psb-card.dragging{opacity:.4}
+.psb-card .a{font-weight:600;font-size:12.5px}
+.psb-card .t{color:var(--color-text-secondary);font-size:11px;margin-top:2px;line-height:1.35}
+.psb-card .m{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;font-size:10.5px;color:var(--color-text-muted);font-variant-numeric:tabular-nums}
+.psb-empty{color:var(--color-text-muted);font-size:11px;font-style:italic;text-align:center;padding:10px}
 .chip {
   padding:4px 12px; border-radius:99px; font-size:11px; font-weight:500;
   cursor:pointer; border:1px solid var(--color-border-mid);
@@ -2893,6 +2912,10 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <button class="select views-btn" id="cols-btn" onclick="toggleColsMenu(event)" title="Show / hide columns">▦ Columns ▾</button>
       <div class="views-menu" id="cols-menu" style="display:none"></div>
     </div>
+    <div class="pip-view-toggle" id="pip-view-toggle">
+      <button class="pvt-btn active" data-v="table" onclick="setPipView('table')" title="Table view">▤ Table</button>
+      <button class="pvt-btn" data-v="stages" onclick="setPipView('stages')" title="Stage board (kanban)">▦ Stages</button>
+    </div>
     <span class="toolbar-count" id="pip-count"></span>
     <button class="btn-add-opp" onclick="addNewOpp()">+ New Opportunity</button>
     <button class="btn-discard" id="clear-col-filters-btn" onclick="clearAllColFilters()" style="display:none" title="Clear all column filters">✕ Clear filters</button>
@@ -2943,6 +2966,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <tbody id="pipeline-body"></tbody>
     </table>
   </div>
+  <div class="pip-stage-board" id="pip-stage-board" style="display:none"></div>
 </div>
 
 <!-- ══ IMMINENT ══ -->
@@ -3243,6 +3267,61 @@ function toggleImminentFilter(el) {
   imminentOnly = !imminentOnly;
   el.classList.toggle("active", imminentOnly);
   renderPipeline();
+}
+
+/* ── Pipeline STAGE VIEW (kanban) ── */
+let _pipView = 'table';
+const PIP_STAGES = ['Lead','Qualified','Proposal','Negotiation','Verbal','PO Received'];
+const PIP_STAGE_COLORS = {Lead:'#8a8f98',Qualified:'#00929F',Proposal:'#19446C',Negotiation:'#C4A230',Verbal:'#6E8C34','PO Received':'#2f8f4e'};
+function setPipView(v){
+  _pipView=v;
+  document.querySelectorAll('#pip-view-toggle .pvt-btn').forEach(b=>b.classList.toggle('active', b.dataset.v===v));
+  const tbl=document.getElementById('pip-table-wrap'), board=document.getElementById('pip-stage-board');
+  if(v==='stages'){ if(tbl)tbl.style.display='none'; if(board){ board.style.display='flex'; renderStageBoard(); } }
+  else { if(board)board.style.display='none'; if(tbl)tbl.style.display=''; }
+}
+function renderStageBoard(){
+  const board=document.getElementById('pip-stage-board'); if(!board) return;
+  const rows=currentFilteredRows();
+  const by={}; PIP_STAGES.forEach(s=>by[s]=[]); const other=[];
+  rows.forEach(o=>{ const s=o.stage||''; (by[s]?by[s]:other).push(o); });
+  const cols=PIP_STAGES.slice(); if(other.length){ by['(No stage)']=other; cols.push('(No stage)'); }
+  board.innerHTML=cols.map(s=>{
+    const list=by[s]||[]; const val=list.reduce((a,o)=>a+(Number(o.val)||0),0); const color=PIP_STAGE_COLORS[s]||'#8a8f98';
+    const cards=list.map(o=>psbCard(o,color)).join('')||'<div class="psb-empty">—</div>';
+    return `<div class="psb-col" data-stage="${qattr(s)}" ondragover="psbOver(event)" ondragleave="psbLeave(event)" ondrop="psbDrop(event,'${qattr(s)}')">
+      <div class="psb-col-h"><span class="psb-dot" style="background:${color}"></span><span class="psb-nm">${qesc(s)}</span><span class="psb-ct">${list.length}${val?' · '+fmt(val):''}</span></div>
+      <div class="psb-body">${cards}</div></div>`;
+  }).join('');
+}
+function psbCard(o,color){
+  return `<div class="psb-card" draggable="true" data-id="${qattr(o.id)}" style="--c:${color}"
+      ondragstart="psbDragStart(event,'${qattr(o.id)}')" ondragend="psbDragEnd(event)" onclick="openOppDrawer('${qattr(o.id)}')" title="Drag to change stage · click to edit">
+    <div class="a">${starredIds.has(o.id)?'⭐ ':''}${qesc(o.acct||'—')}</div>
+    <div class="t">${qesc(o.type||'')}</div>
+    <div class="m"><span>${o.val!=null?fmt(o.val):'TBD'}</span><span>${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</span>${o.close?`<span>📅 ${qesc(o.close)}</span>`:''}${o.lead?`<span>${qesc(o.lead)}</span>`:''}</div>
+  </div>`;
+}
+let _psbDrag=null;
+function psbDragStart(e,id){ _psbDrag=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',id);}catch(_){}
+  const el=e.target.closest('.psb-card'); if(el) el.classList.add('dragging'); }
+function psbDragEnd(e){ const el=e.target.closest('.psb-card'); if(el) el.classList.remove('dragging'); _psbDrag=null;
+  document.querySelectorAll('.psb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); }
+function psbOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; const c=e.currentTarget; if(c) c.classList.add('drag-over'); }
+function psbLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)) c.classList.remove('drag-over'); }
+function psbDrop(e,stage){
+  e.preventDefault();
+  const id=_psbDrag||(()=>{try{return e.dataTransfer.getData('text/plain');}catch(_){return null;}})();
+  document.querySelectorAll('.psb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); _psbDrag=null;
+  if(!id || stage==='(No stage)'){ renderStageBoard(); return; }
+  const rec=DATA.find(r=>r.id===id); if(!rec || rec.stage===stage){ renderStageBoard(); return; }
+  rec.stage=stage; rec.updatedAt=new Date().toISOString(); rec.updatedBy=getUserInitials()||'?'; markDirty(id);
+  if(typeof usageLog==='function') usageLog('stage_change', id+' → '+stage);
+  if(typeof API_WORKER_URL!=='undefined' && API_WORKER_URL){
+    fetch(API_WORKER_URL+'/api/pipeline/'+encodeURIComponent(id),{method:'PUT',headers:workerHeaders(),body:JSON.stringify(rec)}).catch(()=>{});
+  }
+  renderStageBoard();
+  showToast(qesc(rec.acct||'Opportunity')+' → '+stage,'var(--tsi-teal)');
 }
 
 function toggleCloseChip(el) {
@@ -3546,6 +3625,7 @@ function populateFilters() {
 
 // ── RENDER: PIPELINE ─────────────────────────────────────────
 function renderPipeline() {
+  if(typeof _pipView!=='undefined' && _pipView==='stages'){ try{ renderStageBoard(); }catch(_){} }
   const q    =document.getElementById("search").value.toLowerCase();
   const cat  =document.getElementById("fcat").value;
   const loc  =document.getElementById("floc").value;

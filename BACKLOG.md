@@ -171,9 +171,11 @@ Roles (cumulative ladder):
   English request → fills the rules via /api/ai (runs on worker deploy; degrades gracefully).
 
 ## 🗂️ Pipeline
-- [ ] **Stage view** — a kanban of the pipeline (columns = Lead→Qualified→…→PO Received,
-  opp cards stacked under each), reusing the deck-builder DnD; drag a card to change stage.
-  Toggle with the table view.
+- [x] **Stage view (kanban)** — ▤ Table / ▦ Stages toggle in the pipeline toolbar. Columns
+  Lead→Qualified→Proposal→Negotiation→Verbal→PO Received with opp cards (acct/type/value/prob/
+  close/lead, stage-colored spine); per-column count + value. **Drag a card to change its
+  stage** (updates the record, marks dirty, best-effort worker save); click a card to edit.
+  Honors the current search/filters/chips.
 
 ## ✅ Recently done
 - [x] **Word (.doc) export** — editable proposal download (Biocarbon letterhead, pricing
