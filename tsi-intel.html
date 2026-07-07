@@ -1678,6 +1678,26 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   color:var(--tsi-teal);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui)}
 /* Account detail: map + climatogram — even split on desktop, stacked on mobile */
 .am-mapclima{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* Account media (logo + photos) */
+.acct-logo-img{width:52px;height:52px;object-fit:contain;border-radius:8px;background:var(--color-surface);border:1px solid var(--color-border);flex-shrink:0}
+.acct-group-logo{width:18px;height:18px;object-fit:contain;border-radius:3px;flex-shrink:0}
+.acct-prime-photo img{width:100%;max-height:230px;object-fit:cover;border-radius:var(--radius-md);display:block;margin:2px 0 12px}
+.acct-media{margin:0 0 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px 12px;background:var(--color-surface)}
+.acct-media>summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--color-text-secondary)}
+.acct-media>summary:hover{color:var(--tsi-teal)}
+.am-editor{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.am-logo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.am-logo-preview{width:46px;height:46px;object-fit:contain;border:1px solid var(--color-border);border-radius:6px}
+.am-upload,.am-add-photo{display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding:6px 12px;border:1px dashed var(--color-border-mid);border-radius:var(--radius-sm);cursor:pointer;color:var(--tsi-teal)}
+.am-upload:hover,.am-add-photo:hover{border-color:var(--tsi-teal);background:rgba(0,146,159,.05)}
+.am-photos-grid{display:flex;flex-wrap:wrap;gap:8px}
+.am-thumb{position:relative;width:90px;height:66px;border-radius:6px;overflow:hidden;border:2px solid transparent}
+.am-thumb.prime{border-color:var(--tsi-amber)}
+.am-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.am-thumb-actions{position:absolute;top:2px;right:2px;display:flex;gap:2px}
+.am-thumb-actions button{width:20px;height:20px;border:none;border-radius:4px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;cursor:pointer;padding:0;line-height:1}
+.am-add-photo{width:90px;height:66px;flex-direction:column}
+.am-hint{font-size:10.5px;color:var(--color-text-muted)}
 @media(max-width:768px){
   /* Account detail: stack the map above the climatogram (were cramped side-by-side) */
   .am-mapclima{grid-template-columns:1fr}
@@ -6851,6 +6871,7 @@ function renderAcctSidebar() {
       <div class="acct-group-header ${_acctSelectedGroup===g.id&&!_acctSelectedSite?'selected':''}"
            onclick="toggleAcctGroup('${g.id}')">
         <span class="acct-group-chevron">▶</span>
+        ${acctLogo(g.id)?`<img class="acct-group-logo" src="${acctLogo(g.id)}" alt="">`:''}
         <span style="flex:1">${g.name}</span>
         <span class="acct-group-count">${siteCount}</span>
         <span title="Edit account info" onclick="event.stopPropagation();openSiteDrawer('${g.id}')"
@@ -6939,6 +6960,46 @@ function acctBackToList(){
   renderAcctSidebar();
 }
 
+/* ── Account media (parent-account logo + photos, one prime for the card) ──
+   Client-compressed data URLs via Store('account_media') (local now, D1 on
+   deploy). For large photo libraries, R2 is the production upgrade. */
+const mediaStore = (typeof Store==='function') ? Store('account_media') : null;
+if (mediaStore) { try { mediaStore.pull().then(()=>{ if(_acctSelectedSite) renderAcctMain(_acctSelectedSite); }); } catch(_){} }
+function getAcctMedia(gid){ return (mediaStore?mediaStore.all():[]).find(m=>m.id===gid) || {id:gid, logo:'', photos:[], prime:0}; }
+async function saveAcctMedia(rec){ if(mediaStore) await mediaStore.put(rec); }
+function acctLogo(gid){ return getAcctMedia(gid).logo||''; }
+function acctPrimePhoto(gid){ const m=getAcctMedia(gid); return (m.photos&&m.photos.length)?m.photos[Math.min(m.prime||0,m.photos.length-1)]:''; }
+function compressImage(file, maxDim, quality){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{ const img=new Image();
+      img.onload=()=>{ let w=img.width, h=img.height; const s=Math.min(1, maxDim/Math.max(w,h));
+        w=Math.max(1,Math.round(w*s)); h=Math.max(1,Math.round(h*s));
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        try{ resolve(c.toDataURL('image/jpeg', quality||0.82)); }catch(e){ reject(e); } };
+      img.onerror=reject; img.src=fr.result; };
+    fr.onerror=reject; fr.readAsDataURL(file);
+  });
+}
+async function uploadAcctLogo(input, gid){
+  const f=input.files&&input.files[0]; if(!f) return;
+  try{ const url=await compressImage(f,256,0.9); const m=getAcctMedia(gid); m.logo=url; await saveAcctMedia(m);
+    renderAcctMain(_acctSelectedSite); renderAcctSidebar();
+    showToast('✓ Logo updated'+(mediaStore&&mediaStore.mode()==='db'?'':' (this browser)'),'var(--tsi-teal)'); }
+  catch(e){ showToast('Image error: '+(e.message||e),'var(--tsi-coral)'); }
+}
+async function addAcctPhoto(input, gid){
+  const f=input.files&&input.files[0]; if(!f) return;
+  try{ const url=await compressImage(f,1000,0.8); const m=getAcctMedia(gid); m.photos=m.photos||[]; m.photos.push(url);
+    if(m.photos.length===1) m.prime=0; await saveAcctMedia(m); renderAcctMain(_acctSelectedSite);
+    showToast('✓ Photo added','var(--tsi-teal)'); }
+  catch(e){ showToast('Image error: '+(e.message||e),'var(--tsi-coral)'); }
+}
+async function setAcctPrime(gid,i){ const m=getAcctMedia(gid); m.prime=i; await saveAcctMedia(m); renderAcctMain(_acctSelectedSite); }
+async function removeAcctPhoto(gid,i){ const m=getAcctMedia(gid); (m.photos||[]).splice(i,1); if((m.prime||0)>=m.photos.length) m.prime=Math.max(0,m.photos.length-1); await saveAcctMedia(m); renderAcctMain(_acctSelectedSite); }
+async function removeAcctLogo(gid){ const m=getAcctMedia(gid); m.logo=''; await saveAcctMedia(m); renderAcctMain(_acctSelectedSite); renderAcctSidebar(); }
+
 function renderAcctMain(siteId) {
   const main = document.getElementById('acct-main');
   if (!main) return;
@@ -6947,6 +7008,10 @@ function renderAcctMain(siteId) {
   const site    = data.sites.find(s => s.id === siteId);
   if (!site) return;
   const group   = data.groups.find(g => g.id === site.groupId);
+  const gid     = site.groupId;
+  const media   = getAcctMedia(gid);
+  const logo    = media.logo || '';
+  const prime   = acctPrimePhoto(gid);
   const contacts = data.contacts.filter(c => (c.accountIds||[]).includes(siteId));
   const equipment= data.equipment.filter(e => e.siteId === siteId);
   const outages  = data.outages.filter(o => o.siteId === siteId)
@@ -6967,17 +7032,35 @@ function renderAcctMain(siteId) {
   main.innerHTML = `
     <button class="acct-back-btn" onclick="acctBackToList()">← All accounts</button>
     <div class="acct-site-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-      <div>
-        <div class="acct-site-name">${site.name}</div>
-        <div class="acct-site-meta">
-          <span>🏭 ${site.plantType||'—'}</span>
-          <span>📍 ${site.loc||'—'}</span>
-          ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
-          ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
+      <div style="display:flex;gap:12px;align-items:flex-start;min-width:0">
+        ${logo?`<img class="acct-logo-img" src="${logo}" alt="account logo">`:''}
+        <div style="min-width:0">
+          <div class="acct-site-name">${site.name}</div>
+          <div class="acct-site-meta">
+            <span>🏭 ${site.plantType||'—'}</span>
+            <span>📍 ${site.loc||'—'}</span>
+            ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
+            ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
+          </div>
         </div>
       </div>
       <button class="btn-acct-add" onclick="openSiteDrawer('${siteId}')" style="flex-shrink:0">✎ Edit Site</button>
     </div>
+    ${prime?`<div class="acct-prime-photo"><img src="${prime}" alt="account photo"></div>`:''}
+    <details class="acct-media"${(logo||(media.photos&&media.photos.length))?'':''}>
+      <summary>📷 Logo &amp; Photos${media.photos&&media.photos.length?` · ${media.photos.length} photo${media.photos.length>1?'s':''}`:''}</summary>
+      <div class="am-editor">
+        <div class="am-logo-row">
+          <label class="am-upload">⬆ ${logo?'Replace':'Add'} logo<input type="file" accept="image/*" onchange="uploadAcctLogo(this,'${gid}')" hidden></label>
+          ${logo?`<img class="am-logo-preview" src="${logo}"><button class="lc-act del" onclick="removeAcctLogo('${gid}')">Remove logo</button>`:'<span class="am-hint">Parent-account logo shown on the account header</span>'}
+        </div>
+        <div class="am-photos-grid">
+          ${(media.photos||[]).map((ph,i)=>`<div class="am-thumb ${i===(media.prime||0)?'prime':''}"><img src="${ph}"><div class="am-thumb-actions"><button title="Set as prime photo" onclick="setAcctPrime('${gid}',${i})">${i===(media.prime||0)?'★':'☆'}</button><button title="Remove photo" onclick="removeAcctPhoto('${gid}',${i})">✕</button></div></div>`).join('')}
+          <label class="am-add-photo">+ Photo<input type="file" accept="image/*" onchange="addAcctPhoto(this,'${gid}')" hidden></label>
+        </div>
+        <div class="am-hint">★ = prime photo (shown on the card). Stored ${mediaStore&&mediaStore.mode()==='db'?'on the server':'in this browser'}; images are compressed.</div>
+      </div>
+    </details>
 
     ${(site.lat && site.lon) ? `
     <!-- MAP + CLIMATOGRAM -->

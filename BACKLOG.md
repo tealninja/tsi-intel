@@ -28,8 +28,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 - [x] Refactored `showTab` to be **data-tab based** (no more brittle position-indexed matching).
 
 **Accounts features**
-- [ ] **Account media**: store parent-account **logos** (for the view) + **photos** per account,
-  with **one prime photo** for the card. (Blobs → Cloudflare **R2**; needs worker + deploy.)
+- [x] **Account media** — per parent-account **logo** (shown in the account header + sidebar
+  group list) + a **photo gallery** with a **prime photo** (banner on the detail / card).
+  Client-compressed to JPEG data URLs, stored via `Store('account_media')` (local now, D1 on
+  deploy). Follow-up: move large photo libraries to **R2** once the worker deploys (data URLs
+  are fine for logos + a few photos; R2 is better for many/large images).
 - [x] **Unassigned leads inbox** — "📥 Leads" launcher (user bar, with a new-count badge)
   opens a drawer: quick-capture (note / company / contact / source) + a triageable inbox.
   Actions: **→ Opportunity** (opens a prefilled new pipeline opp, stage Lead), Dismiss/Restore,
