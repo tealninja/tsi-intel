@@ -7168,7 +7168,7 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-WFJO', parentId:'AG-WF', name:'WF Joanna', industry:'', acctMatch:'West Fraser', loc:'Joanna, SC, USA', plantType:'OSB', lat:34.41, lon:-81.83, notes:'564 Woodyard Road, Kinards SC' },
   { id:'S-WFJF', parentId:'AG-WF', name:'WF Jefferson', industry:'', acctMatch:'West Fraser', loc:'Jefferson, TX, USA', plantType:'OSB', lat:32.76, lon:-94.35, notes:'500 Nexfor Blvd' },
   { id:'S-WFAL', parentId:'AG-WF', name:'WF Allendale', industry:'', acctMatch:'West Fraser', loc:'Allendale, SC, USA', plantType:'OSB', lat:33.01, lon:-81.31, notes:'9918 Buffords Bridge Hwy, Fairfax SC' },
-  { id:'S-WFNB', parentId:'AG-WF', name:'WF Newberry', industry:'', acctMatch:'West Fraser', loc:'Newberry, SC, USA', plantType:'OSB', lat:34.27, lon:-81.61, notes:'' },
+  { id:'S-WFNB', parentId:'AG-WF', name:'WF Newberry', industry:'', acctMatch:'West Fraser', loc:'Newberry, SC, USA', plantType:'Lumber', lat:34.27, lon:-81.61, notes:'West Fraser Newberry sawmill' },
   // ── Additional West Fraser locations from westfraser.com (mills + offices) ──
   // Former Norbord OSB network tagged OSB; sawmills/plywood left untagged to verify.
   { id:'S-WFBEM', parentId:'AG-WF', name:'WF Bemidji',       industry:'', acctMatch:'West Fraser', loc:'Solway, MN, USA',            plantType:'OSB', plantTags:['OSB'], lat:47.52, lon:-95.13,  notes:'4409 Northwood Road NW' },
@@ -7176,11 +7176,11 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-WFGEN', parentId:'AG-WF', name:'WF Genk',          industry:'', acctMatch:'West Fraser', loc:'Genk, Belgium',              plantType:'OSB', plantTags:['OSB'], lat:50.97, lon:5.50,    notes:'Eikelaarstraat 33' },
   { id:'S-WFINV', parentId:'AG-WF', name:'WF Inverness',     industry:'', acctMatch:'West Fraser', loc:'Inverness, Scotland, UK',    plantType:'OSB', plantTags:['OSB'], lat:57.54, lon:-4.05,   notes:'Morayhill, Dalcross' },
   { id:'S-WFLAS', parentId:'AG-WF', name:'WF La Sarre',      industry:'', acctMatch:'West Fraser', loc:'La Sarre, QC, Canada',       plantType:'OSB', plantTags:['OSB'], lat:48.80, lon:-79.20,  notes:'210, 9e avenue est' },
-  { id:'S-WFBAR', parentId:'AG-WF', name:'WF Barwick',       industry:'', acctMatch:'West Fraser', loc:'Barwick, ON, Canada',        plantType:'', plantTags:[], lat:48.72, lon:-93.95,  notes:'181 Nighswander Road · lumber?' },
-  { id:'S-WFCOR', parentId:'AG-WF', name:'WF Cordele',       industry:'', acctMatch:'West Fraser', loc:'Cordele, GA, USA',           plantType:'', plantTags:[], lat:31.96, lon:-83.78,  notes:'964 Highway 280 W · lumber?' },
-  { id:'S-WFGUN', parentId:'AG-WF', name:'WF Guntown',       industry:'', acctMatch:'West Fraser', loc:'Guntown, MS, USA',           plantType:'', plantTags:[], lat:34.44, lon:-88.66,  notes:'1194 Highway 145 · lumber?' },
-  { id:'S-WFHUG', parentId:'AG-WF', name:'WF Huguley',       industry:'', acctMatch:'West Fraser', loc:'Lanett, AL, USA',            plantType:'', plantTags:[], lat:32.85, lon:-85.22,  notes:'4400 Barton Industrial Blvd · plywood?' },
-  { id:'S-WFNAC', parentId:'AG-WF', name:'WF Nacogdoches',   industry:'', acctMatch:'West Fraser', loc:'Nacogdoches, TX, USA',       plantType:'', plantTags:[], lat:31.60, lon:-94.65,  notes:'2301 SE Stallings Drive · plywood?' },
+  { id:'S-WFBAR', parentId:'AG-WF', name:'WF Barwick',       industry:'', acctMatch:'West Fraser', loc:'Barwick, ON, Canada',        plantType:'OSB', plantTags:['OSB'], lat:48.72, lon:-93.95,  notes:'181 Nighswander Road' },
+  { id:'S-WFCOR', parentId:'AG-WF', name:'WF Cordele',       industry:'', acctMatch:'West Fraser', loc:'Cordele, GA, USA',           plantType:'OSB', plantTags:['OSB'], lat:31.96, lon:-83.78,  notes:'964 Highway 280 W' },
+  { id:'S-WFGUN', parentId:'AG-WF', name:'WF Guntown',       industry:'', acctMatch:'West Fraser', loc:'Guntown, MS, USA',           plantType:'OSB', plantTags:['OSB'], lat:34.44, lon:-88.66,  notes:'1194 Highway 145' },
+  { id:'S-WFHUG', parentId:'AG-WF', name:'WF Huguley',       industry:'', acctMatch:'West Fraser', loc:'Lanett, AL, USA',            plantType:'OSB', plantTags:['OSB'], lat:32.85, lon:-85.22,  notes:'4400 Barton Industrial Blvd' },
+  { id:'S-WFNAC', parentId:'AG-WF', name:'WF Nacogdoches',   industry:'', acctMatch:'West Fraser', loc:'Nacogdoches, TX, USA',       plantType:'OSB', plantTags:['OSB'], lat:31.60, lon:-94.65,  notes:'2301 SE Stallings Drive' },
   { id:'S-WFCOW', parentId:'AG-WF', name:'WF Cowie Office',  industry:'', acctMatch:'West Fraser', loc:'Cowie, Stirlingshire, UK',   plantType:'', plantTags:[], locType:'corporate', lat:56.08, lon:-3.87, notes:'10 Station Road · Regional office' },
   { id:'S-WFMEM', parentId:'AG-WF', name:'WF Memphis Office',industry:'', acctMatch:'West Fraser', loc:'Cordova, TN, USA',           plantType:'', plantTags:[], locType:'corporate', lat:35.16, lon:-89.77, notes:'57 Germantown Court, Ste 300 · US operations office' },
   { id:'S-WFQUE', parentId:'AG-WF', name:'WF Quesnel Office',industry:'', acctMatch:'West Fraser', loc:'Quesnel, BC, Canada',        plantType:'', plantTags:[], locType:'corporate', lat:52.98, lon:-122.49, notes:'1250 Brownmiller Road · Canadian operations office' },
@@ -7427,6 +7427,20 @@ function loadAccounts() {
             a.plantTags = [...tags]; a.plantType = tags.join(' / '); fixed = true;
           }
         });
+        if (fixed) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // West Fraser product types: the 5 untagged sawmills are OSB; Newberry SC
+      // is a lumber sawmill. Guarded to the untouched default.
+      if (data.accounts) {
+        let fixed = false;
+        ['S-WFBAR','S-WFCOR','S-WFGUN','S-WFHUG','S-WFNAC'].forEach(id => {
+          const a = data.accounts.find(x => x.id === id);
+          if (a && (!a.plantTags || !a.plantTags.length)) { a.plantTags = ['OSB']; a.plantType = 'OSB'; fixed = true; }
+        });
+        const nb = data.accounts.find(x => x.id === 'S-WFNB');
+        if (nb && (!nb.plantTags || (nb.plantTags.length === 1 && nb.plantTags[0] === 'OSB'))) {
+          nb.plantTags = ['Lumber']; nb.plantType = 'Lumber'; fixed = true;
+        }
         if (fixed) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
       }
       // Consistent sub-account naming (LP - Sagola, WF - Grande Prairie, …)
