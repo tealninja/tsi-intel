@@ -187,6 +187,10 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .bubble{padding:9px 13px;font-size:12px;line-height:1.55}
 .msg-name{font-size:10px;color:var(--color-text-muted);margin-bottom:3px;padding:0 3px}
 .msg.user .msg-name{text-align:right}
+.chat-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:0.5px solid var(--color-border)}
+.chat-head-title{font-size:12px;font-weight:600;color:var(--color-heading)}
+.ai-class-badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 8px;border-radius:99px;background:linear-gradient(135deg,#19446c,#00929f);color:#fff}
+.ai-model-sel{margin-left:auto;height:26px;font-size:11px;padding:0 8px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);background:var(--color-surface);color:var(--color-text-primary);cursor:pointer;font-family:var(--font-ui)}
 .chat-footer{display:flex;gap:8px;padding:10px;border-top:0.5px solid var(--color-border)}
 .chat-footer textarea{flex:1;padding:8px 10px;border:1px solid var(--color-border-mid);border-radius:var(--radius-md);font-size:12px;font-family:var(--font-ui);resize:none;background:var(--color-bg);color:var(--color-text-primary);outline:none;transition:border-color var(--transition)}
 .chat-footer textarea:focus{border-color:var(--tsi-teal)}
@@ -2981,6 +2985,14 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 <div id="view-ai" class="view">
   <div class="ai-layout">
     <div class="chat-card">
+      <div class="chat-head" id="chat-head">
+        <span class="chat-head-title">TSI Pipeline AI</span>
+        <span class="ai-class-badge" id="ai-class-badge" style="display:none"></span>
+        <select class="ai-model-sel" id="ai-model-sel" onchange="setAiTier(this.value)" style="display:none" title="Executive model selector">
+          <option value="sonnet">⚡ Sonnet · most capable</option>
+          <option value="haiku">🚀 Haiku · fastest</option>
+        </select>
+      </div>
       <div class="chat-msgs" id="chat-msgs">
         <div class="msg ai">
           <div class="msg-name">TSI Pipeline AI</div>
@@ -3048,6 +3060,8 @@ function workerHeaders() {
   if (TSI_API_KEY) h['X-TSI-Key'] = TSI_API_KEY;
   const u = getUserInitials();
   if (u) h['X-TSI-User'] = u;
+  const em = (typeof getUserEmail==='function') ? getUserEmail() : '';
+  if (em) h['X-TSI-Email'] = em;   // worker uses this for AI model tiering (user class)
   return h;
 }
 
@@ -3773,6 +3787,7 @@ function showToolsSub(sub){
   if (ai) ai.classList.toggle('active', _toolsSub==='ai');
   if (pa) pa.classList.toggle('active', _toolsSub==='parser');
   document.querySelectorAll('#tools-subnav .subtab').forEach(b => b.classList.toggle('active', b.dataset.sub===_toolsSub));
+  if(_toolsSub==='ai' && typeof refreshAiClassUI==='function') refreshAiClassUI();
 }
 
 function toggleTabMenu(){
@@ -3808,7 +3823,7 @@ async function sendChat() {
     const res=await fetch(API_WORKER_URL+'/api/ai',{
       method:"POST",
       headers:workerHeaders(),
-      body:JSON.stringify({model:MODEL,max_tokens:1000,system:SYSTEM,messages:history})
+      body:JSON.stringify({model:MODEL,tier:aiTier(),max_tokens:1000,system:SYSTEM,messages:history})
     });
     const data=await res.json(); typing.remove();
     const reply=data.content?.find(b=>b.type==="text")?.text||"No response.";
@@ -6055,6 +6070,21 @@ function isCloudflareHost(){
 }
 const JTEAL_USER = { name:'John Teal', email:'jteal@tsi-inc.net', initials:'JT', source:'cloudflare' };
 
+// ── User classes / AI tiering (soft; enforced server-side in the worker) ──
+const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','wteal@tsi-inc.net','bteal@tsi-inc.net'];
+function userClass(){ return AI_EXEC_EMAILS.includes((getUserEmail()||'').toLowerCase()) ? 'executive' : 'member'; }
+function isExecutive(){ return userClass()==='executive'; }
+let _aiTier = 'sonnet';                                   // executive model choice
+function aiTier(){ return isExecutive() ? (_aiTier||'sonnet') : 'standard'; }
+function setAiTier(t){ _aiTier = (t==='haiku'?'haiku':'sonnet');
+  showToast('AI model: '+(_aiTier==='sonnet'?'Sonnet — most capable':'Haiku — fastest'),'var(--tsi-teal)'); }
+function refreshAiClassUI(){
+  const exec=isExecutive();
+  const sel=document.getElementById('ai-model-sel'); if(sel){ sel.style.display=exec?'':'none'; sel.value=_aiTier; }
+  const badge=document.getElementById('ai-class-badge');
+  if(badge){ badge.textContent=exec?'Executive':''; badge.style.display=exec?'':'none'; }
+}
+
 async function initUserIdentity() {
   // Try SharePoint first
   const spUser = await detectSharePointUser();
@@ -6139,6 +6169,8 @@ function workerHeaders() {
   if (TSI_API_KEY) h['X-TSI-Key'] = TSI_API_KEY;
   const u = getUserInitials();
   if (u) h['X-TSI-User'] = u;
+  const em = (typeof getUserEmail==='function') ? getUserEmail() : '';
+  if (em) h['X-TSI-Email'] = em;   // worker uses this for AI model tiering (user class)
   return h;
 }
 

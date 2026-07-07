@@ -51,9 +51,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 
 **Decisions to talk through**
 - [?] **Part numbers** — abstract them? (how far, and why)
-- [?] **AI model tiering / user classes**: `wteal@`, `bteal@`, `jteal@tsi-inc.net` = **executive**
-  class → default a higher-power model (next below Opus, e.g. **Sonnet**) + a **model dropdown**
-  for them. Model choice server-side by class.
+- [x] **AI model tiering / user classes** — `jteal@`/`wteal@`/`bteal@tsi-inc.net` = **executive**:
+  AI Assistant shows an "Executive" badge + a **model dropdown** (Sonnet default / Haiku),
+  members get neither. Client sends `tier` + `X-TSI-Email`; the worker's `aiModelFor(email,tier)`
+  picks the model server-side (members always standard; executives may choose). Model IDs are an
+  easily-editable const block in the worker. **Runs once the worker deploys.**
 - [ ] **Usage** tab should key on the **SharePoint** identity we already resolve.
 
 

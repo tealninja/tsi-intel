@@ -14,6 +14,23 @@ const KV_PIPELINE = 'pipeline';
 const KV_BUGS     = 'bugs';
 const KV_USAGE    = 'usage_log';
 
+// ── AI model tiering (soft user classes; enforced here, server-side) ──
+// Adjust the model IDs to whatever the Anthropic API key can access.
+const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','wteal@tsi-inc.net','bteal@tsi-inc.net'];
+const AI_MODELS = {
+  standard:  'claude-3-5-haiku-latest',   // members — fast/cheap
+  executive: 'claude-sonnet-4-6',         // executives — "just under Opus"
+};
+const AI_EXEC_CHOICES = {                  // an executive may pick any of these
+  sonnet: 'claude-sonnet-4-6',
+  haiku:  'claude-3-5-haiku-latest',
+};
+function aiModelFor(email, tier){
+  const isExec = AI_EXEC_EMAILS.includes(String(email||'').toLowerCase());
+  if (!isExec) return AI_MODELS.standard;                // members always standard
+  return AI_EXEC_CHOICES[tier] || AI_MODELS.executive;   // executives may choose
+}
+
 // ⚠️ DEPLOY PREREQUISITES (this Worker now fails closed):
 //   1. `wrangler secret put TSI_API_KEY` — without it EVERY request is 401.
 //   2. The client must send `X-TSI-Key` on every call (the HTML currently does
@@ -48,7 +65,7 @@ function corsHeaders(origin) {
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '');
   const h = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User',
+    'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User, X-TSI-Email',
     'Access-Control-Max-Age':       '86400',
     'Vary':                         'Origin',
   };
@@ -285,7 +302,7 @@ export default {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model:      body.model      || 'claude-sonnet-4-6',
+          model:      aiModelFor(request.headers.get('X-TSI-Email'), body.tier),
           max_tokens: body.max_tokens || 1000,
           system:     body.system     || '',
           messages:   body.messages   || [],
