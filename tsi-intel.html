@@ -3426,10 +3426,11 @@ const CATS    = ["Torrefaction","Dryer Island","Dryer System","Emissions","After
 const PROBS   = ["100%","90%","80%","75%","65%","60%","50%","40%","35%","30%","25%","20%","15%","10%","5%"];
 const TAG_KEYS = Object.keys(TAG_DEFS);
 
-let acDropdown=null;
+let acDropdown=null, _acInput=null, _acActive=-1;
 
 function closeAC() {
   if(acDropdown) { acDropdown.remove(); acDropdown=null; }
+  _acInput=null; _acActive=-1;
 }
 
 function showAC(input, items, onSelect, allowCreate=false) {
@@ -3444,17 +3445,37 @@ function showAC(input, items, onSelect, allowCreate=false) {
   filtered.forEach(item=>{
     const el=document.createElement("div");
     el.className="ac-item"; el.textContent=item;
-    el.onmousedown=e=>{ e.preventDefault(); onSelect(item); closeAC(); };
+    el._select=()=>{ onSelect(item); closeAC(); };
+    el.onmousedown=e=>{ e.preventDefault(); el._select(); };
     div.appendChild(el);
   });
   if(allowCreate&&input.value&&!items.find(i=>i.toLowerCase()===input.value.toLowerCase())) {
     const el=document.createElement("div");
     el.className="ac-item create"; el.textContent=`+ Add "${input.value}"`;
-    el.onmousedown=e=>{ e.preventDefault(); onSelect(input.value); closeAC(); };
+    el._select=()=>{ onSelect(input.value); closeAC(); };
+    el.onmousedown=e=>{ e.preventDefault(); el._select(); };
     div.appendChild(el);
   }
-  document.body.appendChild(div); acDropdown=div;
+  document.body.appendChild(div); acDropdown=div; _acInput=input; _acActive=-1;
 }
+// Keyboard navigation for the autocomplete dropdown (↑/↓ to move, Enter to pick,
+// Esc to dismiss). Wired to whichever input owns the currently-open dropdown.
+function acHighlight(){
+  if(!acDropdown) return;
+  const items=[...acDropdown.querySelectorAll('.ac-item')];
+  items.forEach((el,i)=>el.classList.toggle('active', i===_acActive));
+  if(_acActive>=0 && items[_acActive]) items[_acActive].scrollIntoView({block:'nearest'});
+}
+function acKeydown(e){
+  if(!acDropdown || e.target!==_acInput) return;
+  const items=[...acDropdown.querySelectorAll('.ac-item')];
+  if(!items.length) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _acActive=(_acActive+1)%items.length; acHighlight(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); _acActive=(_acActive-1+items.length)%items.length; acHighlight(); }
+  else if(e.key==='Enter'){ if(_acActive>=0 && items[_acActive]){ e.preventDefault(); items[_acActive]._select&&items[_acActive]._select(); } }
+  else if(e.key==='Escape'){ closeAC(); }
+}
+document.addEventListener('keydown', acKeydown, true);
 
 document.addEventListener("click",e=>{ if(!e.target.closest(".ac-dropdown")&&!e.target.closest(".cell-input")) closeAC(); });
 document.addEventListener("scroll",closeAC,true);
@@ -4397,6 +4418,33 @@ const LOC_COORDS = {
   'Quebec':                [52.0, -72.0],
 };
 
+// Approximate region presets — for opportunities that don't have a precise site
+// yet (e.g. "SE Asia", "SE USA"). Selecting one sets a centroid + friendly label;
+// the climate shown is a broad regional normal and is flagged as approximate.
+const GENERIC_LOCATIONS = [
+  { label:'SE Asia',                 lat:5.0,   lon:110.0 },
+  { label:'East Asia',               lat:35.0,  lon:120.0 },
+  { label:'South Asia',              lat:22.0,  lon:79.0  },
+  { label:'Oceania / New Zealand',   lat:-40.0, lon:173.0 },
+  { label:'SE USA',                  lat:33.0,  lon:-84.0 },
+  { label:'SW USA',                  lat:33.5,  lon:-106.0},
+  { label:'NW USA (Pacific NW)',     lat:45.5,  lon:-122.5},
+  { label:'NE USA',                  lat:42.0,  lon:-74.0 },
+  { label:'US Midwest',              lat:41.5,  lon:-90.0 },
+  { label:'US South',                lat:32.0,  lon:-90.0 },
+  { label:'US West Coast',           lat:38.0,  lon:-121.5},
+  { label:'Western Canada',          lat:54.0,  lon:-118.0},
+  { label:'Eastern Canada',          lat:47.0,  lon:-72.0 },
+  { label:'Southern Brazil',         lat:-26.0, lon:-50.0 },
+  { label:'Brazil',                  lat:-15.0, lon:-47.0 },
+  { label:'South America',           lat:-15.0, lon:-60.0 },
+  { label:'Northern Europe',         lat:55.0,  lon:10.0  },
+  { label:'Western Europe',          lat:48.0,  lon:2.0   },
+  { label:'Scandinavia',             lat:62.0,  lon:15.0  },
+  { label:'Middle East',             lat:25.0,  lon:45.0  },
+  { label:'Africa',                  lat:2.0,   lon:22.0  },
+];
+
 function initMap() {
   if (tsiMap) return;
   tsiMap = L.map('tsi-map', { zoomControl: true, scrollWheelZoom: true });
@@ -5122,6 +5170,7 @@ function openOppDrawer(editId, opts) {
   rebuildDrawerTags();
   rebuildDrawerLinks();
   _drawerDirty = false;      // fresh load — no unsaved edits yet
+  window._drawerLocMeta = null;
   updateDrawerNavUI();
 
   // Open
@@ -5338,15 +5387,31 @@ let _geoResults = [];
 
 async function drawerGeoSearch() {
   clearTimeout(_geoACTimer);
-  const q = document.getElementById('d-loc-search').value.trim();
-  if (q.length < 3) { closeAC(); return; }
+  const inp = document.getElementById('d-loc-search');
+  const q = inp.value.trim();
+  // Matching generic region presets — shown first, and available even for short
+  // queries (no min length, since they don't hit the geocoder).
+  const generics = q ? GENERIC_LOCATIONS
+    .filter(g => g.label.toLowerCase().includes(q.toLowerCase()))
+    .map(g => ({ label: g.label + ' (region)', displayLabel: g.label, city:'', state:'', country:'',
+                 lat: g.lat, lon: g.lon, approx: true })) : [];
+  const renderAC = () => showAC(inp, _geoResults.map(r => r.label), label => {
+    const match = _geoResults.find(r => r.label === label);
+    if (match) applyGeoResult(match);
+  });
+  if (q.length < 3) {
+    _geoResults = generics;
+    if (generics.length) renderAC(); else closeAC();
+    return;
+  }
+  _geoResults = generics.slice();       // show generics immediately while the geocoder loads
+  if (generics.length) renderAC();
   _geoACTimer = setTimeout(async () => {
-    const inp = document.getElementById('d-loc-search');
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`;
     try {
       const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
       const data = await res.json();
-      _geoResults = data.map(r => {
+      const geo = data.map(r => {
         const a = r.address || {};
         const city    = a.city || a.town || a.village || a.hamlet || a.county || '';
         const state   = a.state || a.region || '';
@@ -5354,10 +5419,8 @@ async function drawerGeoSearch() {
         return { label: [city,state,country].filter(Boolean).join(', '), city, state, country,
                  lat: parseFloat(r.lat), lon: parseFloat(r.lon) };
       }).filter(r => r.label);
-      showAC(inp, _geoResults.map(r => r.label), label => {
-        const match = _geoResults.find(r => r.label === label);
-        if (match) applyGeoResult(match);
-      });
+      _geoResults = generics.concat(geo);   // regions first, then geocoder hits
+      renderAC();
     } catch {}
   }, 400);
 }
@@ -5384,13 +5447,17 @@ async function drawerGeoFetch() {
 
 function applyGeoResult(match) {
   closeAC();
-  document.getElementById('d-loc-search').value = match.label;
-  document.getElementById('d-city').value    = match.city;
-  document.getElementById('d-state').value   = match.state;
-  document.getElementById('d-country').value = match.country;
+  // For region presets, keep the friendly name in the location field but leave
+  // city/state/country blank (the loc string falls back to this field on save).
+  const shownLabel = match.displayLabel || match.label;
+  document.getElementById('d-loc-search').value = shownLabel;
+  document.getElementById('d-city').value    = match.city || '';
+  document.getElementById('d-state').value   = match.state || '';
+  document.getElementById('d-country').value = match.country || '';
   document.getElementById('d-lat').value     = match.lat.toFixed(5);
   _drawerLat = match.lat; _drawerLon = match.lon;
-  setDrawerLocStatus('Loading weather & elevation data…', 'var(--tsi-teal)');
+  window._drawerLocMeta = { label: shownLabel, approx: !!match.approx };
+  setDrawerLocStatus(match.approx ? 'Region set — loading approximate climate…' : 'Loading weather & elevation data…', 'var(--tsi-teal)');
   initDrawerMap(match.lat, match.lon);
   Promise.all([drawerFetchWeather(match.lat, match.lon), drawerFetchElevation(match.lat, match.lon)]);
 }
@@ -5468,7 +5535,14 @@ async function drawerFetchWeather(lat, lon) {
   drawClimatogram(w.mHigh, w.mMean, w.mLow, w.mPrec);
   const _cs = document.getElementById('d-clima-src');
   if(_cs) _cs.textContent = w.src;
-  setDrawerLocStatus('✓ Climate data loaded · ' + w.src, 'var(--tsi-succ-green)');
+  // Be precise: confirm the LOCATION that was set, and that the weather is
+  // historical climate *normals* (not a live reading) — approximate for regions.
+  const meta = window._drawerLocMeta || {};
+  const locName = meta.label
+    || [document.getElementById('d-city').value, document.getElementById('d-state').value, document.getElementById('d-country').value].filter(Boolean).join(', ')
+    || 'this location';
+  setDrawerLocStatus((meta.approx ? '✓ Region set: ' : '✓ Location set: ') + locName
+    + ' · ' + (meta.approx ? 'approximate ' : '') + 'climate normals (' + w.src + ')', 'var(--tsi-succ-green)');
   window._drawerWeather = {
     tempAvg:  parseFloat(w.avgT.toFixed(1)),
     tempMin:  parseFloat(w.coldest.toFixed(1)),
