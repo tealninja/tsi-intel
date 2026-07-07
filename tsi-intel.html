@@ -547,11 +547,17 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 
 /* ── LOCATION GEOCODE ────────────────────────────────── */
 .loc-wrap { position:relative; }
-.loc-input { width:100%; }
+.loc-input { width:100%; padding-right:16px; }
 .geo-spinner { position:absolute; right:4px; top:50%;
   transform:translateY(-50%); font-size:10px;
   color:var(--tsi-teal); opacity:0; transition:opacity 0.2s; }
 .geo-spinner.active { opacity:1; }
+.loc-mark { position:absolute; right:5px; top:50%; transform:translateY(-50%); font-size:11px; pointer-events:auto; }
+.loc-mark.ok { color:#b9c3cd; }               /* light gray — verified */
+.loc-mark.warn { color:var(--tsi-amber); }    /* needs geocoding */
+.loc-mark.missing { color:var(--tsi-coral); } /* no location at all */
+.geo-spinner.active + .loc-mark, .loc-input:focus ~ .loc-mark { opacity:0; } /* hide while geocoding / editing */
+.tr-starred .loc-mark.ok { color:rgba(255,255,255,.6); }
 
 /* ── XLSX EXPORT BUTTON ──────────────────────────────── */
 .btn-xlsx {
@@ -2981,6 +2987,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <span class="chip" id="chip-starred" onclick="toggleStarredFilter(this)">⭐ Starred only</span>
       <span class="chip" id="chip-following" onclick="toggleFollowingFilter(this)">🔔 Following only</span>
       <span class="chip" id="chip-imminent" onclick="toggleImminentFilter(this)" title="Only deals with a PO expected soon">⚡ Imminent</span>
+      <span class="chip" id="chip-needsloc" onclick="toggleNeedsLocFilter(this)" title="Only deals whose location has no coordinates yet — the ones to go verify">⚠ Needs location</span>
     </div>
   </div>
   <div class="tbl-wrap" id="pip-table-wrap">
@@ -3306,10 +3313,17 @@ let activeCloseChip = null;
 let starredOnly = false;
 let followingOnly = false;   // personal "following" filter (per-user)
 let imminentOnly = false;    // "Imminent" filter — replaces the old Imminent tab
+let needsLocOnly = false;    // show only deals whose location isn't geocoded yet
 
 function toggleStarredFilter(el) {
   starredOnly = !starredOnly;
   el.classList.toggle("active", starredOnly);
+  renderPipeline();
+}
+
+function toggleNeedsLocFilter(el) {
+  needsLocOnly = !needsLocOnly;
+  el.classList.toggle("active", needsLocOnly);
   renderPipeline();
 }
 
@@ -3707,6 +3721,7 @@ function renderPipeline() {
   let f = open().filter(o =>
     (!starredOnly || starredIds.has(o.id)) &&
     (!followingOnly || (typeof isFollowing === 'function' && isFollowing(o.id))) &&
+    (!needsLocOnly || !locVerified(o)) &&
     (!q || [o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q)) &&
     (!cat  || o.cat===cat) &&
     (!loc  || o.loc===loc) &&
@@ -4530,6 +4545,7 @@ function currentFilteredRows() {
   const prob = (document.getElementById("fprob")||{}).value||'';
   let _f = open().filter(o=>
     (!starredOnly||starredIds.has(o.id))&&
+    (!needsLocOnly||!locVerified(o))&&
     (!imminentOnly||(typeof IMMINENT_IDS!=='undefined'&&IMMINENT_IDS.includes(o.id)))&&
     (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q))&&
     (!cat||o.cat===cat)&&(!loc||o.loc===loc)&&(!lead||o.lead===lead)&&
@@ -4618,6 +4634,15 @@ async function geoSearch(query) {
   } catch { return []; }
 }
 
+// A location counts as "verified" when it has real coordinates (geocoded).
+function locVerified(o){ return !!(o && o.lat && o.lon); }
+function setLocMark(mark, o){
+  const hasCoords = locVerified(o), hasText = (o.loc||'').trim();
+  mark.classList.remove('ok','warn','missing');
+  if (hasCoords){ mark.classList.add('ok');   mark.textContent='✓'; mark.title='Location verified — has coordinates'; }
+  else if (hasText){ mark.classList.add('warn'); mark.textContent='⚠'; mark.title='No coordinates yet — click the location to geocode & verify'; }
+  else { mark.classList.add('missing'); mark.textContent='⚠'; mark.title='No location set — needs info'; }
+}
 function makeLocCell(o) {
   const td   = document.createElement('td');
   td.className = 'editable loc-wrap';
@@ -4628,7 +4653,13 @@ function makeLocCell(o) {
 
   const spin = document.createElement('span');
   spin.className = 'geo-spinner'; spin.textContent = '⟳';
-  td.appendChild(inp); td.appendChild(spin);
+  // Verification marker: light-gray ✓ when the location has real coordinates,
+  // amber ⚠ when there's a place typed but it hasn't been geocoded, coral when
+  // there's no location at all — a quick scan of what still needs attention.
+  const mark = document.createElement('span');
+  mark.className = 'loc-mark';
+  setLocMark(mark, o);
+  td.appendChild(inp); td.appendChild(spin); td.appendChild(mark);
 
   inp.oninput = () => {
     clearTimeout(_geoTimer);
@@ -4651,6 +4682,7 @@ function makeLocCell(o) {
           rec2.lon = match.lon;
           inp.value = match.label;
           markDirty(o.id);
+          setLocMark(mark, rec2);   // now verified — flip to the gray ✓
           // Update map dot
           updateMap(currentFilteredRows());
         }
