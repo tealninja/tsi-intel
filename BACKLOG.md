@@ -38,10 +38,13 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 - [x] Add a **Description** section after the "issued to" info (new `q-description`
   field + D1 `quotes.description` column + worker upsert).
 - [x] Move **Assumptions & Clarifications to after the pricing** (Print + Word).
-- [ ] **Rich-text** long fields (bold, bullets).
-- [ ] **Attach the T&Cs** doc (uploaded in git) — a box for the full terms.
-- [ ] Import: allow **Excel / files / email** upload + **drag-and-drop**.
-- [ ] **Professional unique PN** on the quote/price list (customer-facing catalog #).
+- [x] **Rich-text** long fields (bold, italic, bullets) via contenteditable + sanitizer.
+- [x] **Attach the T&Cs** — full standard terms from the uploaded doc (19 sections) in a
+  collapsible editable box (Q_TERMS_FULL); rendered in Print + Word; D1 `terms` column.
+- [x] Import: **drag-and-drop** on Parse Updates — email (.eml)/Excel (.xlsx/.csv)/text,
+  Excel via lazy SheetJS.
+- [x] **Professional unique PN** — custom quote lines auto-get a `TSI-C#####` catalog PN
+  (no blank PNs in the builder or Print/Word output).
 
 **Decisions to talk through**
 - [?] **Part numbers** — abstract them? (how far, and why)

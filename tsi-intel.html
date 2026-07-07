@@ -12953,7 +12953,16 @@ function addQuoteLine(seedId){
 }
 function addQuoteLineFromPicker(){ const id=document.getElementById('q-add-prod').value; if(id) addQuoteLine(id); }
 function addQuoteCustomLine(){ addQuoteCustomLineNamed(''); }
-function addQuoteCustomLineNamed(name){ if(!_qWorking) return; _qWorking.lines.push({ id:null, product_seed_id:null, code:'', description:name||'', qty:1, unit:'ea', unit_price:0 }); renderQuoteLines(); recalcQuoteTotals(); }
+function addQuoteCustomLineNamed(name){ if(!_qWorking) return; _qWorking.lines.push({ id:null, product_seed_id:null, code:genCustomPN(), description:name||'', qty:1, unit:'ea', unit_price:0 }); renderQuoteLines(); recalcQuoteTotals(); }
+// Professional catalog-style part number for a custom line (so the quote reads
+// as a real price book — no blank PNs — and lines look non-negotiable).
+function genCustomPN(){ return 'TSI-C' + String(Math.floor(Math.random()*90000)+10000); }
+function qLinePN(l){
+  if(l && l.code && String(l.code).trim()) return String(l.code).trim();
+  const s=(l && l.description || '').trim(); let h=0;
+  for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
+  return 'TSI-C' + String(h%90000+10000);
+}
 function removeQuoteLine(i){ if(!_qWorking) return; _qWorking.lines.splice(i,1); renderQuoteLines(); recalcQuoteTotals(); }
 function updateQuoteLine(i,field,val){
   const l=_qWorking&&_qWorking.lines[i]; if(!l) return;
@@ -13106,7 +13115,7 @@ async function printQuoteById(id){ const q=await loadOneQuote(id); if(q) printQu
 function printQuote(q){
   const cur=q.currency||'USD'; const t=qTotals(q);
   const lines=(q.lines||[]).map((l,i)=>`<tr>
-    <td class="c">${i+1}</td><td class="pn">${qesc(l.code||'')}</td><td>${qesc(l.description||'')}</td>
+    <td class="c">${i+1}</td><td class="pn">${qesc(qLinePN(l))}</td><td>${qesc(l.description||'')}</td>
     <td class="c">${qesc(l.unit||'')}</td><td class="r">${qmoney(l.unit_price,cur)}</td>
     <td class="r">${qesc(String(l.qty||0))}</td><td class="r">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</td></tr>`).join('');
   const foot=[`<tr><td colspan="6" class="r lbl">Subtotal</td><td class="r">${qmoney(t.sub,cur)}</td></tr>`];
@@ -13175,7 +13184,7 @@ function exportQuoteWord(q){
   const cellTd='style="padding:6px 7px;border-bottom:1px solid #eee;font-size:10.5pt;vertical-align:top"';
   const rows=(q.lines||[]).map((l,i)=>`<tr>
     <td ${cellTd} align="center">${i+1}</td>
-    <td ${cellTd} style="padding:6px 7px;border-bottom:1px solid #eee;font-family:Consolas,monospace;font-size:9.5pt;color:#666">${qesc(l.code||'')}</td>
+    <td ${cellTd} style="padding:6px 7px;border-bottom:1px solid #eee;font-family:Consolas,monospace;font-size:9.5pt;color:#666">${qesc(qLinePN(l))}</td>
     <td ${cellTd}>${qesc(l.description||'')}</td>
     <td ${cellTd} align="center">${qesc(l.unit||'')}</td>
     <td ${cellTd} align="right">${qmoney(l.unit_price,cur)}</td>
