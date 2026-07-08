@@ -4186,7 +4186,7 @@ function initColInteractions(tableId) {
       th.dataset.colInit = "1";
       // sticky (pipeline) still establishes a containing block for the resize
       // handle, so keep the header pinned instead of forcing position:relative.
-      th.style.position = (tableId === 'pip-table') ? 'sticky' : 'relative';
+      th.style.position = (tableId === 'pip-table' || tableId === 'prod-table') ? 'sticky' : 'relative';
 
       // ── RESIZE HANDLE ──
       const rz = document.createElement("div");
@@ -13248,6 +13248,8 @@ startAdminPoll();
     <button class="prod-btn" id="prod-view-toggle" onclick="toggleProdView()" title="Group products by family, collapsible">🌲 Tree</button>
     <button class="prod-btn ghost" id="prod-collapse-all" onclick="prodToggleAll()" style="display:none">Collapse all</button>
     <label class="prod-legacy-lbl"><input type="checkbox" id="prod-show-legacy" onchange="renderProducts()"> Legacy&nbsp;PN</label>
+    <div class="views-wrap"><button class="prod-btn" onclick="TableKit.toggleViews(event,'prod-table')" title="Your saved views">⭐ Views ▾</button></div>
+    <div class="views-wrap"><button class="prod-btn" id="tk-cols-btn-prod-table" onclick="TableKit.toggleCols(event,'prod-table')" title="Show / hide columns">▦ Columns ▾</button></div>
     <span class="prod-count" id="prod-count"></span>
     <span class="prod-dirty" id="prod-dirty" style="display:none">● unsaved</span>
     <span style="flex:1"></span>
@@ -13261,14 +13263,14 @@ startAdminPoll();
     <table class="prod-grid tbl-editable" id="prod-table">
       <thead>
         <tr>
-          <th class="sortable" data-sort="code" onclick="sortProducts('code')">Code (SKU)<span class="sort-icon"></span></th>
-          <th class="sortable" data-sort="name" onclick="sortProducts('name')">Name / Description<span class="sort-icon"></span></th>
-          <th class="sortable" data-sort="category" onclick="sortProducts('category')">Category<span class="sort-icon"></span></th>
-          <th class="sortable" data-sort="price" onclick="sortProducts('price')">Price (USD)<span class="sort-icon"></span></th>
-          <th class="sortable" data-sort="unit" onclick="sortProducts('unit')">Unit<span class="sort-icon"></span></th>
-          <th class="sortable" data-sort="parentCode" onclick="sortProducts('parentCode')">Family / Parent<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="code">Code (SKU)<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="name">Name / Description<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="category">Category<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="price">Price (USD)<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="unit">Unit<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="parentCode">Family / Parent<span class="sort-icon"></span></th>
           <th>Notes</th>
-          <th class="prod-legacy-col sortable" data-sort="legacyPn" onclick="sortProducts('legacyPn')" style="display:none">Legacy PN<span class="sort-icon"></span></th>
+          <th class="prod-legacy-col" style="display:none">Legacy PN<span class="sort-icon"></span></th>
           <th style="width:34px"></th>
         </tr>
       </thead>
@@ -13930,7 +13932,24 @@ const PRODUCTS_SEED = [
 
 // Working copy (clone so the embedded seed stays pristine for reference/reset).
 let PRODUCTS = PRODUCTS_SEED.map(p => ({ ...p }));
-let prodSort = { key: 'code', dir: 1 };      // dir: 1 asc, -1 desc
+let prodSort = { key: 'code', dir: 1 };      // legacy (unused; sort now via TableKit)
+
+// Register the Products table with the shared TableKit engine.
+TableKit.register('prod-table', {
+  data: () => PRODUCTS,
+  render: () => renderProducts(),
+  columns: [
+    { i:1, label:'Code (SKU)',         col:'code',       sortable:true },
+    { i:2, label:'Name / Description', col:'name',       sortable:true },
+    { i:3, label:'Category',           col:'category',   sortable:true },
+    { i:4, label:'Price (USD)',        col:'price',      sortable:true, sortVal:p=>p.price==null?-Infinity:Number(p.price), filterVal:p=>p.price==null?'TBD':String(p.price) },
+    { i:5, label:'Unit',               col:'unit',       sortable:true },
+    { i:6, label:'Family / Parent',    col:'parentCode', sortable:true },
+    { i:7, label:'Notes' },
+  ],
+  capture: () => ({ search:(document.getElementById('prod-search')||{}).value||'', cat:(document.getElementById('prod-cat-filter')||{}).value||'', legacy:!!(document.getElementById('prod-show-legacy')||{}).checked }),
+  apply: (st) => { const s=document.getElementById('prod-search'); if(s) s.value=st.search||''; const c=document.getElementById('prod-cat-filter'); if(c) c.value=st.cat||''; const l=document.getElementById('prod-show-legacy'); if(l) l.checked=!!st.legacy; renderProducts(); },
+});
 let prodDirty = false;
 let _prodNewCounter = 0;
 let prodViewMode = 'flat';                   // 'flat' | 'tree'
@@ -13996,7 +14015,7 @@ function prodCell(p, field, opts={}){
   return td;
 }
 
-function sortProducts(key){
+function sortProducts(key){ TableKit.toggleSort('prod-table', key); return;
   if (prodSort.key === key) prodSort.dir *= -1; else { prodSort.key = key; prodSort.dir = 1; }
   renderProducts();
 }
@@ -14051,14 +14070,9 @@ function renderProducts(){
         || (p.category||'').toLowerCase().includes(q);
   });
 
-  // Sort.
-  const k = prodSort.key, dir = prodSort.dir;
-  rows.sort((a,b)=>{
-    let va=a[k], vb=b[k];
-    if (k==='price'){ va = va==null?-Infinity:va; vb = vb==null?-Infinity:vb; return (va-vb)*dir; }
-    va=(va==null?'':String(va)).toLowerCase(); vb=(vb==null?'':String(vb)).toLowerCase();
-    return va<vb ? -dir : va>vb ? dir : 0;
-  });
+  // Column value filters + sort via the shared TableKit engine.
+  rows = TableKit.filterRows('prod-table', rows);
+  rows = TableKit.sortRows('prod-table', rows);
 
   // Render.
   tbody.innerHTML='';
@@ -14076,10 +14090,14 @@ function renderProducts(){
   const cnt=document.getElementById('prod-count');
   if (cnt){ const priced=PRODUCTS.filter(p=>p.price!=null).length;
     cnt.textContent = rows.length+' of '+PRODUCTS.length+' shown · '+priced+' priced'; }
+  const _ps = activeSort['prod-table'];
   document.querySelectorAll('#prod-table th.sortable').forEach(th=>{
     const ic=th.querySelector('.sort-icon');
-    ic.textContent = th.dataset.sort===prodSort.key ? (prodSort.dir>0?'▲':'▼') : '';
+    if(ic) ic.textContent = (_ps && th.dataset.col===_ps.col) ? (_ps.dir>0?'▲':'▼') : '';
   });
+  // Wire sort/drag/resize/column-filter icons (idempotent).
+  initColInteractions('prod-table');
+  TableKit.updateFilterIndicators('prod-table');
 }
 
 // Build one editable product row. opts: {caret:bool, collapsed:bool, onCaret, indent:bool, child:bool}
