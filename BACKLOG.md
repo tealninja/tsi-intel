@@ -178,6 +178,14 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **TableKit — reusable list-table engine** — one registration-driven component
+  (`TableKit.register(id,{columns,data,render,capture/apply})`) providing sort, column
+  show/hide, column drag/resize, per-column value filters, and per-table **saved views**
+  (Store('saved_views'), scoped by table id). Rolled out to **all list tables**: Pipeline
+  (re-plumbed off its bespoke code), Products, Quotes, Price Book, Imminent. Views/Columns
+  are shared floating popovers (one list table visible at a time).
+- [x] **Account/site drawer prev-next arrows** — same `.drawer-nav` component as the
+  opportunity drawer; pages sites (or parent accounts) in sidebar order, saving on page.
 - [x] **NA pellet-producer accounts** — seeded 8 new parent accounts + 38 operating
   mills from the USA/Canada pellet-mill list (Drax +11, CM Biomass 9, Fram 4, AWF 3,
   Lignetics 7 [≥90k], Barrette, Canfor, Groupe Lebel, Highland Pine Bluff). Each with

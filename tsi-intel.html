@@ -3052,6 +3052,8 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <option value="100">100%</option><option value="75">75%+</option>
       <option value="50">50%+</option><option value="lt50">&lt;50%</option>
     </select>
+    <div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'imm-table')" title="Your saved views">⭐ Views ▾</button></div>
+    <div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-imm-table" onclick="TableKit.toggleCols(event,'imm-table')" title="Show / hide columns">▦ Columns ▾</button></div>
     <span class="toolbar-count" id="imm-count"></span>
   </div>
   <div class="tbl-wrap">
@@ -3913,8 +3915,10 @@ function renderImminent() {
   const prob=document.getElementById("iprob").value;
   let rows=IMMINENT_IDS.map(id=>open().find(o=>o.id===id)).filter(Boolean)
     .filter(o=>(!lead||o.lead===lead)&&probFilter(o,prob));
+  rows=TableKit.filterRows("imm-table", rows);
   rows=getSortedRows(rows,"imm-table");
   document.getElementById("imm-count").textContent=`${rows.length} of ${IMMINENT_IDS.length} imminent`;
+  TableKit.updateFilterIndicators("imm-table");
   const tbody=document.getElementById("imminent-body"); tbody.innerHTML="";
   rows.forEach(o=>{
     const tr=document.createElement("tr");
@@ -11938,7 +11942,7 @@ TableKit.register('pip-table', {
   },
 });
 TableKit.register('imm-table', {
-  data: () => (typeof open === 'function' ? open() : []),
+  data: () => (typeof IMMINENT_IDS!=='undefined' ? IMMINENT_IDS.map(id=>open().find(o=>o.id===id)).filter(Boolean) : []),
   render: () => renderImminent(),
   columns: [
     { i:2,  label:'PO Target',    col:'close', sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD' },
@@ -13311,6 +13315,8 @@ startAdminPoll();
         <option value="Draft">Draft</option><option value="Sent">Sent</option>
         <option value="Accepted">Accepted</option><option value="Declined">Declined</option><option value="Expired">Expired</option>
       </select>
+      <div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'quote-table')" title="Your saved views">⭐ Views ▾</button></div>
+      <div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-quote-table" onclick="TableKit.toggleCols(event,'quote-table')" title="Show / hide columns">▦ Columns ▾</button></div>
       <span class="toolbar-count" id="quote-count"></span>
       <button class="btn-add-opp" onclick="openQuoteBuilder(null)">+ New Quote</button>
     </div>
@@ -13323,9 +13329,9 @@ startAdminPoll();
     <div class="tbl-wrap" id="quotes-table-wrap">
       <table class="tbl-editable" id="quote-table">
         <thead><tr>
-          <th style="width:140px">Quote #</th><th>Customer</th><th style="width:150px">Project</th>
-          <th style="width:56px">Items</th><th style="width:120px">Total</th>
-          <th style="width:90px">Status</th><th style="width:96px">Date</th><th style="width:120px"></th>
+          <th class="sortable" data-col="id" style="width:140px">Quote #<span class="sort-icon"></span></th><th class="sortable" data-col="customer_name">Customer<span class="sort-icon"></span></th><th class="sortable" data-col="project" style="width:150px">Project<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="n_lines" style="width:56px">Items<span class="sort-icon"></span></th><th class="sortable" data-col="total" style="width:120px">Total<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="status" style="width:90px">Status<span class="sort-icon"></span></th><th class="sortable" data-col="quote_date" style="width:96px">Date<span class="sort-icon"></span></th><th style="width:120px"></th>
         </tr></thead>
         <tbody id="quotes-body"></tbody>
       </table>
@@ -13343,6 +13349,8 @@ startAdminPoll();
       <label style="font-size:11px;color:var(--color-text-secondary);display:flex;align-items:center;gap:5px">
         <input type="checkbox" id="pb-onlypriced" onchange="renderPriceBook()" checked style="accent-color:var(--tsi-teal)"> Priced only
       </label>
+      <div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'pb-table')" title="Your saved views">⭐ Views ▾</button></div>
+      <div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-pb-table" onclick="TableKit.toggleCols(event,'pb-table')" title="Show / hide columns">▦ Columns ▾</button></div>
       <span class="toolbar-count" id="pb-count"></span>
       <button class="btn-add-opp" id="pb-save-btn" onclick="savePriceBookChanges()" style="display:none">💾 Save price changes</button>
     </div>
@@ -13352,8 +13360,8 @@ startAdminPoll();
     <div class="tbl-wrap">
       <table class="tbl-editable" id="pb-table">
         <thead><tr>
-          <th style="width:110px">Code</th><th>Name</th><th style="width:190px">Category</th>
-          <th style="width:60px">Unit</th><th style="width:100px">Cost</th><th style="width:100px">Price</th><th style="width:70px">Margin</th>
+          <th class="sortable" data-col="code" style="width:110px">Code<span class="sort-icon"></span></th><th class="sortable" data-col="name">Name<span class="sort-icon"></span></th><th class="sortable" data-col="category" style="width:190px">Category<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="unit" style="width:60px">Unit<span class="sort-icon"></span></th><th class="sortable" data-col="cost" style="width:100px">Cost<span class="sort-icon"></span></th><th class="sortable" data-col="price" style="width:100px">Price<span class="sort-icon"></span></th><th class="sortable" data-col="margin" style="width:70px">Margin<span class="sort-icon"></span></th>
         </tr></thead>
         <tbody id="pb-tbody"></tbody>
       </table>
@@ -14378,6 +14386,37 @@ function populatePbCatFilter(){
   pbCategories().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
   sel._filled=true;
 }
+// Register Quotes + Price Book with the shared TableKit engine.
+TableKit.register('quote-table', {
+  data: () => (window._quotesCache || []),
+  render: () => renderQuotesList(),
+  columns: [
+    { i:1, label:'Quote #',  col:'id',            sortable:true },
+    { i:2, label:'Customer', col:'customer_name', sortable:true },
+    { i:3, label:'Project',  col:'project',       sortable:true },
+    { i:4, label:'Items',    col:'n_lines',       sortable:true, sortVal:q=>q.n_lines!=null?Number(q.n_lines):(q.lines||[]).length },
+    { i:5, label:'Total',    col:'total',         sortable:true, sortVal:q=>Number(q.total)||0, filterVal:q=>String(q.status||'') },
+    { i:6, label:'Status',   col:'status',        sortable:true },
+    { i:7, label:'Date',     col:'quote_date',    sortable:true },
+  ],
+  capture: () => ({ search:(document.getElementById('quote-search')||{}).value||'', status:(document.getElementById('quote-fstatus')||{}).value||'' }),
+  apply: (st) => { const s=document.getElementById('quote-search'); if(s) s.value=st.search||''; const f=document.getElementById('quote-fstatus'); if(f) f.value=st.status||''; renderQuotesList(); },
+});
+TableKit.register('pb-table', {
+  data: () => PRODUCTS,
+  render: () => renderPriceBook(),
+  columns: [
+    { i:1, label:'Code',     col:'code',     sortable:true },
+    { i:2, label:'Name',     col:'name',     sortable:true },
+    { i:3, label:'Category', col:'category', sortable:true },
+    { i:4, label:'Unit',     col:'unit',     sortable:true },
+    { i:5, label:'Cost',     col:'cost',     sortable:true, sortVal:p=>{const e=PRICEBOOK[p.seedId]||{};return e.cost==null?-Infinity:Number(e.cost);}, filterVal:p=>{const e=PRICEBOOK[p.seedId]||{};return e.cost==null?'—':String(e.cost);} },
+    { i:6, label:'Price',    col:'price',    sortable:true, sortVal:p=>{const e=PRICEBOOK[p.seedId]||{};return e.price==null?-Infinity:Number(e.price);}, filterVal:p=>{const e=PRICEBOOK[p.seedId]||{};return e.price==null?'—':String(e.price);} },
+    { i:7, label:'Margin',   col:'margin',   sortable:true, sortVal:p=>{const e=PRICEBOOK[p.seedId]||{};return (e.price&&e.cost)?(1-Number(e.cost)/Number(e.price)):-Infinity;} },
+  ],
+  capture: () => ({ search:(document.getElementById('pb-search')||{}).value||'', cat:(document.getElementById('pb-fcat')||{}).value||'', priced:!!(document.getElementById('pb-onlypriced')||{}).checked }),
+  apply: (st) => { const s=document.getElementById('pb-search'); if(s) s.value=st.search||''; const c=document.getElementById('pb-fcat'); if(c) c.value=st.cat||''; const o=document.getElementById('pb-onlypriced'); if(o) o.checked=!!st.priced; renderPriceBook(); },
+});
 function renderPriceBook(){
   populatePbCatFilter();
   const q=(document.getElementById('pb-search').value||'').toLowerCase().trim();
@@ -14390,7 +14429,8 @@ function renderPriceBook(){
     if(q && !((p.code+' '+p.name+' '+p.category).toLowerCase().includes(q))) return false;
     return true;
   }).sort((a,b)=> a.category===b.category ? a.code.localeCompare(b.code) : a.category.localeCompare(b.category));
-  document.getElementById('pb-tbody').innerHTML = rows.map(p=>{
+  const sorted = TableKit.sortRows('pb-table', TableKit.filterRows('pb-table', rows));
+  document.getElementById('pb-tbody').innerHTML = sorted.map(p=>{
     const e=PRICEBOOK[p.seedId]||{}; const d=_pbDirty[p.seedId]||{};
     const price=('price' in d)? d.price : (e.price ?? '');
     const cost =('cost'  in d)? d.cost  : (e.cost  ?? '');
@@ -14406,7 +14446,8 @@ function renderPriceBook(){
       <td class="pb-margin">${margin}</td>
     </tr>`;
   }).join('');
-  document.getElementById('pb-count').textContent = rows.length+' items · '+Object.values(PRICEBOOK).filter(e=>e.price!=null).length+' priced';
+  document.getElementById('pb-count').textContent = sorted.length+' items · '+Object.values(PRICEBOOK).filter(e=>e.price!=null).length+' priced';
+  initColInteractions('pb-table'); TableKit.updateFilterIndicators('pb-table');
 }
 function editPb(seedId, field, val){
   _pbDirty[seedId]=_pbDirty[seedId]||{};
@@ -14470,11 +14511,12 @@ async function renderQuotesList(){
   window._quotesCache=qs;
   const search=(document.getElementById('quote-search').value||'').toLowerCase().trim();
   const fs=document.getElementById('quote-fstatus').value;
-  const rows=qs.filter(q=>{
+  let rows=qs.filter(q=>{
     if(fs && q.status!==fs) return false;
     if(search && !(((q.id||'')+' '+(q.customer_name||'')+' '+(q.project||'')).toLowerCase().includes(search))) return false;
     return true;
   });
+  rows = TableKit.sortRows('quote-table', TableKit.filterRows('quote-table', rows));
   const empty=document.getElementById('quotes-empty'), wrap=document.getElementById('quotes-table-wrap'), cnt=document.getElementById('quote-count');
   if(!qs.length){ empty.style.display=''; wrap.style.display='none'; cnt.textContent=''; return; }
   empty.style.display='none'; wrap.style.display='';
@@ -14500,6 +14542,7 @@ async function renderQuotesList(){
       </td>
     </tr>`; }).join('');
   cnt.textContent = rows.length+' quote'+(rows.length!==1?'s':'')+(_qMode==='db'?' · D1':' · local');
+  initColInteractions('quote-table'); TableKit.updateFilterIndicators('quote-table');
 }
 async function loadOneQuote(id){
   if(_qMode==='db'){ const r=await qApi('GET','/api/quotes/'+encodeURIComponent(id)); if(r.ok && r.data && r.data.quote){ const q=r.data.quote; q.lines=r.data.lines||[]; return q; } }
