@@ -7378,6 +7378,67 @@ function derivePlantTags(accounts) {
   });
   return changed;
 }
+// Merge duplicate Drax accounts. A hand-made "DRAX" parent (created before the
+// seeded "Drax" / AG-DRX existed) can coexist with the seed and with the mills
+// added later, showing two Drax groups + duplicate mills. This folds every stray
+// Drax parent into the canonical AG-DRX, de-dupes its sites by location/name
+// (preserving hand-entered records and folding in seed capacity/coords where the
+// keeper is missing them), and reassigns any linked child records so nothing
+// orphans. Idempotent: once merged, subsequent runs are no-ops.
+function mergeDraxAccounts(data) {
+  if (!data || !Array.isArray(data.accounts)) return false;
+  let changed = false;
+  const isDrax = s => /^\s*drax\b/i.test(s || '');
+  let canon = data.accounts.find(a => a.id === 'AG-DRX');
+  let dupParents = data.accounts.filter(a => !a.parentId && a.id !== 'AG-DRX'
+    && (isDrax(a.name) || isDrax(a.acctMatch)));
+  if (!canon && dupParents.length) { canon = dupParents.shift(); }   // promote a hand parent
+  if (!canon) return false;
+  if (canon.name !== 'Drax')      { canon.name = 'Drax'; changed = true; }
+  if (canon.acctMatch !== 'Drax') { canon.acctMatch = 'Drax'; changed = true; }
+  const canonId = canon.id;
+  const dupIds = new Set(dupParents.map(p => p.id));
+  if (dupIds.size) {
+    data.accounts.forEach(a => { if (a.parentId && dupIds.has(a.parentId)) { a.parentId = canonId; a.acctMatch = 'Drax'; changed = true; } });
+    data.accounts = data.accounts.filter(a => !dupIds.has(a.id));
+    changed = true;
+  }
+  // De-dupe child sites under the canonical parent.
+  const normName = a => (a.name || '').toLowerCase().replace(/\bdrax\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const normLoc  = a => (a.loc  || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const score = a => Object.values(a).filter(v => v != null && v !== '' && !(Array.isArray(v) && !v.length)).length;
+  const sites = data.accounts.filter(a => a.parentId === canonId)
+    .sort((a, b) => {                                   // keepers first: hand-curated, then richer
+      const as = a.id.startsWith('S-DRX'), bs = b.id.startsWith('S-DRX');
+      if (as !== bs) return as ? 1 : -1;
+      return score(b) - score(a);
+    });
+  const keyMap = {};
+  const removeIds = new Set();
+  sites.forEach(s => {
+    const keys = [normName(s), normLoc(s)].filter(Boolean);
+    let keeper = null;
+    for (const k of keys) { if (keyMap[k] && keyMap[k] !== s) { keeper = keyMap[k]; break; } }
+    if (keeper) {
+      Object.keys(s).forEach(k => {                     // fold s's data into keeper where keeper is empty
+        if (k === 'id' || k === 'parentId') return;
+        const kv = keeper[k], lv = s[k];
+        const kEmpty = kv == null || kv === '' || (Array.isArray(kv) && !kv.length);
+        const lFull  = lv != null && lv !== '' && !(Array.isArray(lv) && !lv.length);
+        if (kEmpty && lFull) keeper[k] = lv;
+      });
+      (data.contacts || []).forEach(c => { if (Array.isArray(c.accountIds)) { const i = c.accountIds.indexOf(s.id); if (i >= 0) c.accountIds[i] = keeper.id; } });
+      ['equipment', 'outages', 'events'].forEach(coll => (data[coll] || []).forEach(r => { if (r && r.siteId === s.id) r.siteId = keeper.id; }));
+      keys.forEach(k => { keyMap[k] = keeper; });
+      removeIds.add(s.id);
+      changed = true;
+    } else {
+      keys.forEach(k => { if (!keyMap[k]) keyMap[k] = s; });
+    }
+  });
+  if (removeIds.size) data.accounts = data.accounts.filter(a => !removeIds.has(a.id));
+  return changed;
+}
 function loadAccounts() {
   try {
     const raw = localStorage.getItem(ACCT_KEY);
@@ -7566,6 +7627,12 @@ function loadAccounts() {
           am.loc = 'Gloster, MS, USA'; am.lat = 31.20; am.lon = -90.82; fixed = true;
         }
         if (fixed) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Merge duplicate Drax accounts (hand-made "DRAX" + seeded "Drax") and
+      // de-dupe their mills. Runs after the Drax backfill so seed + hand mills
+      // reconcile in one pass.
+      if (data.accounts && mergeDraxAccounts(data)) {
+        localStorage.setItem(ACCT_KEY, JSON.stringify(data));
       }
       // Product types are now multi-tag (OSB + Siding on one mill).
       if (data.accounts && derivePlantTags(data.accounts)) {
