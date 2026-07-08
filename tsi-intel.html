@@ -271,6 +271,16 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .cell-input.prob-input {
   font-family:var(--font-mono); text-align:center; font-weight:500; width:52px;
 }
+.cell-input.lob-select {
+  appearance:none; -webkit-appearance:none; cursor:pointer;
+  padding-right:12px; color:var(--color-text-primary);
+  background:transparent;
+  background-image:linear-gradient(45deg,transparent 50%,var(--color-text-muted) 50%),linear-gradient(135deg,var(--color-text-muted) 50%,transparent 50%);
+  background-position:calc(100% - 5px) center,calc(100% - 2px) center;
+  background-size:3px 3px,3px 3px; background-repeat:no-repeat;
+}
+.cell-input.lob-select.lob-auto { color:var(--color-text-muted); font-style:italic; }
+.cell-input.lob-select option { color:var(--color-text-primary); font-style:normal; }
 /* autocomplete dropdown */
 .ac-wrap { position:relative; width:100%; }
 .ac-dropdown {
@@ -3007,6 +3017,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th style="width:28px"></th>
         <th class="sortable" data-col="id" style="width:60px">ID<span class="sort-icon"></span></th>
         <th class="sortable" data-col="cat" style="width:100px">Category<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="lob" style="width:120px" title="Line of Business — groups the deal in the presentation">Line of Business<span class="sort-icon"></span></th>
         <th class="sortable" data-col="acct" style="width:130px">Account<span class="sort-icon"></span></th>
         <th class="sortable" data-col="loc" style="width:110px">Location<span class="sort-icon"></span></th>
         <th style="width:180px">Project</th>
@@ -3474,6 +3485,10 @@ function getSortedRows(rows, tableId) {
       const da=parseCloseDate(a.close), db=parseCloseDate(b.close);
       va=da?da.getTime():Infinity; vb=db?db.getTime():Infinity;
     }
+    else if (col==='lob') {   // sort by the effective (derived) section label, not the raw key
+      va=((PRESO_SECT[presoHeuristic(a)]||{}).label||'').toLowerCase();
+      vb=((PRESO_SECT[presoHeuristic(b)]||{}).label||'').toLowerCase();
+    }
     else { va=(a[col]||'').toLowerCase(); vb=(b[col]||'').toLowerCase(); }
     if (va<vb) return -1*dir;
     if (va>vb) return  1*dir;
@@ -3486,6 +3501,27 @@ const LEADS   = ["JT","TF","ZS","BD","RC","JM","NJ","JW"];
 const CATS    = ["Torrefaction","Dryer Island","Dryer System","Emissions","Aftermarket/CO","Finishing/Mods","Inspection","Procurement / CO","Won"];
 const PROBS   = ["100%","90%","80%","75%","65%","60%","50%","40%","35%","30%","25%","20%","15%","10%","5%"];
 const TAG_KEYS = Object.keys(TAG_DEFS);
+
+// Presentation "line of business" sections — declared here (ahead of the first
+// renderPipeline call) because the pipeline table's Line-of-Business cell and
+// presoHeuristic both read PRESO_SECT during initial render.
+const PRESO_SECTIONS = [
+  { key:'biomass', label:'Biomass',              acc:'#6E8C34', blurb:'Wood-pellet & biomass-fuel drying systems' },
+  { key:'engwood', label:'Engineered Wood',      acc:'#19446C', blurb:'MDF · OSB · particleboard — dryers, emissions, aftermarket' },
+  { key:'torref',  label:'Torrefaction',         acc:'#B45309', blurb:'Torreactor & TAP plants' },
+  { key:'samples', label:'Torrefaction Samples', acc:'#0E7490', blurb:'Biocarbon sample program' },
+];
+const PRESO_SECT = Object.fromEntries(PRESO_SECTIONS.map(s=>[s.key,s]));
+// raw heuristic (no overrides) → section key. Lives here (not with the rest of
+// the Project-Track code in the second <script>) so the pipeline Line-of-Business
+// cell and sort can resolve a deal's effective line during the first render.
+function presoHeuristic(o){
+  if(o.lob && PRESO_SECT[o.lob]) return o.lob;   // explicit Line of Business wins
+  if((o.cat||'')==='Torrefaction') return 'torref';
+  const hay = ((o.acct||'')+' '+(o.type||'')+' '+(o.notes||'')+' '+(o.loc||'')).toLowerCase();
+  if(/biomass|pellet|\bfuel\b|austwood|van\s*lung/.test(hay)) return 'biomass';
+  return 'engwood';
+}
 
 let acDropdown=null, _acInput=null, _acActive=-1;
 
@@ -3650,6 +3686,26 @@ function makeTextCell(o,field,acList=null,allowCreate=false) {
   td.appendChild(inp); return td;
 }
 
+// Line-of-Business cell — inline enum editor. Empty (o.lob==='') means the
+// section is auto-derived by presoHeuristic; we surface that derived label on
+// the "Auto" option and grey the select so it's easy to spot unassigned deals.
+function makeLobCell(o) {
+  const td=document.createElement("td"); td.className="editable lob-cell";
+  const sel=document.createElement("select"); sel.className="cell-input lob-select";
+  const derived=()=>{ const rec=DATA.find(r=>r.id===o.id)||o; return (PRESO_SECT[presoHeuristic({...rec,lob:''})]||{}).label||'—'; };
+  [['','Auto · '+derived()],['biomass','Biomass'],['engwood','Engineered Wood'],['torref','Torrefaction']]
+    .forEach(([v,l])=>{ const op=document.createElement("option"); op.value=v; op.textContent=l; sel.appendChild(op); });
+  sel.value=o.lob||"";
+  sel.classList.toggle("lob-auto",!o.lob);
+  sel.onchange=()=>{
+    const rec=DATA.find(r=>r.id===o.id);
+    if(rec){ rec.lob=sel.value; markDirty(o.id); }
+    sel.classList.toggle("lob-auto",!sel.value);
+    sel.options[0].textContent='Auto · '+derived();
+  };
+  td.appendChild(sel); return td;
+}
+
 function makeValCell(o) {
   const td=document.createElement("td"); td.className="editable";
   const inp=document.createElement("input"); inp.className="cell-input val-input";
@@ -3780,6 +3836,7 @@ function renderPipeline() {
     const tdId=document.createElement("td");
     tdId.innerHTML=`<span class="opp-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Click to edit in form" onclick="openOppDrawer('${o.id}')">${o.id}</span>`; tr.appendChild(tdId);
     tr.appendChild(makeTextCell(o,"cat",CATS));
+    tr.appendChild(makeLobCell(o));
     const tdAcct=document.createElement("td"); tdAcct.className="editable";
     const acctSpan=document.createElement("span"); acctSpan.className="acct-name";
     acctSpan.style.cssText="cursor:pointer;text-decoration:underline;text-decoration-style:dotted";
@@ -11451,16 +11508,16 @@ function toggleFollowingFilter(el){
 
 // ── COLUMN PICKER (show/hide pipeline columns; per-user) ───────────────────
 // Columns are positional, so we hide by nth-child rather than tagging cells.
-const PIP_COLS_KEY = 'tsi_pip_hidden_cols_v1';
+const PIP_COLS_KEY = 'tsi_pip_hidden_cols_v2';   // v2: added Line of Business col (indices shifted)
 let _hiddenCols = new Set();
 try { _hiddenCols = new Set(JSON.parse(localStorage.getItem(PIP_COLS_KEY) || '[]')); } catch {}
 // Toggleable data columns → their 1-based column index in #pip-table.
-// (1 = star/follow, 16 = detail ⤢, 17 = delete are fixed controls, not listed.)
+// (1 = star/follow, and the trailing detail ⤢ / status / delete are fixed controls, not listed.)
 const PIP_COL_DEFS = [
-  {i:2,label:'ID'},{i:3,label:'Category'},{i:4,label:'Account'},{i:5,label:'Location'},
-  {i:6,label:'Project'},{i:7,label:'Scope Tags'},{i:8,label:'Value'},{i:9,label:'Prob'},
-  {i:10,label:'Wtd'},{i:11,label:'Stage'},{i:12,label:'Close'},{i:13,label:'Lead'},
-  {i:14,label:'Notes'},{i:15,label:'Last Update'}
+  {i:2,label:'ID'},{i:3,label:'Category'},{i:4,label:'Line of Business'},{i:5,label:'Account'},
+  {i:6,label:'Location'},{i:7,label:'Project'},{i:8,label:'Scope Tags'},{i:9,label:'Value'},
+  {i:10,label:'Prob'},{i:11,label:'Wtd'},{i:12,label:'Stage'},{i:13,label:'Close'},
+  {i:14,label:'Lead'},{i:15,label:'Notes'},{i:16,label:'Last Update'}
 ];
 function applyColumnVisibility(){
   let style=document.getElementById('pip-col-style');
@@ -14417,13 +14474,8 @@ function exportQuoteWord(q){
    Torrefaction Samples comes from the Biocarbon quotes. Read-only.
    Reuses: DATA, fetchQuotes, TAG_DEFS, LOC_COORDS, Store, showToast, L.
    ══════════════════════════════════════════════════════════════════ */
-const PRESO_SECTIONS = [
-  { key:'biomass', label:'Biomass',              acc:'#6E8C34', blurb:'Wood-pellet & biomass-fuel drying systems' },
-  { key:'engwood', label:'Engineered Wood',      acc:'#19446C', blurb:'MDF · OSB · particleboard — dryers, emissions, aftermarket' },
-  { key:'torref',  label:'Torrefaction',         acc:'#B45309', blurb:'Torreactor & TAP plants' },
-  { key:'samples', label:'Torrefaction Samples', acc:'#0E7490', blurb:'Biocarbon sample program' },
-];
-const PRESO_SECT = Object.fromEntries(PRESO_SECTIONS.map(s=>[s.key,s]));
+// PRESO_SECTIONS / PRESO_SECT are declared earlier (near CATS/LEADS) so the
+// pipeline table's Line-of-Business cell can call presoHeuristic on first paint.
 let presoSectStore = (typeof Store==='function') ? Store('preso_sections') : null;
 let _presoCfg = {};       // id → {section, ord, excluded} — presenter's overrides (from Store)
 let _presoDeck = [];      // flat list of slide descriptors
@@ -14470,14 +14522,9 @@ function presoPassesRules(it, s){
   return true;
 }
 
-// raw heuristic (no overrides) → section key
-function presoHeuristic(o){
-  if(o.lob && PRESO_SECT[o.lob]) return o.lob;   // explicit Line of Business wins
-  if((o.cat||'')==='Torrefaction') return 'torref';
-  const hay = ((o.acct||'')+' '+(o.type||'')+' '+(o.notes||'')+' '+(o.loc||'')).toLowerCase();
-  if(/biomass|pellet|\bfuel\b|austwood|van\s*lung/.test(hay)) return 'biomass';
-  return 'engwood';
-}
+// raw heuristic (no overrides) → section key.
+// NOTE: presoHeuristic is declared in the first <script> block (near PRESO_SECT)
+// so the pipeline table's Line-of-Business cell can call it on first paint.
 // effective section = presenter override, else heuristic (quotes default to samples)
 function presoClassify(o){
   const cfg=_presoCfg[o.id];
