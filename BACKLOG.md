@@ -178,6 +178,19 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Plant nameplate capacity + shipping port** — site editor gains a nameplate
+  capacity (value + unit: MTPY / MMSF 3/8″ / MMBF 3/8″ / m³·yr / MW) and a shipping
+  port (geocoded via "Locate"). Port shows a 🚢 boat marker + dashed connector on the
+  accounts map and on the individual preso slide. _Pending: seed the Enviva mill→port
+  list (JT has it)._
+- [x] **Preso individual-slide map** — the per-opportunity slide now renders a real
+  Leaflet locator map (was a CSS grid+pin schematic that read as "broken"), mirroring
+  the working overview/summary map; grid+pin kept as offline fallback.
+- [x] **Line of Business column** — pipeline table shows LoB (biomass / eng-wood /
+  torref) between Category & Account; inline dropdown, auto-derived shown muted, sortable.
+- [x] **Opportunities + accounts → D1** — both now persist through the generic
+  `/api/store/*` collection store (opportunities import existing KV on first load +
+  transitional KV mirror; accounts as a single `{id:'main'}` blob, adopt/seed on start).
 - [x] **Word (.doc) export** — editable proposal download (Biocarbon letterhead, pricing
   table, scope/assumptions/terms), from the builder footer and each quotes-list row.
 - [x] **Quote lifecycle** — Save-draft / Publish buttons; **rev control** (auto-bumps

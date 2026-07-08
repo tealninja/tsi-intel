@@ -1760,6 +1760,8 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .acct-map-clear:hover{background:var(--tsi-coral);color:#fff}
 .acct-loctype{font-weight:600;border-radius:999px;padding:1px 9px;font-size:11px}
 .acct-ptag{font-size:11px;font-weight:600;color:var(--color-text-secondary);background:var(--color-surface);border:1px solid var(--color-border-mid);border-radius:999px;padding:1px 9px}
+.acct-cap{font-size:11px;font-weight:600;color:var(--tsi-deep-blue);background:rgba(25,68,108,.10);border-radius:999px;padding:1px 9px}
+.acct-port{font-size:11px;font-weight:600;color:var(--tsi-teal);background:rgba(0,146,159,.10);border-radius:999px;padding:1px 9px}
 .acct-loctype.corp{background:rgba(25,68,108,.12);color:var(--tsi-deep-blue)}
 .acct-loctype.prod{background:rgba(0,146,159,.12);color:var(--tsi-teal)}
 .am-logo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -7740,6 +7742,14 @@ async function setAcctPrime(gid,i){ const m=getAcctMedia(gid); m.prime=i; await 
 async function removeAcctPhoto(gid,i){ const m=getAcctMedia(gid); (m.photos||[]).splice(i,1); if((m.prime||0)>=m.photos.length) m.prime=Math.max(0,m.photos.length-1); await saveAcctMedia(m); renderAcctMain(_acctSelectedSite); }
 async function removeAcctLogo(gid){ const m=getAcctMedia(gid); m.logo=''; await saveAcctMedia(m); renderAcctMain(_acctSelectedSite); renderAcctSidebar(); }
 
+// "500,000 MTPY" / "750 MMSF 3/8″" — compact nameplate label, or '' if unset.
+function fmtCapacity(site) {
+  if (!site || site.nameplate == null || site.nameplate === '') return '';
+  const n = Number(site.nameplate);
+  if (!isFinite(n)) return '';
+  return n.toLocaleString('en-US') + (site.nameplateUnit ? ' ' + site.nameplateUnit : '');
+}
+
 function renderAcctMain(siteId) {
   const main = document.getElementById('acct-main');
   if (!main) return;
@@ -7779,7 +7789,9 @@ function renderAcctMain(siteId) {
           <div class="acct-site-meta">
             <span class="acct-loctype ${site.locType==='corporate'?'corp':'prod'}">${site.locType==='corporate'?'🏢 Corporate':'🏭 Production'}</span>
             ${(site.plantTags&&site.plantTags.length?site.plantTags:(site.plantType?[site.plantType]:[])).map(t=>`<span class="acct-ptag">${qesc(t)}</span>`).join('')}
+            ${fmtCapacity(site)?`<span class="acct-cap" title="Nameplate capacity">⚙ ${qesc(fmtCapacity(site))}</span>`:''}
             <span>📍 ${site.loc||'—'}</span>
+            ${site.shippingPort?`<span class="acct-port" title="Shipping port">🚢 ${qesc(site.shippingPort)}</span>`:''}
             ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
             ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
           </div>
@@ -10786,6 +10798,22 @@ function renderAcctMap() {
     marker.addTo(_acctMap);
     _acctMapMarkers.push(marker);
     bounds.push([s.lat, s.lon]);
+
+    // ── Shipping port (⚓ export mills) — boat marker at the port, dashed
+    //    connector back to the mill. Only when the port has been geocoded.
+    if (s.portLat != null && s.portLon != null) {
+      const boat = L.marker([s.portLat, s.portLon], {
+        icon: L.divIcon({ className: 'acct-port-marker', html: '🚢', iconSize: [22, 22], iconAnchor: [11, 11] })
+      }).bindPopup(`<div style="min-width:150px"><b>${qesc(s.shippingPort || 'Shipping port')}</b><br>
+        <span style="color:var(--color-text-muted);font-size:11px">Export port · ${qesc(s.name)}</span></div>`);
+      boat.addTo(_acctMap);
+      _acctMapMarkers.push(boat);
+      const line = L.polyline([[s.lat, s.lon], [s.portLat, s.portLon]],
+        { color, weight: 1.5, opacity: 0.5, dashArray: '4,5' });
+      line.addTo(_acctMap);
+      _acctMapMarkers.push(line);
+      bounds.push([s.portLat, s.portLon]);
+    }
   });
 
   // ── Opportunity pins ──────────────────────────────────────────
@@ -10971,6 +10999,8 @@ function exportMapPng2(mapVarName) {
 let _siteDrawerEditId = null;
 let _siteDrawerLat    = null;
 let _siteDrawerLon    = null;
+let _sitePortLat      = null;   // geocoded shipping-port coords (for the map boat marker)
+let _sitePortLon      = null;
 let _siteMap          = null;
 let _siteGeoResults   = [];
 let _siteGeoACTimer   = null;
@@ -11031,6 +11061,11 @@ function openSiteDrawer(accountId) {
   const fields = ['s-name','s-acctmatch','s-loc-search','s-city','s-state','s-country','s-lat','s-lon','s-notes'];
   fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const _ltDef=document.getElementById('s-loctype'); if(_ltDef) _ltDef.value='production';
+  const _npDef=document.getElementById('s-nameplate'); if(_npDef) _npDef.value='';
+  const _npuDef=document.getElementById('s-nameplate-unit'); if(_npuDef) _npuDef.value='MTPY';
+  const _portDef=document.getElementById('s-port'); if(_portDef) _portDef.value='';
+  const _portSt=document.getElementById('s-port-status'); if(_portSt) _portSt.textContent='';
+  _sitePortLat = null; _sitePortLon = null;
   _sitePlantTags = []; rebuildSitePlantTags();
   document.getElementById('s-group').value = '';
   document.getElementById('s-group-id').value = '';
@@ -11048,6 +11083,13 @@ function openSiteDrawer(accountId) {
     document.getElementById('s-acctmatch').value = existing.acctMatch || '';
     document.getElementById('s-industry').value  = existing.industry || '';
     const _lt=document.getElementById('s-loctype'); if(_lt) _lt.value = existing.locType || (existing.parentId?'production':'corporate');
+    const _np=document.getElementById('s-nameplate'); if(_np) _np.value = (existing.nameplate!=null?existing.nameplate:'');
+    const _npu=document.getElementById('s-nameplate-unit'); if(_npu) _npu.value = existing.nameplateUnit || 'MTPY';
+    const _port=document.getElementById('s-port'); if(_port) _port.value = existing.shippingPort || '';
+    _sitePortLat = (existing.portLat!=null?existing.portLat:null);
+    _sitePortLon = (existing.portLon!=null?existing.portLon:null);
+    const _portSt2=document.getElementById('s-port-status');
+    if(_portSt2) _portSt2.textContent = (_sitePortLat!=null&&_sitePortLon!=null) ? `✓ Port located (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})` : '';
     _sitePlantTags = (existing.plantTags && existing.plantTags.length)
       ? [...existing.plantTags]
       : (existing.plantType || '').split(/[\/,]/).map(s=>s.trim()).filter(Boolean);
@@ -11173,6 +11215,11 @@ function saveSiteDrawer() {
     locType:    document.getElementById('s-loctype')?.value || 'production',
     plantTags:  [..._sitePlantTags],
     plantType:  _sitePlantTags.join(' / '),   // legacy string kept in sync for older readers
+    nameplate:  (()=>{ const v=parseFloat(document.getElementById('s-nameplate')?.value); return isNaN(v)?null:v; })(),
+    nameplateUnit: document.getElementById('s-nameplate-unit')?.value || 'MTPY',
+    shippingPort:  document.getElementById('s-port')?.value.trim() || '',
+    portLat:    _sitePortLat,
+    portLon:    _sitePortLon,
     acctMatch:  document.getElementById('s-acctmatch').value.trim() || name,
     loc:        document.getElementById('s-loc-search').value.trim(),
     city:       document.getElementById('s-city').value.trim(),
@@ -11273,6 +11320,24 @@ function applySiteGeoResult(match) {
   const statusEl = document.getElementById('s-loc-status');
   statusEl.textContent = '✓ Coordinates set'; statusEl.style.color = 'var(--tsi-succ-green)';
   initSiteMap(match.lat, match.lon);
+}
+
+// Geocode the typed shipping-port name → _sitePortLat/_sitePortLon (for the map
+// boat marker). Deliberately a button-triggered one-shot (no live dropdown) so it
+// doesn't collide with the site-location autocomplete.
+async function sitePortFetch() {
+  const q = document.getElementById('s-port').value.trim();
+  const st = document.getElementById('s-port-status');
+  if (!q) { _sitePortLat = null; _sitePortLon = null; if (st) st.textContent = ''; return; }
+  if (st) { st.textContent = 'Searching…'; st.style.color = 'var(--tsi-teal)'; }
+  try {
+    const url  = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+    const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const data = await res.json();
+    if (!data.length) { if (st) { st.textContent = 'Port not found — try “Port of <city>”'; st.style.color = 'var(--tsi-coral)'; } return; }
+    _sitePortLat = parseFloat(data[0].lat); _sitePortLon = parseFloat(data[0].lon);
+    if (st) { st.textContent = `✓ Port located (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})`; st.style.color = 'var(--tsi-succ-green)'; }
+  } catch { if (st) { st.textContent = 'Error — check connection'; st.style.color = 'var(--tsi-coral)'; } }
 }
 
 function initSiteMap(lat, lon) {
@@ -11987,6 +12052,29 @@ startAdminPoll();
             <option value="MDF"><option value="Particle Board"><option value="Plywood">
             <option value="Pellets"><option value="Torrefaction"><option value="Biomass"><option value="Forestry">
           </datalist>
+        </div>
+      </div>
+      <div class="drow-2">
+        <div class="drow">
+          <label>Nameplate Capacity <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— annual, at full run</span></label>
+          <div style="display:flex;gap:6px">
+            <input class="dinput" id="s-nameplate" type="number" min="0" step="any" placeholder="e.g. 500000" style="flex:2;min-width:0">
+            <select class="dselect" id="s-nameplate-unit" style="flex:1.5;min-width:0">
+              <option value="MTPY">MTPY (t/yr)</option>
+              <option value="MMSF 3/8″">MMSF 3/8″</option>
+              <option value="MMBF 3/8″">MMBF 3/8″</option>
+              <option value="m³/yr">m³/yr</option>
+              <option value="MW">MW</option>
+            </select>
+          </div>
+        </div>
+        <div class="drow">
+          <label>Shipping Port <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— export mills; shows a 🚢 on the map</span></label>
+          <div class="dloc-wrap">
+            <input class="dinput" id="s-port" placeholder="e.g. Port of Wilmington, NC" style="padding-right:64px">
+            <button class="dloc-geo-btn" onclick="sitePortFetch()">Locate</button>
+          </div>
+          <div class="dloc-status" id="s-port-status"></div>
         </div>
       </div>
       </div><!-- /dsec-body -->
@@ -13161,7 +13249,9 @@ startAdminPoll();
 .pz-map{height:150px;border-radius:10px;border:1px solid var(--pz-line);overflow:hidden;margin-bottom:12px;background:var(--pz-panel);position:relative}
 .pz-map .gb{position:absolute;inset:0;background-image:linear-gradient(var(--pz-grid) 1px,transparent 1px),linear-gradient(90deg,var(--pz-grid) 1px,transparent 1px);background-size:26px 26px}
 .pz-map .pin{position:absolute;width:15px;height:15px;border-radius:50%;background:var(--acc,#00929f);box-shadow:0 0 0 6px color-mix(in srgb,var(--acc,#00929f) 25%,transparent);transform:translate(-50%,-50%)}
-.pz-map .nm{position:absolute;left:12px;bottom:9px;font-size:12px;color:var(--pz-muted)}
+.pz-map .nm{position:absolute;left:8px;bottom:8px;z-index:800;font-size:11px;color:var(--pz-text,#e6eef7);background:color-mix(in srgb,var(--pz-panel) 82%,transparent);padding:2px 7px;border-radius:6px;backdrop-filter:blur(2px)}
+.pz-map .leaflet-container{background:var(--pz-panel)}
+.pz-port-marker,.acct-port-marker{font-size:17px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));cursor:pointer}
 .pz-clima{height:120px;margin-top:4px}
 .pz-comm{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
 .pz-comm .k{color:var(--pz-faint)}.pz-comm .v{color:var(--pz-ink);text-align:right;font-variant-numeric:tabular-nums}
@@ -14689,7 +14779,7 @@ function presoRender(){
   stage.scrollTop=0;
   presoRenderRail();
   if(slide.type==='overview'){ presoRenderOvMap(slide); presoRenderOvChart(slide); }
-  else if(slide.type==='job' && slide.job && !slide.job.__quote) presoRenderClima(slide.job);
+  else if(slide.type==='job' && slide.job && !slide.job.__quote){ presoRenderClima(slide.job); presoRenderJobMap(slide.job, slide.section); }
 }
 // Value-by-group bar chart on the overview (Chart.js)
 let _presoOvChart=null;
@@ -14796,6 +14886,55 @@ function presoRenderOvMap(s){
     }catch(e){ el.innerHTML='<div style="padding:14px;color:var(--pz-faint)">Map error</div>'; }
   },0));
 }
+// Resolve an opportunity's site (via acctMatch) that carries a geocoded port.
+function presoSitePort(o){
+  try{
+    if(typeof getAccounts!=='function'||!o||!o.acct) return null;
+    const data=getAccounts();
+    const site=(data.accounts||[]).find(a=>a.portLat!=null&&a.portLon!=null&&a.acctMatch&&
+      (o.acct.includes(a.acctMatch)||a.acctMatch.includes(o.acct)));
+    return site?{lat:site.portLat,lon:site.portLon,name:site.shippingPort}:null;
+  }catch(_){ return null; }
+}
+
+// Real locator map on an individual opportunity slide — mirrors presoRenderOvMap's
+// deferred/whenReady init so it renders reliably inside the animated overlay. Shows
+// the deal pin plus a 🚢 boat marker + connector when the site has a shipping port.
+let _presoJobMap=null;
+function presoRenderJobMap(o,sec){
+  const el=document.getElementById('pz-jobmap'); if(!el) return;
+  const c=presoCoords(presoLoc(o));
+  if(typeof L==='undefined'||!c) return;   // keep the grid+pin fallback
+  try{ if(_presoJobMap){ _presoJobMap.remove(); _presoJobMap=null; } }catch(_){}
+  requestAnimationFrame(()=>setTimeout(()=>{
+    const cur=_presoDeck[_presoIdx];
+    if(!document.getElementById('pz-jobmap')||!cur||cur.type!=='job'||cur.job!==o) return;
+    try{
+      const light=document.getElementById('preso-overlay').classList.contains('preso-light');
+      const map=L.map(el,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false,doubleClickZoom:false,boxZoom:false,keyboard:false}).setView(c,6);
+      _presoJobMap=map;
+      L.tileLayer(light
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
+      const pts=[c];
+      L.circleMarker(c,{radius:9,color:sec.acc,fillColor:sec.acc,fillOpacity:.85,weight:2}).addTo(map);
+      const port=presoSitePort(o);
+      if(port){
+        L.marker([port.lat,port.lon],{icon:L.divIcon({className:'pz-port-marker',html:'🚢',iconSize:[22,22],iconAnchor:[11,11]})})
+          .addTo(map).bindTooltip(port.name||'Shipping port',{direction:'top'});
+        L.polyline([c,[port.lat,port.lon]],{color:sec.acc,weight:1.5,opacity:.55,dashArray:'4,5'}).addTo(map);
+        pts.push([port.lat,port.lon]);
+      }
+      // Tiles cover the fallback grid/pin once the map is live.
+      el.querySelectorAll('.gb,.pin').forEach(x=>x.style.display='none');
+      const fit=()=>{ if(_presoJobMap!==map) return; map.invalidateSize();
+        if(pts.length>1) map.fitBounds(pts,{padding:[38,38],maxZoom:7}); else map.setView(c,6); };
+      map.whenReady(fit);
+      [60,240,600].forEach(t=>setTimeout(fit,t));
+    }catch(e){}
+  },0));
+}
 // Compact site climatogram on job slides (best-effort, cached, non-blocking)
 let _presoClima=null;
 function presoDrawClima(job){
@@ -14873,8 +15012,9 @@ function presoOppSlide(o,sec,s){
   const spec=(o.notes||'').trim();
   const specHtml=spec?`<div class="pz-spec">${qesc(spec).replace(/(\d+)\s*[x×]/g,'<span class="x">$1×</span>')}</div>`:(chips?'':`<div class="pz-empty">Scope defined by project type; details TBD.</div>`);
   const coords=presoCoords(presoLoc(o));
-  const pin=coords?`<div class="pz-map"><div class="gb"></div><div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div><div class="nm">${qesc(presoLoc(o))}</div></div>`
-    :`<div class="pz-map"><div class="gb"></div><div class="nm">${qesc(presoLoc(o))}</div></div>`;
+  // Real Leaflet map mounts into #pz-jobmap after render (presoRenderJobMap). The
+  // grid + pin stay as an offline/no-coords fallback and are hidden once tiles load.
+  const pin=`<div class="pz-map" id="pz-jobmap"><div class="gb"></div>${coords?`<div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div>`:''}<div class="nm">${qesc(presoLoc(o))}</div></div>`;
   // program / stage-link ribbon — explicit phase + linked opportunities first,
   // falling back to a parsed "Stage N of M" and same-account siblings.
   let ribbon='';
