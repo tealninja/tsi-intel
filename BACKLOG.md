@@ -178,6 +178,13 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **NA pellet-producer accounts** — seeded 8 new parent accounts + 38 operating
+  mills from the USA/Canada pellet-mill list (Drax +11, CM Biomass 9, Fram 4, AWF 3,
+  Lignetics 7 [≥90k], Barrette, Canfor, Groupe Lebel, Highland Pine Bluff). Each with
+  nameplate capacity (MTPY) + coords. Enviva's 10 mills backfilled with capacity +
+  shipping ports (Chesapeake/Panama City/Mobile/Wilmington/Pascagoula/Savannah → 🚢
+  markers). Corrected Drax "Amite" → Gloster, MS. Peak Renewables skipped (no operating
+  mill yet); Amory left out (closed).
 - [x] **Plant nameplate capacity + shipping port** — site editor gains a nameplate
   capacity (value + unit: MTPY / MMSF 3/8″ / MMBF 3/8″ / m³·yr / MW) and a shipping
   port (geocoded via "Locate"). Port shows a 🚢 boat marker + dashed connector on the

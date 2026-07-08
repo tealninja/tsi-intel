@@ -7183,6 +7183,15 @@ const DEFAULT_ACCOUNTS = [
   { id:'AG-BFV', parentId:null, name:'Biomass Fuel Vietnam', industry:'Biomass', acctMatch:'Biomass Fuel Vietnam', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-ARA', parentId:null, name:'Arauco', industry:'OSB', acctMatch:'Arauco', loc:'', plantType:'', lat:null, lon:null, notes:'' },
   { id:'AG-WFJ', parentId:null, name:'West Fraser / Javelin', industry:'Torrefaction', acctMatch:'West Fraser / Javelin', loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  // ── Pellet producers (added 2026-07 from the NA pellet-mill list) ──
+  { id:'AG-BAR',  parentId:null, name:'Barrette-Chapais',       industry:'Biomass Pellets', acctMatch:'Barrette',        loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-CANF', parentId:null, name:'Canfor',                 industry:'Biomass Pellets', acctMatch:'Canfor',          loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-GL',   parentId:null, name:'Groupe Lebel',           industry:'Biomass Pellets', acctMatch:'Groupe Lebel',    loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-AWF',  parentId:null, name:'American Wood Fibers',   industry:'Biomass Pellets', acctMatch:'American Wood Fibers', loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-CMB',  parentId:null, name:'CM Biomass',             industry:'Biomass Pellets', acctMatch:'CM Biomass',      loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-FRAM', parentId:null, name:'Fram Renewable Fuels',   industry:'Biomass Pellets', acctMatch:'Fram',            loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-HP',   parentId:null, name:'Highland Pellets',       industry:'Biomass Pellets', acctMatch:'Highland',        loc:'', plantType:'', lat:null, lon:null, notes:'' },
+  { id:'AG-LIG',  parentId:null, name:'Lignetics',              industry:'Biomass Pellets', acctMatch:'Lignetics',       loc:'', plantType:'', lat:null, lon:null, notes:'' },
   // ── Child sites (parentId points to the parent account id) ──
   { id:'S-LPSA', parentId:'AG-LP', name:'LP Sagola', industry:'', acctMatch:'LP', loc:'Sagola, MI, USA', plantType:'Siding', lat:46.1, lon:-88.03, notes:'' },
   { id:'S-LPNE', parentId:'AG-LP', name:'LP Newberry', industry:'', acctMatch:'LP', loc:'Newberry, MI, USA', plantType:'Siding', lat:46.35, lon:-85.51, notes:'' },
@@ -7265,6 +7274,53 @@ const DEFAULT_ACCOUNTS = [
   { id:'S-ENVNO',  parentId:'AG-ENV', name:'Enviva Northampton',  industry:'', acctMatch:'Enviva', loc:'Northampton County, NC, USA', plantType:'Pellets', plantTags:['Pellets'], lat:36.44, lon:-77.58, notes:'Garysburg area' },
   { id:'S-ENVSA',  parentId:'AG-ENV', name:'Enviva Sampson',      industry:'', acctMatch:'Enviva', loc:'Sampson County, NC, USA',     plantType:'Pellets', plantTags:['Pellets'], lat:35.11, lon:-78.13, notes:'Faison area' },
   { id:'S-ENVWA',  parentId:'AG-ENV', name:'Enviva Waycross',     industry:'', acctMatch:'Enviva', loc:'Waycross, GA, USA',           plantType:'Pellets', plantTags:['Pellets'], lat:31.21, lon:-82.35, notes:'' },
+  // ── Drax — additional operating pellet plants (NA pellet-mill list; ex-Pinnacle in Canada) ──
+  { id:'S-DRXAL',  parentId:'AG-DRX', name:'Drax Aliceville',    industry:'', acctMatch:'Drax', loc:'Aliceville, AL, USA',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:430000, nameplateUnit:'MTPY', lat:33.13, lon:-88.15,  notes:'' },
+  { id:'S-DRXMO',  parentId:'AG-DRX', name:'Drax Morehouse',     industry:'', acctMatch:'Drax', loc:'Bastrop, LA, USA',      plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:625000, nameplateUnit:'MTPY', lat:32.78, lon:-91.92,  notes:'Morehouse BioEnergy' },
+  { id:'S-DRXDE',  parentId:'AG-DRX', name:'Drax Demopolis',     industry:'', acctMatch:'Drax', loc:'Demopolis, AL, USA',    plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:360000, nameplateUnit:'MTPY', lat:32.51, lon:-87.84,  notes:'' },
+  { id:'S-DRXAR',  parentId:'AG-DRX', name:'Drax Armstrong',     industry:'', acctMatch:'Drax', loc:'Armstrong, BC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:72000,  nameplateUnit:'MTPY', lat:50.45, lon:-119.20, notes:'ex-Pinnacle' },
+  { id:'S-DRXHO',  parentId:'AG-DRX', name:'Drax Houston',       industry:'', acctMatch:'Drax', loc:'Houston, BC, Canada',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:230000, nameplateUnit:'MTPY', lat:54.40, lon:-126.67, notes:'HPLP JV (ex-Pinnacle/Canfor)' },
+  { id:'S-DRXME',  parentId:'AG-DRX', name:'Drax Meadowbank',    industry:'', acctMatch:'Drax', loc:'Strathnaver, BC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:270000, nameplateUnit:'MTPY', lat:53.60, lon:-122.67, notes:'ex-Pinnacle' },
+  { id:'S-DRXBL',  parentId:'AG-DRX', name:'Drax Burns Lake',    industry:'', acctMatch:'Drax', loc:'Burns Lake, BC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:380000, nameplateUnit:'MTPY', lat:54.23, lon:-125.76, notes:'ex-Pinnacle' },
+  { id:'S-DRXEN',  parentId:'AG-DRX', name:'Drax Entwistle',     industry:'', acctMatch:'Drax', loc:'Entwistle, AB, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:400000, nameplateUnit:'MTPY', lat:53.60, lon:-115.00, notes:'ex-Pinnacle' },
+  { id:'S-DRXLA',  parentId:'AG-DRX', name:'Drax Lavington',     industry:'', acctMatch:'Drax', loc:'Lavington, BC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:300000, nameplateUnit:'MTPY', lat:50.22, lon:-119.10, notes:'ex-Pinnacle' },
+  { id:'S-DRXSM',  parentId:'AG-DRX', name:'Drax Smithers',      industry:'', acctMatch:'Drax', loc:'Smithers, BC, Canada',  plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:140000, nameplateUnit:'MTPY', lat:54.78, lon:-127.17, notes:'ex-Pinnacle / West Fraser JV' },
+  { id:'S-DRXHL',  parentId:'AG-DRX', name:'Drax High Level',    industry:'', acctMatch:'Drax', loc:'High Level, AB, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:200000, nameplateUnit:'MTPY', lat:58.52, lon:-117.14, notes:'ex-Pinnacle / Tolko JV' },
+  // ── Barrette-Chapais ──
+  { id:'S-BARCH',  parentId:'AG-BAR', name:'Barrette - Granule 777', industry:'', acctMatch:'Barrette', loc:'Chapais, QC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:210000, nameplateUnit:'MTPY', lat:49.78, lon:-74.85, notes:'Granule 777' },
+  // ── Canfor ──
+  { id:'S-CANFSJ', parentId:'AG-CANF', name:'Canfor Fort St John', industry:'', acctMatch:'Canfor', loc:'Fort St John, BC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:82000, nameplateUnit:'MTPY', lat:56.25, lon:-120.85, notes:'' },
+  // ── Groupe Lebel ──
+  { id:'S-GLCA',   parentId:'AG-GL', name:'Groupe Lebel Cacouna', industry:'', acctMatch:'Groupe Lebel', loc:'Cacouna, QC, Canada', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:100000, nameplateUnit:'MTPY', lat:47.92, lon:-69.51, notes:'' },
+  // ── American Wood Fibers ──
+  { id:'S-AWFLA',  parentId:'AG-AWF', name:'AWF Laurinburg',     industry:'', acctMatch:'American Wood Fibers', loc:'Laurinburg, NC, USA', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:45000, nameplateUnit:'MTPY', lat:34.77, lon:-79.46, notes:"Nature's Earth Pellet Energy" },
+  { id:'S-AWFMA',  parentId:'AG-AWF', name:'AWF Marion',         industry:'', acctMatch:'American Wood Fibers', loc:'Marion, VA, USA',      plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:41000, nameplateUnit:'MTPY', lat:36.83, lon:-81.51, notes:'' },
+  { id:'S-AWFCI',  parentId:'AG-AWF', name:'AWF Circleville',    industry:'', acctMatch:'American Wood Fibers', loc:'Circleville, OH, USA', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:41000, nameplateUnit:'MTPY', lat:39.60, lon:-82.95, notes:'' },
+  // ── CM Biomass ──
+  { id:'S-CMBCR',  parentId:'AG-CMB', name:'CM Crossville',      industry:'', acctMatch:'CM Biomass', loc:'Crossville, AL, USA',  plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:120000, nameplateUnit:'MTPY', lat:34.28, lon:-86.02, notes:'QCJ Crossville' },
+  { id:'S-CMBQU',  parentId:'AG-CMB', name:'CM Quitman',         industry:'', acctMatch:'CM Biomass', loc:'Quitman, MS, USA',     plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:240000, nameplateUnit:'MTPY', lat:32.04, lon:-88.72, notes:'QCJ Quitman' },
+  { id:'S-CMBHU',  parentId:'AG-CMB', name:'CM Huntsville',      industry:'', acctMatch:'CM Biomass', loc:'Huntsville, TX, USA',  plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:75000,  nameplateUnit:'MTPY', lat:30.72, lon:-95.55, notes:'' },
+  { id:'S-CMBID',  parentId:'AG-CMB', name:'CM Ideal',           industry:'', acctMatch:'CM Biomass', loc:'Ideal, GA, USA',       plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:110000, nameplateUnit:'MTPY', lat:32.36, lon:-84.19, notes:'' },
+  { id:'S-CMBFR',  parentId:'AG-CMB', name:'CM Fruitdale',       industry:'', acctMatch:'CM Biomass', loc:'Fruitdale, AL, USA',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:25000,  nameplateUnit:'MTPY', lat:31.34, lon:-88.41, notes:'' },
+  { id:'S-CMBEF',  parentId:'AG-CMB', name:'CM Effingham',       industry:'', acctMatch:'CM Biomass', loc:'Effingham, SC, USA',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:75000,  nameplateUnit:'MTPY', lat:34.05, lon:-79.76, notes:'Charles Ingram Lumber' },
+  { id:'S-CMBBR',  parentId:'AG-CMB', name:'CM Brookhaven',      industry:'', acctMatch:'CM Biomass', loc:'Brookhaven, MS, USA',  plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:75000,  nameplateUnit:'MTPY', lat:31.58, lon:-90.44, notes:'' },
+  { id:'S-CMBJA',  parentId:'AG-CMB', name:'CM Jackson',         industry:'', acctMatch:'CM Biomass', loc:'Jackson, AL, USA',     plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:150000, nameplateUnit:'MTPY', lat:31.51, lon:-87.89, notes:'' },
+  { id:'S-CMBJP',  parentId:'AG-CMB', name:'CM Jasper',          industry:'', acctMatch:'CM Biomass', loc:'Jasper, TN, USA',      plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:120000, nameplateUnit:'MTPY', lat:35.07, lon:-85.62, notes:'QCJ Jasper' },
+  // ── Fram Renewable Fuels ──
+  { id:'S-FRAMBA', parentId:'AG-FRAM', name:'Fram Baxley',       industry:'', acctMatch:'Fram', loc:'Baxley, GA, USA',       plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:230000, nameplateUnit:'MTPY', lat:31.78, lon:-82.35, notes:'Appling County Pellets' },
+  { id:'S-FRAMLC', parentId:'AG-FRAM', name:'Fram Lumber City',  industry:'', acctMatch:'Fram', loc:'Lumber City, GA, USA',  plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:125000, nameplateUnit:'MTPY', lat:31.93, lon:-82.68, notes:'Telfair Forest Products' },
+  { id:'S-FRAMHA', parentId:'AG-FRAM', name:'Fram Hazlehurst',   industry:'', acctMatch:'Fram', loc:'Hazlehurst, GA, USA',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:500000, nameplateUnit:'MTPY', lat:31.87, lon:-82.59, notes:'' },
+  { id:'S-FRAMNA', parentId:'AG-FRAM', name:'Fram Nahunta',      industry:'', acctMatch:'Fram', loc:'Nahunta, GA, USA',      plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:109000, nameplateUnit:'MTPY', lat:31.20, lon:-81.98, notes:'Archer Forest Products' },
+  // ── Highland Pellets ──
+  { id:'S-HPPB',   parentId:'AG-HP', name:'Highland Pine Bluff', industry:'', acctMatch:'Highland', loc:'Pine Bluff, AR, USA', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:675000, nameplateUnit:'MTPY', lat:34.22, lon:-91.97, notes:'' },
+  // ── Lignetics (≥90k t/yr plants) ──
+  { id:'S-LIGMI',  parentId:'AG-LIG', name:'Lignetics Mifflintown', industry:'', acctMatch:'Lignetics', loc:'Mifflintown, PA, USA', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:113000, nameplateUnit:'MTPY', lat:40.57, lon:-77.40, notes:'Energex' },
+  { id:'S-LIGSF',  parentId:'AG-LIG', name:'Lignetics Sand Fork',   industry:'', acctMatch:'Lignetics', loc:'Sand Fork, WV, USA',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:113000, nameplateUnit:'MTPY', lat:38.92, lon:-80.76, notes:'' },
+  { id:'S-LIGBR',  parentId:'AG-LIG', name:'Lignetics Brownsville',  industry:'', acctMatch:'Lignetics', loc:'Brownsville, OR, USA', plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:126000, nameplateUnit:'MTPY', lat:44.39, lon:-122.98, notes:'Bear Mountain' },
+  { id:'S-LIGKE',  parentId:'AG-LIG', name:'Lignetics Kenbridge',    industry:'', acctMatch:'Lignetics', loc:'Kenbridge, VA, USA',   plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:100000, nameplateUnit:'MTPY', lat:36.96, lon:-78.12, notes:'' },
+  { id:'S-LIGDE',  parentId:'AG-LIG', name:'Lignetics Deposit',      industry:'', acctMatch:'Lignetics', loc:'Deposit, NY, USA',     plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:97000,  nameplateUnit:'MTPY', lat:42.06, lon:-75.42, notes:'New England Wood Pellet' },
+  { id:'S-LIGJA',  parentId:'AG-LIG', name:'Lignetics Jaffrey',      industry:'', acctMatch:'Lignetics', loc:'Jaffrey, NH, USA',     plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:108000, nameplateUnit:'MTPY', lat:42.81, lon:-72.02, notes:'New England Wood Pellet' },
+  { id:'S-LIGSC',  parentId:'AG-LIG', name:'Lignetics Schuyler',     industry:'', acctMatch:'Lignetics', loc:'Schuyler, NY, USA',    plantType:'Pellets', plantTags:['Pellets'], locType:'production', nameplate:88000,  nameplateUnit:'MTPY', lat:43.10, lon:-75.03, notes:'New England Wood Pellet' },
   { id:'S-BER', parentId:'AG-BER', name:'Berneck Araucária', industry:'', acctMatch:'Berneck', loc:'Araucária, PR, Brazil', plantType:'MDF', lat:-25.59, lon:-49.4, notes:'' },
   { id:'S-KAP', parentId:'AG-KAP', name:'Kap Paper Kapuskasing', industry:'', acctMatch:'Kap Paper', loc:'Kapuskasing, ON, Canada', plantType:'MDF', lat:49.42, lon:-82.43, notes:'' },
   { id:'S-HOM', parentId:'AG-HOM', name:'Homanit Alcolu', industry:'', acctMatch:'Homanit', loc:'Alcolu, SC, USA', plantType:'MDF', lat:33.76, lon:-80.2, notes:'' },
@@ -7454,6 +7510,62 @@ function loadAccounts() {
           }
         });
         if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: NA pellet producers (added 2026-07). New parent accounts +
+      // operating mills, pulled from DEFAULT_ACCOUNTS by id (idempotent).
+      if (data.accounts) {
+        let added = false;
+        [ 'AG-BAR','AG-CANF','AG-GL','AG-AWF','AG-CMB','AG-FRAM','AG-HP','AG-LIG',
+          'S-DRXAL','S-DRXMO','S-DRXDE','S-DRXAR','S-DRXHO','S-DRXME','S-DRXBL','S-DRXEN','S-DRXLA','S-DRXSM','S-DRXHL',
+          'S-BARCH','S-CANFSJ','S-GLCA','S-AWFLA','S-AWFMA','S-AWFCI',
+          'S-CMBCR','S-CMBQU','S-CMBHU','S-CMBID','S-CMBFR','S-CMBEF','S-CMBBR','S-CMBJA','S-CMBJP',
+          'S-FRAMBA','S-FRAMLC','S-FRAMHA','S-FRAMNA','S-HPPB',
+          'S-LIGMI','S-LIGSF','S-LIGBR','S-LIGKE','S-LIGDE','S-LIGJA','S-LIGSC' ].forEach(id => {
+          if (!data.accounts.some(a => a.id === id)) {
+            const seed = DEFAULT_ACCOUNTS.find(a => a.id === id);
+            if (seed) { data.accounts.push({ ...seed }); added = true; }
+          }
+        });
+        if (added) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: Enviva shipping ports + nameplate capacity onto the existing 10
+      // mills (guarded — only writes a field that's still unset, so user edits win).
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-ENV')) {
+        const ENV = {
+          'S-ENVAH': [410000,  'Port of Chesapeake, VA',   36.79, -76.29],
+          'S-ENVCOT':[780000,  'Port of Panama City, FL',  30.15, -85.67],
+          'S-ENVEP': [1100000, 'Port of Mobile, AL',       30.69, -88.04],
+          'S-ENVGR': [500000,  'Port of Wilmington, NC',   34.20, -77.95],
+          'S-ENVHA': [600000,  'Port of Wilmington, NC',   34.20, -77.95],
+          'S-ENVLU': [750000,  'Port of Pascagoula, MS',   30.35, -88.56],
+          'S-ENVNO': [750000,  'Port of Chesapeake, VA',   36.79, -76.29],
+          'S-ENVSA': [600000,  'Port of Chesapeake, VA',   36.79, -76.29],
+          'S-ENVWA': [800000,  'Port of Savannah, GA',     32.09, -81.10],
+          'S-ENV':   [760000,  'Port of Chesapeake, VA',   36.79, -76.29],
+        };
+        let fixed = false;
+        Object.entries(ENV).forEach(([id, [cap, port, plat, plon]]) => {
+          const a = data.accounts.find(x => x.id === id);
+          if (!a) return;
+          if (a.nameplate == null) { a.nameplate = cap; a.nameplateUnit = 'MTPY'; fixed = true; }
+          if (!a.shippingPort)     { a.shippingPort = port; a.portLat = plat; a.portLon = plon; fixed = true; }
+        });
+        if (fixed) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+      }
+      // Backfill: Drax existing pellet plants — nameplate capacity, and correct the
+      // Amite plant's location (the real plant is at Gloster, MS in Amite County).
+      if (data.accounts && data.accounts.some(a => a.id === 'AG-DRX')) {
+        let fixed = false;
+        const DRX = { 'S-DRXPR':100000, 'S-DRXAM':525000, 'S-DRXUR':600000 };
+        Object.entries(DRX).forEach(([id, cap]) => {
+          const a = data.accounts.find(x => x.id === id);
+          if (a && a.nameplate == null) { a.nameplate = cap; a.nameplateUnit = 'MTPY'; fixed = true; }
+        });
+        const am = data.accounts.find(x => x.id === 'S-DRXAM');
+        if (am && /^\s*Amite,\s*MS/i.test(am.loc || '')) {
+          am.loc = 'Gloster, MS, USA'; am.lat = 31.20; am.lon = -90.82; fixed = true;
+        }
+        if (fixed) localStorage.setItem(ACCT_KEY, JSON.stringify(data));
       }
       // Product types are now multi-tag (OSB + Siding on one mill).
       if (data.accounts && derivePlantTags(data.accounts)) {
