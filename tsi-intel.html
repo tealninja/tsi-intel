@@ -11205,13 +11205,79 @@ function addSitePlantTag(v){
 }
 function removeSitePlantTag(t){ _sitePlantTags=_sitePlantTags.filter(x=>x!==t); rebuildSitePlantTags(); }
 
-function openSiteDrawer(accountId) {
+// ── Site-drawer prev/next paging (same component as the opportunity drawer) ──
+let _siteDrawerNavList = [];   // ordered account/site ids the drawer pages through
+let _siteDrawerDirty   = false;
+// Build the paging list mirroring the sidebar order + search filter: editing a
+// site pages through the flat site list; editing a parent pages through groups.
+function siteDrawerNavIds(editId) {
+  const data = getAccounts();
+  const rec  = data.accounts.find(a => a.id === editId);
+  if (!rec) return [];
+  const q = (document.getElementById('acct-search')?.value || '').toLowerCase();
+  const sitesByGroup = {};
+  data.sites.forEach(s => { (sitesByGroup[s.groupId] = sitesByGroup[s.groupId] || []).push(s); });
+  const groups = data.groups.filter(g => {
+    if (!q) return true;
+    if (g.name.toLowerCase().includes(q)) return true;
+    return (sitesByGroup[g.id] || []).some(s => s.name.toLowerCase().includes(q));
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  if (!rec.parentId) return groups.map(g => g.id);   // editing a parent → page groups
+  const ids = [];
+  groups.forEach(g => {
+    (sitesByGroup[g.id] || [])
+      .filter(s => !q || s.name.toLowerCase().includes(q) || g.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach(s => ids.push(s.id));
+  });
+  return ids;
+}
+function updateSiteDrawerNavUI() {
+  const nav = document.getElementById('site-drawer-nav');
+  if (!nav) return;
+  const list = _siteDrawerNavList || [];
+  const i = list.indexOf(_siteDrawerEditId);
+  if (!_siteDrawerEditId || i < 0 || list.length < 2) { nav.style.display = 'none'; return; }
+  nav.style.display = 'flex';
+  document.getElementById('site-drawer-nav-pos').textContent = (i + 1) + ' / ' + list.length;
+  document.getElementById('site-drawer-prev').disabled = (i <= 0);
+  document.getElementById('site-drawer-next').disabled = (i >= list.length - 1);
+}
+// Page to the previous/next account. Saves the current record first (if edited)
+// so nothing is lost while paging — mirrors oppDrawerNav.
+function siteDrawerNav(dir) {
+  const list = _siteDrawerNavList || [];
+  const i = list.indexOf(_siteDrawerEditId);
+  if (i < 0) return;
+  const nId = list[i + dir];
+  if (!nId) return;
+  const nameFilled = (document.getElementById('s-name')?.value || '').trim();
+  if (_siteDrawerDirty && nameFilled) saveSiteDrawer();   // persists + closes
+  openSiteDrawer(nId, { keepNav: true });
+}
+
+function openSiteDrawer(accountId, opts) {
+  opts = opts || {};
+  // Mark dirty on real user edits (programmatic .value sets don't fire these),
+  // so paging knows whether to save. Wired once.
+  if (!window._siteDrawerDirtyWired) {
+    window._siteDrawerDirtyWired = true;
+    const sd = document.getElementById('site-drawer');
+    if (sd) { sd.addEventListener('input',  () => { _siteDrawerDirty = true; });
+              sd.addEventListener('change', () => { _siteDrawerDirty = true; }); }
+  }
+  _siteDrawerDirty = false;
   const data   = getAccounts();
   const isEdit = !!accountId;
   _siteDrawerEditId = accountId || null;
   _siteDrawerLat = null; _siteDrawerLon = null;
   _siteAssociatedContactIds = [];
   _sitePrimaryContactId     = '';
+  // Build the paging list (unless navigating within it, so it stays stable as
+  // saves re-sort the sidebar).
+  if (!opts.keepNav) {
+    _siteDrawerNavList = isEdit ? siteDrawerNavIds(accountId) : [];
+  }
 
   // Look up directly in the unified accounts array — works for parent OR child records.
   const existing = isEdit ? data.accounts.find(a => a.id === accountId) : null;
@@ -11292,6 +11358,7 @@ function openSiteDrawer(accountId) {
   }
 
   renderSiteAssociatedContactTags();
+  updateSiteDrawerNavUI();
 
   document.getElementById('site-drawer-overlay')?.classList.add('open');
   document.getElementById('site-drawer').classList.add('open');
@@ -12177,6 +12244,11 @@ startAdminPoll();
 <!-- ══ SITE DRAWER — slide-in editor for account sites ══ -->
 <div class="opp-drawer" id="site-drawer">
   <div class="drawer-header">
+    <div class="drawer-nav" id="site-drawer-nav" style="display:none">
+      <button class="drawer-nav-btn" id="site-drawer-prev" onclick="siteDrawerNav(-1)" title="Previous account (saves your changes)">‹</button>
+      <span class="drawer-nav-pos" id="site-drawer-nav-pos"></span>
+      <button class="drawer-nav-btn" id="site-drawer-next" onclick="siteDrawerNav(1)" title="Next account (saves your changes)">›</button>
+    </div>
     <h2 id="site-drawer-title">New Site</h2>
     <button class="drawer-close" onclick="closeSiteDrawer()">✕</button>
   </div>
