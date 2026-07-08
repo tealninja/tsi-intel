@@ -2975,12 +2975,10 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <option value="none">Unscored</option>
     </select>
     <div class="views-wrap">
-      <button class="select views-btn" id="views-btn" onclick="toggleViewsMenu(event)" title="Your saved views">⭐ Views ▾</button>
-      <div class="views-menu" id="views-menu" style="display:none"></div>
+      <button class="select views-btn" onclick="TableKit.toggleViews(event,'pip-table')" title="Your saved views">⭐ Views ▾</button>
     </div>
     <div class="views-wrap">
-      <button class="select views-btn" id="cols-btn" onclick="toggleColsMenu(event)" title="Show / hide columns">▦ Columns ▾</button>
-      <div class="views-menu" id="cols-menu" style="display:none"></div>
+      <button class="select views-btn" id="tk-cols-btn-pip-table" onclick="TableKit.toggleCols(event,'pip-table')" title="Show / hide columns">▦ Columns ▾</button>
     </div>
     <div class="pip-view-toggle" id="pip-view-toggle">
       <button class="pvt-btn active" data-v="table" onclick="setPipView('table')" title="Table view">▤ Table</button>
@@ -3474,29 +3472,9 @@ function initSortHeaders(tableId) {
 // activeSort[tableId] = {col, dir}
 const activeSort = {};
 
-function getSortedRows(rows, tableId) {
-  const s = activeSort[tableId];
-  if (!s) return rows;
-  const {col, dir} = s;
-  return [...rows].sort((a,b) => {
-    let va, vb;
-    if      (col==='val')   { va=a.val??-1;  vb=b.val??-1; }
-    else if (col==='prob')  { va=a.prob??-1; vb=b.prob??-1; }
-    else if (col==='wtd')   { va=(a.val&&a.prob)?a.val*a.prob:-1; vb=(b.val&&b.prob)?b.val*b.prob:-1; }
-    else if (col==='close') {
-      const da=parseCloseDate(a.close), db=parseCloseDate(b.close);
-      va=da?da.getTime():Infinity; vb=db?db.getTime():Infinity;
-    }
-    else if (col==='lob') {   // sort by the effective (derived) section label, not the raw key
-      va=((PRESO_SECT[presoHeuristic(a)]||{}).label||'').toLowerCase();
-      vb=((PRESO_SECT[presoHeuristic(b)]||{}).label||'').toLowerCase();
-    }
-    else { va=(a[col]||'').toLowerCase(); vb=(b[col]||'').toLowerCase(); }
-    if (va<vb) return -1*dir;
-    if (va>vb) return  1*dir;
-    return 0;
-  });
-}
+// Sorting is delegated to the shared TableKit engine (per-table column config
+// provides sort values; a default handles val/prob/wtd/close/strings).
+function getSortedRows(rows, tableId) { return TableKit.sortRows(tableId, rows); }
 
 // ── AUTOCOMPLETE ──────────────────────────────────────────────
 const LEADS   = ["JT","TF","ZS","BD","RC","JM","NJ","JW"];
@@ -4237,22 +4215,7 @@ function initColInteractions(tableId) {
           th._sortWired = true;
           th.addEventListener('click', e => {
             if (e.target.closest('.col-resize') || e.target.closest('.col-filter-icon')) return;
-            const col = th.dataset.col;
-            const cur = activeSort[tableId];
-            if (cur && cur.col === col) {
-              if (cur.dir === 1) activeSort[tableId] = {col, dir:-1};
-              else delete activeSort[tableId];
-            } else {
-              activeSort[tableId] = {col, dir:1};
-            }
-            // Update header classes
-            table.querySelectorAll('thead th.sortable').forEach(h => h.classList.remove('sort-asc','sort-desc'));
-            if (activeSort[tableId]) {
-              th.classList.add(activeSort[tableId].dir===1?'sort-asc':'sort-desc');
-            }
-            if(tableId==='pip-table')  renderPipeline();
-            if(tableId==='imm-table')  renderImminent();
-            if(tableId==='torr-table') renderTorr();
+            TableKit.toggleSort(tableId, th.dataset.col);
           });
         }
         // Filter icon
@@ -4262,7 +4225,7 @@ function initColInteractions(tableId) {
           fi.innerHTML = ' <span style="font-size:9px;opacity:0.5;cursor:pointer" title="Filter column">▾▾</span>';
           fi.querySelector('span').addEventListener('click', e => {
             e.stopPropagation();
-            openColFilter(th, th.dataset.col);
+            tkOpenColFilter(th, tableId, th.dataset.col);
           });
           th.appendChild(fi);
         }
@@ -4848,9 +4811,7 @@ function exportXLSX() {
 const colFilters = {};
 let activeCFP = null; // currently open filter panel
 
-function closeFilterPanel() {
-  if (activeCFP) { activeCFP.remove(); activeCFP = null; }
-}
+function closeFilterPanel(){ tkCloseFilterPanel(); }
 
 // Get all unique values for a column from full open pipeline
 function getColValues(col) {
@@ -4937,32 +4898,9 @@ function openColFilter(th, col) {
   srch.focus();
 }
 
-function updateColFilterIndicators() {
-  document.querySelectorAll('thead th[data-col]').forEach(th => {
-    th.classList.toggle('col-filtered', !!colFilters[th.dataset.col]);
-  });
-  // The "Clear filters" button now clears ALL filters and stays visible.
-}
+function updateColFilterIndicators(){ TableKit.updateFilterIndicators('pip-table'); }
 
-function applyColFilters(rows) {
-  return rows.filter(o => {
-    for (const [col, allowed] of Object.entries(colFilters)) {
-      if (!allowed || allowed.size === 0) continue;
-      let v;
-      if (col==='prob')  v = o.prob!=null ? Math.round(o.prob*100)+'%' : 'TBD';
-      else if (col==='val') v = o.val!=null ? fmt(o.val) : 'TBD';
-      else if (col==='close') v = o.close || 'TBD';
-      else if (col==='tags') {
-        const tagLabels = (o.tags||[]).map(t=>TAG_DEFS[t]?TAG_DEFS[t][0]:t);
-        if (!tagLabels.some(l=>allowed.has(l))) return false;
-        continue;
-      }
-      else v = (o[col] || '—');
-      if (!allowed.has(v)) return false;
-    }
-    return true;
-  });
-}
+function applyColFilters(rows){ return TableKit.filterRows('pip-table', rows); }
 
 // Clear all col filters button
 function clearAllColFilters() {
@@ -4980,7 +4918,7 @@ function clearAllPipelineFilters() {
     const c=document.getElementById(id); if(c) c.classList.remove('active'); });
   activeCloseChip = null;
   document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c => c.classList.remove('active'));
-  Object.keys(colFilters).forEach(k => delete colFilters[k]);
+  try { TableKit.get('pip-table').colFilters = {}; } catch(_){}
   if (typeof updateColFilterIndicators === 'function') try{ updateColFilterIndicators(); }catch(_){}
   renderPipeline();
 }
@@ -11715,91 +11653,230 @@ function onOppAcctInput(typedName) {
 // measurement to SIZE elements inside .app-header, which fed back into
 // an infinite resize loop).
 
-// ── SAVED VIEWS (per-user personalization; soft identity) ──────────────────
-// Persists via the Store (D1 collection 'saved_views' + localStorage cache),
-// tagged with the current user (SharePoint email, else initials). Soft: it's a
-// personalization convenience, not a security boundary.
+// ═══════════════════════════════════════════════════════════════════════════
+//  TableKit — one reusable engine for the app's list tables. Gives any table
+//  sort, column show/hide, column drag-reorder (live, via initColInteractions),
+//  per-column value filters, and saved views. Tables register a config; the
+//  engine itself is generic. Only one list table is visible at a time (each
+//  lives on its own view/sub-tab), so the Columns/Views popovers are shared,
+//  floating elements positioned next to whichever table's button was clicked.
+// ═══════════════════════════════════════════════════════════════════════════
+const _tkTables = {};
 const viewStore = Store('saved_views');
 const _vEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function currentUserId(){ return (getUserEmail() || getUserInitials() || 'anon').toLowerCase(); }
 
-function capturePipelineView(){
-  const g = id => { const el=document.getElementById(id); return el ? el.value : ''; };
-  const cf = {};
-  Object.keys(colFilters).forEach(k => { if (colFilters[k] instanceof Set && colFilters[k].size) cf[k] = [...colFilters[k]]; });
-  return {
-    search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), fprob:g('fprob'),
-    tagFilter: [..._tagFilter],
-    closeChip: (typeof activeCloseChip !== 'undefined') ? activeCloseChip : null,
-    starredOnly: (typeof starredOnly !== 'undefined') ? !!starredOnly : false,
-    followingOnly: (typeof followingOnly !== 'undefined') ? !!followingOnly : false,
-    sort: activeSort['pip-table'] ? { ...activeSort['pip-table'] } : null,
-    colFilters: cf,
-    hiddenCols: [..._hiddenCols]
+const TableKit = {
+  register(id, cfg){
+    const hiddenKey = 'tk_hidden_' + id;
+    let hidden = new Set();
+    try { hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey) || '[]')); } catch {}
+    // Preserve the pipeline's pre-TableKit hidden-columns choice on first run.
+    if (id === 'pip-table' && !hidden.size) {
+      try { const legacy = JSON.parse(localStorage.getItem('tsi_pip_hidden_cols_v2') || '[]'); if (legacy.length) hidden = new Set(legacy); } catch {}
+    }
+    _tkTables[id] = Object.assign({ id, columns:[], data:null, render:()=>{}, capture:null, apply:null,
+      hidden, hiddenKey, colFilters:{} }, cfg);
+    TableKit.applyVisibility(id);
+    return _tkTables[id];
+  },
+  get(id){ return _tkTables[id]; },
+  colDef(id, col){ const t=_tkTables[id]; return t ? t.columns.find(c=>c.col===col) : null; },
+
+  // ── sort ──────────────────────────────────────────────────────────────────
+  _defaultSortVal(col){
+    if(col==='val')  return r=>r.val??-1;
+    if(col==='prob') return r=>r.prob??-1;
+    if(col==='wtd')  return r=>(r.val&&r.prob)?r.val*r.prob:-1;
+    if(col==='close')return r=>{ const d=(typeof parseCloseDate==='function')?parseCloseDate(r.close):null; return d?d.getTime():Infinity; };
+    return r=>(r[col]==null?'':String(r[col])).toLowerCase();
+  },
+  sortRows(id, rows){
+    const s = activeSort[id]; if(!s) return rows;
+    const def = TableKit.colDef(id, s.col);
+    const val = (def && def.sortVal) ? def.sortVal : TableKit._defaultSortVal(s.col);
+    return [...rows].sort((a,b)=>{ const va=val(a), vb=val(b); return va<vb ? -s.dir : va>vb ? s.dir : 0; });
+  },
+  toggleSort(id, col){
+    const cur = activeSort[id];
+    if (cur && cur.col === col) { if (cur.dir === 1) activeSort[id] = {col, dir:-1}; else delete activeSort[id]; }
+    else activeSort[id] = {col, dir:1};
+    const table = document.getElementById(id);
+    if (table) {
+      table.querySelectorAll('thead th.sortable').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+      const th = table.querySelector(`thead th[data-col="${col}"]`);
+      if (th && activeSort[id]) th.classList.add(activeSort[id].dir===1?'sort-asc':'sort-desc');
+    }
+    const t=_tkTables[id]; if(t) t.render();
+  },
+
+  // ── column show / hide ──────────────────────────────────────────────────────
+  applyVisibility(id){
+    const t=_tkTables[id]; if(!t) return;
+    let style=document.getElementById('tk-colstyle-'+id);
+    if(!style){ style=document.createElement('style'); style.id='tk-colstyle-'+id; document.head.appendChild(style); }
+    style.textContent = [...t.hidden].map(i => `#${id} th:nth-child(${i}),#${id} td:nth-child(${i}){display:none}`).join('');
+    const btn=document.getElementById('tk-cols-btn-'+id);
+    if(btn) btn.textContent = t.hidden.size ? `▦ Columns (${t.columns.length - t.hidden.size}) ▾` : '▦ Columns ▾';
+  },
+  toggleColumn(id, i){
+    const t=_tkTables[id]; if(!t) return;
+    t.hidden.has(i) ? t.hidden.delete(i) : t.hidden.add(i);
+    try{ localStorage.setItem(t.hiddenKey, JSON.stringify([...t.hidden])); }catch{}
+    TableKit.applyVisibility(id); TableKit.renderColsMenu(id);
+  },
+  resetColumns(id){ const t=_tkTables[id]; if(!t) return; t.hidden.clear(); try{localStorage.setItem(t.hiddenKey,'[]');}catch{} TableKit.applyVisibility(id); TableKit.renderColsMenu(id); },
+
+  // ── per-column value filters ────────────────────────────────────────────────
+  colFilterVal(id, col, row){ const d=TableKit.colDef(id,col); return d && d.filterVal ? d.filterVal(row) : (row[col]==null?'—':String(row[col])); },
+  colValues(id, col){
+    const t=_tkTables[id]; const rows = t && t.data ? t.data() : [];
+    const d=TableKit.colDef(id,col); const m=new Map();
+    rows.forEach(r=>{ if(d && d.filterMulti){ d.filterMulti(r).forEach(v=>m.set(v,(m.get(v)||0)+1)); } else { const v=TableKit.colFilterVal(id,col,r); m.set(v,(m.get(v)||0)+1); } });
+    return [...m.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  },
+  filterRows(id, rows){
+    const t=_tkTables[id]; if(!t) return rows; const cf=t.colFilters;
+    const keys=Object.keys(cf).filter(k=>cf[k] && cf[k].size);
+    if(!keys.length) return rows;
+    return rows.filter(r=>{
+      for(const col of keys){
+        const allowed=cf[col], d=TableKit.colDef(id,col);
+        if(d && d.filterMulti){ if(!d.filterMulti(r).some(v=>allowed.has(v))) return false; continue; }
+        if(!allowed.has(TableKit.colFilterVal(id,col,r))) return false;
+      }
+      return true;
+    });
+  },
+  updateFilterIndicators(id){
+    const t=_tkTables[id]; if(!t) return;
+    document.querySelectorAll('#'+id+' thead th[data-col]').forEach(th=> th.classList.toggle('col-filtered', !!(t.colFilters[th.dataset.col] && t.colFilters[th.dataset.col].size)));
+  },
+  clearColFilters(id){ const t=_tkTables[id]; if(!t) return; t.colFilters={}; TableKit.updateFilterIndicators(id); t.render(); },
+
+  // ── saved views ─────────────────────────────────────────────────────────────
+  captureView(id){
+    const t=_tkTables[id]; const cf={};
+    Object.entries(t.colFilters).forEach(([k,v])=>{ if(v && v.size) cf[k]=[...v]; });
+    return { sort: activeSort[id] ? {...activeSort[id]} : null, hidden:[...t.hidden], colFilters:cf, extra: t.capture ? t.capture() : null };
+  },
+  applyViewState(id, st){
+    const t=_tkTables[id]; if(!t) return;
+    if(st.sort) activeSort[id]={...st.sort}; else delete activeSort[id];
+    t.hidden = new Set(st.hidden||[]); try{ localStorage.setItem(t.hiddenKey, JSON.stringify([...t.hidden])); }catch{}
+    TableKit.applyVisibility(id);
+    t.colFilters={}; Object.entries(st.colFilters||{}).forEach(([k,v])=>{ t.colFilters[k]=new Set(v); });
+    TableKit.updateFilterIndicators(id);
+    if(t.apply && st.extra) t.apply(st.extra);
+    else t.render();
+  },
+  views(id){ const uid=currentUserId(); return viewStore.all().filter(v => v.scope===id && (v.owner||'').toLowerCase()===uid); },
+  renderColsMenu(id){
+    const menu=document.getElementById('tk-cols-pop'); if(!menu || menu.dataset.table!==id) return;
+    const t=_tkTables[id];
+    menu.innerHTML =
+      `<div class="views-menu-user">Show / hide columns</div>` +
+      t.columns.map(c =>
+        `<label class="views-menu-item" style="cursor:pointer">
+          <input type="checkbox" ${t.hidden.has(c.i)?'':'checked'} onchange="TableKit.toggleColumn('${id}',${c.i})" style="accent-color:var(--tsi-teal)">
+          <span class="vm-name">${_vEsc(c.label)}</span></label>`).join('') +
+      `<div class="views-menu-save"><button style="flex:1;background:transparent;border:1px solid var(--color-border-mid);color:var(--color-text-secondary)" onclick="TableKit.resetColumns('${id}')">Show all</button></div>`;
+  },
+  renderViewsMenu(id){
+    const menu=document.getElementById('tk-views-pop'); if(!menu || menu.dataset.table!==id) return;
+    const views=TableKit.views(id), uid=currentUserId();
+    let html = `<div class="views-menu-user">Views for ${uid==='anon'?'this browser':_vEsc(uid)}${viewStore.mode()==='db'?'':' · local'}</div>`;
+    html += views.length
+      ? views.map(v=> v.id===_tkVEditId
+          ? `<div class="views-menu-item editing"><input class="vm-rename" value="${_vEsc(v.name)}" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')TableKit.commitRename('${id}','${v.id}',this.value);else if(event.key==='Escape')TableKit.cancelRename('${id}')"><span class="vm-act ok" onclick="TableKit.commitRename('${id}','${v.id}',this.previousElementSibling.value)" title="Save name">✓</span><span class="vm-del" onclick="TableKit.cancelRename('${id}')" title="Cancel">✕</span></div>`
+          : `<div class="views-menu-item" onclick="TableKit.applyView('${id}','${v.id}')"><span class="vm-name" title="${_vEsc(v.name)}">${_vEsc(v.name)}</span><span class="vm-act" onclick="TableKit.updateView('${id}','${v.id}',event)" title="Update this view to the current state">⟳</span><span class="vm-act" onclick="TableKit.renameView('${id}','${v.id}',event)" title="Rename">✎</span><span class="vm-del" onclick="TableKit.deleteView('${id}','${v.id}',event)" title="Delete view">✕</span></div>`
+        ).join('')
+      : `<div class="views-menu-empty">No saved views yet — arrange the table, then save.</div>`;
+    html += `<div class="views-menu-save"><input id="tk-view-name" placeholder="Name this view…" onkeydown="if(event.key==='Enter')TableKit.saveView('${id}')"><button onclick="TableKit.saveView('${id}')">Save</button></div>`;
+    menu.innerHTML=html;
+  },
+  saveView(id){
+    const inp=document.getElementById('tk-view-name'); const name=(inp?inp.value:'').trim();
+    if(!name){ if(inp){ inp.focus(); inp.style.borderColor='var(--tsi-coral)'; setTimeout(()=>inp.style.borderColor='',1200); } return; }
+    viewStore.put({ id:'view_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+      owner:currentUserId(), scope:id, name, state:TableKit.captureView(id), created:new Date().toISOString() });
+    TableKit.renderViewsMenu(id); showToast('✓ View "'+name+'" saved','var(--tsi-succ-green)');
+  },
+  applyView(id, vid){ const v=viewStore.all().find(x=>x.id===vid); if(v){ TableKit.applyViewState(id, v.state); TableKit.closePop(); showToast('View: '+v.name); } },
+  deleteView(id, vid, ev){ if(ev) ev.stopPropagation(); const v=viewStore.all().find(x=>x.id===vid); viewStore.remove(vid); TableKit.renderViewsMenu(id); if(v) showToast('View "'+v.name+'" deleted','var(--tsi-coral)'); },
+  renameView(id, vid, ev){ if(ev) ev.stopPropagation(); _tkVEditId=vid; TableKit.renderViewsMenu(id); const inp=document.querySelector('#tk-views-pop .vm-rename'); if(inp){ inp.focus(); inp.select(); } },
+  cancelRename(id){ _tkVEditId=null; TableKit.renderViewsMenu(id); },
+  commitRename(id, vid, val){ const v=viewStore.all().find(x=>x.id===vid); const n=(val||'').trim(); if(v && n){ v.name=n; viewStore.put(v); } _tkVEditId=null; TableKit.renderViewsMenu(id); if(v&&n) showToast('View renamed to "'+n+'"','var(--tsi-teal)'); },
+  updateView(id, vid, ev){ if(ev) ev.stopPropagation(); const v=viewStore.all().find(x=>x.id===vid); if(!v) return; v.state=TableKit.captureView(id); v.updated=new Date().toISOString(); viewStore.put(v); TableKit.renderViewsMenu(id); showToast('View "'+v.name+'" updated','var(--tsi-succ-green)'); },
+
+  // ── shared floating popovers (Columns / Views) ────────────────────────────────
+  _pop(which, id, btn){
+    TableKit.closePop();
+    const pop=document.createElement('div'); pop.className='views-menu tk-pop'; pop.id='tk-'+which+'-pop'; pop.dataset.table=id;
+    document.body.appendChild(pop);
+    if(which==='cols') TableKit.renderColsMenu(id); else TableKit.renderViewsMenu(id);
+    const r=btn.getBoundingClientRect();
+    pop.style.cssText=`position:fixed;display:block;top:${r.bottom+4}px;left:${Math.min(r.left, window.innerWidth-240)}px;z-index:9999`;
+    _tkPopEl=pop;
+    setTimeout(()=>document.addEventListener('click', TableKit._outside), 0);
+  },
+  toggleCols(ev, id){ if(ev) ev.stopPropagation(); const open=_tkPopEl && _tkPopEl.id==='tk-cols-pop'; TableKit.closePop(); if(!open) TableKit._pop('cols', id, ev.currentTarget); },
+  toggleViews(ev, id){ if(ev) ev.stopPropagation(); const open=_tkPopEl && _tkPopEl.id==='tk-views-pop'; TableKit.closePop(); if(!open) TableKit._pop('views', id, ev.currentTarget); },
+  closePop(){ if(_tkPopEl){ _tkPopEl.remove(); _tkPopEl=null; } _tkVEditId=null; document.removeEventListener('click', TableKit._outside); },
+  _outside(e){ if(_tkPopEl && !_tkPopEl.contains(e.target)) TableKit.closePop(); },
+
+  // Standard toolbar snippet (Views + Columns) for a table.
+  toolbar(id){
+    return `<div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'${id}')" title="Your saved views">⭐ Views ▾</button></div>`
+         + `<div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-${id}" onclick="TableKit.toggleCols(event,'${id}')" title="Show / hide columns">▦ Columns ▾</button></div>`;
+  },
+};
+let _tkPopEl=null, _tkVEditId=null;
+
+// ── Column value-filter panel (generic; opened from the ▾▾ header icon) ────────
+let _tkCFP=null;
+function tkCloseFilterPanel(){ if(_tkCFP){ _tkCFP.remove(); _tkCFP=null; } }
+function tkOpenColFilter(th, id, col){
+  tkCloseFilterPanel();
+  const t=TableKit.get(id); if(!t) return;
+  const panel=document.createElement('div'); panel.className='col-filter-panel';
+  const active=t.colFilters[col];
+  const allVals=TableKit.colValues(id, col);
+  const srch=document.createElement('input'); srch.className='cfp-search'; srch.placeholder='Search values…'; srch.type='text'; panel.appendChild(srch);
+  const acts=document.createElement('div'); acts.className='cfp-actions';
+  const btnAll=document.createElement('button'); btnAll.className='cfp-btn'; btnAll.textContent='Select all';
+  const btnNone=document.createElement('button'); btnNone.className='cfp-btn'; btnNone.textContent='Clear';
+  const btnApply=document.createElement('button'); btnApply.className='cfp-btn apply'; btnApply.textContent='Apply';
+  acts.append(btnAll, btnNone, btnApply); panel.appendChild(acts);
+  const divd=document.createElement('div'); divd.className='cfp-divider'; panel.appendChild(divd);
+  const list=document.createElement('div'); list.className='cfp-list'; panel.appendChild(list);
+  let pending = active ? new Set(active) : new Set(allVals.map(([v])=>v));
+  function renderList(q=''){
+    list.innerHTML='';
+    const filtered = q ? allVals.filter(([v])=>String(v).toLowerCase().includes(q.toLowerCase())) : allVals;
+    filtered.forEach(([val,count])=>{
+      const item=document.createElement('div'); item.className='cfp-item';
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=pending.has(val);
+      const lbl=document.createElement('label'); lbl.textContent=val;
+      const cnt=document.createElement('span'); cnt.className='cfp-count'; cnt.textContent=count;
+      cb.onchange=()=>{ if(cb.checked) pending.add(val); else pending.delete(val); };
+      item.onclick=(e)=>{ if(e.target!==cb){ cb.checked=!cb.checked; cb.onchange(); } };
+      item.append(cb,lbl,cnt); list.appendChild(item);
+    });
+  }
+  srch.oninput=()=>renderList(srch.value);
+  btnAll.onclick=()=>{ pending=new Set(allVals.map(([v])=>v)); renderList(srch.value); };
+  btnNone.onclick=()=>{ pending.clear(); renderList(srch.value); };
+  btnApply.onclick=()=>{
+    if(pending.size===allVals.length) delete t.colFilters[col]; else t.colFilters[col]=new Set(pending);
+    TableKit.updateFilterIndicators(id); tkCloseFilterPanel(); t.render();
   };
+  renderList();
+  const rect=th.getBoundingClientRect(); const panelH=320;
+  const top = rect.bottom+panelH>window.innerHeight ? rect.top-panelH : rect.bottom;
+  panel.style.cssText=`top:${top}px;left:${Math.min(rect.left, window.innerWidth-230)}px`;
+  document.body.appendChild(panel); _tkCFP=panel; srch.focus();
 }
-function applyPipelineView(st){
-  const setv = (id,v) => { const el=document.getElementById(id); if(el) el.value = v || ''; };
-  setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc);
-  setv('flead',st.flead); setv('fprob',st.fprob);
-  _tagFilter = new Set(st.tagFilter || []); updateTagFilterBtn();
-  if (typeof starredOnly !== 'undefined') starredOnly = !!st.starredOnly;
-  const starChip=document.getElementById('chip-starred'); if(starChip) starChip.classList.toggle('active', !!st.starredOnly);
-  if (typeof followingOnly !== 'undefined') followingOnly = !!st.followingOnly;
-  const folChip=document.getElementById('chip-following'); if(folChip) folChip.classList.toggle('active', !!st.followingOnly);
-  if (typeof activeCloseChip !== 'undefined') activeCloseChip = st.closeChip || null;
-  document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c =>
-    c.classList.toggle('active', st.closeChip != null && c.dataset.mo === String(st.closeChip)));
-  if (st.sort) activeSort['pip-table'] = { ...st.sort }; else delete activeSort['pip-table'];
-  Object.keys(colFilters).forEach(k => delete colFilters[k]);
-  Object.keys(st.colFilters || {}).forEach(k => { colFilters[k] = new Set(st.colFilters[k]); });
-  if (st.hiddenCols) { _hiddenCols = new Set(st.hiddenCols); applyColumnVisibility(); }
-  if (typeof updateColFilterIndicators === 'function') updateColFilterIndicators();
-  renderPipeline();
-}
-function myViews(){ const uid=currentUserId(); return viewStore.all().filter(v => v.scope==='pipeline' && (v.owner||'').toLowerCase()===uid); }
-function saveCurrentView(){
-  const inp=document.getElementById('views-name-input');
-  const name=(inp?inp.value:'').trim();
-  if(!name){ if(inp){ inp.focus(); inp.style.borderColor='var(--tsi-coral)'; setTimeout(()=>inp.style.borderColor='',1200); } return; }
-  viewStore.put({ id:'view_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
-    owner:currentUserId(), scope:'pipeline', name, state:capturePipelineView(), created:new Date().toISOString() });
-  renderViewsMenu();
-  showToast('✓ View "'+name+'" saved','var(--tsi-succ-green)');
-}
-function applyView(id){ const v=viewStore.all().find(x=>x.id===id); if(v){ applyPipelineView(v.state); closeViewsMenu(); showToast('View: '+v.name); } }
-function deleteView(id, ev){ if(ev) ev.stopPropagation(); const v=viewStore.all().find(x=>x.id===id); viewStore.remove(id); renderViewsMenu(); if(v) showToast('View "'+v.name+'" deleted','var(--tsi-coral)'); }
-let _vEditId=null;
-function renameView(id, ev){ if(ev) ev.stopPropagation(); _vEditId=id; renderViewsMenu();
-  const inp=document.querySelector('#views-menu .vm-rename'); if(inp){ inp.focus(); inp.select(); } }
-function cancelRename(){ _vEditId=null; renderViewsMenu(); }
-function commitRename(id, val){ const v=viewStore.all().find(x=>x.id===id); const n=(val||'').trim();
-  if(v && n){ v.name=n; viewStore.put(v); } _vEditId=null; renderViewsMenu(); if(v&&n) showToast('View renamed to "'+n+'"','var(--tsi-teal)'); }
-function updateView(id, ev){ if(ev) ev.stopPropagation(); const v=viewStore.all().find(x=>x.id===id); if(!v) return;
-  v.state=capturePipelineView(); v.updated=new Date().toISOString(); viewStore.put(v); renderViewsMenu();
-  showToast('View "'+v.name+'" updated to the current filters','var(--tsi-succ-green)'); }
-function renderViewsMenu(){
-  const menu=document.getElementById('views-menu'); if(!menu) return;
-  const views=myViews(); const uid=currentUserId();
-  let html = `<div class="views-menu-user">Views for ${uid==='anon'?'this browser':_vEsc(uid)}${viewStore.mode()==='db'?'':' · local'}</div>`;
-  html += views.length
-    ? views.map(v=> v.id===_vEditId
-        ? `<div class="views-menu-item editing"><input class="vm-rename" value="${_vEsc(v.name)}" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')commitRename('${v.id}',this.value);else if(event.key==='Escape')cancelRename()"><span class="vm-act ok" onclick="commitRename('${v.id}',this.previousElementSibling.value)" title="Save name">✓</span><span class="vm-del" onclick="cancelRename()" title="Cancel">✕</span></div>`
-        : `<div class="views-menu-item" onclick="applyView('${v.id}')"><span class="vm-name" title="${_vEsc(v.name)}">${_vEsc(v.name)}</span><span class="vm-act" onclick="updateView('${v.id}',event)" title="Update this view to the current filters">⟳</span><span class="vm-act" onclick="renameView('${v.id}',event)" title="Rename">✎</span><span class="vm-del" onclick="deleteView('${v.id}',event)" title="Delete view">✕</span></div>`
-      ).join('')
-    : `<div class="views-menu-empty">No saved views yet — filter the pipeline, then save.</div>`;
-  html += `<div class="views-menu-save"><input id="views-name-input" placeholder="Name this view…" onkeydown="if(event.key==='Enter')saveCurrentView()"><button onclick="saveCurrentView()">Save</button></div>`;
-  menu.innerHTML=html;
-}
-function toggleViewsMenu(ev){
-  if(ev) ev.stopPropagation();
-  const m=document.getElementById('views-menu'); if(!m) return;
-  if(m.style.display==='none'){ renderViewsMenu(); m.style.display=''; setTimeout(()=>document.addEventListener('click', _closeViewsOutside),0); }
-  else closeViewsMenu();
-}
-function closeViewsMenu(){ const m=document.getElementById('views-menu'); if(m) m.style.display='none'; _vEditId=null; document.removeEventListener('click', _closeViewsOutside); }
-function _closeViewsOutside(e){ const w=document.querySelector('.views-wrap'); if(w && !w.contains(e.target)) closeViewsMenu(); }
-viewStore.pull().then(() => renderViewsMenu());
 
 // ── PERSONAL FOLLOWS (per-user faves; soft identity) ───────────────────────
 const followStore = Store('follows');
@@ -11817,53 +11894,67 @@ function toggleFollowingFilter(el){
   renderPipeline();
 }
 
-// ── COLUMN PICKER (show/hide pipeline columns; per-user) ───────────────────
-// Columns are positional, so we hide by nth-child rather than tagging cells.
-const PIP_COLS_KEY = 'tsi_pip_hidden_cols_v2';   // v2: added Line of Business col (indices shifted)
-let _hiddenCols = new Set();
-try { _hiddenCols = new Set(JSON.parse(localStorage.getItem(PIP_COLS_KEY) || '[]')); } catch {}
-// Toggleable data columns → their 1-based column index in #pip-table.
-// (1 = star/follow, and the trailing detail ⤢ / status / delete are fixed controls, not listed.)
-const PIP_COL_DEFS = [
-  {i:2,label:'ID'},{i:3,label:'Category'},{i:4,label:'Line of Business'},{i:5,label:'Account'},
-  {i:6,label:'Location'},{i:7,label:'Project'},{i:8,label:'Scope Tags'},{i:9,label:'Value'},
-  {i:10,label:'Prob'},{i:11,label:'Wtd'},{i:12,label:'Stage'},{i:13,label:'Close'},
-  {i:14,label:'Lead'},{i:15,label:'Notes'},{i:16,label:'Last Update'}
-];
-function applyColumnVisibility(){
-  let style=document.getElementById('pip-col-style');
-  if(!style){ style=document.createElement('style'); style.id='pip-col-style'; document.head.appendChild(style); }
-  style.textContent = [..._hiddenCols].map(i =>
-    `#pip-table th:nth-child(${i}),#pip-table td:nth-child(${i}){display:none}`).join('');
-  const btn=document.getElementById('cols-btn');
-  if(btn) btn.textContent = _hiddenCols.size ? `▦ Columns (${PIP_COL_DEFS.length - _hiddenCols.size}) ▾` : '▦ Columns ▾';
-}
-function toggleColumn(i){
-  _hiddenCols.has(i) ? _hiddenCols.delete(i) : _hiddenCols.add(i);
-  try { localStorage.setItem(PIP_COLS_KEY, JSON.stringify([..._hiddenCols])); } catch {}
-  applyColumnVisibility(); renderColsMenu();
-}
-function renderColsMenu(){
-  const menu=document.getElementById('cols-menu'); if(!menu) return;
-  menu.innerHTML =
-    `<div class="views-menu-user">Show / hide columns</div>` +
-    PIP_COL_DEFS.map(c =>
-      `<label class="views-menu-item" style="cursor:pointer">
-        <input type="checkbox" ${_hiddenCols.has(c.i)?'':'checked'} onchange="toggleColumn(${c.i})" style="accent-color:var(--tsi-teal)">
-        <span class="vm-name">${c.label}</span></label>`).join('') +
-    `<div class="views-menu-save"><button style="flex:1;background:transparent;border:1px solid var(--color-border-mid);color:var(--color-text-secondary)" onclick="resetColumns()">Show all</button></div>`;
-}
-function resetColumns(){ _hiddenCols.clear(); try{localStorage.setItem(PIP_COLS_KEY,'[]');}catch{} applyColumnVisibility(); renderColsMenu(); }
-function toggleColsMenu(ev){
-  if(ev) ev.stopPropagation();
-  const m=document.getElementById('cols-menu'); if(!m) return;
-  if(m.style.display==='none'){ renderColsMenu(); m.style.display=''; setTimeout(()=>document.addEventListener('click', _closeColsOutside),0); }
-  else closeColsMenu();
-}
-function closeColsMenu(){ const m=document.getElementById('cols-menu'); if(m) m.style.display='none'; document.removeEventListener('click', _closeColsOutside); }
-function _closeColsOutside(e){ const w=document.getElementById('cols-menu')?.parentElement; if(w && !w.contains(e.target)) closeColsMenu(); }
+// ── Register the app's list tables with TableKit ────────────────────────────
+// (Products / Quotes / Price Book register lower down, after their columns are
+//  converted to the shared data-col convention.)
+TableKit.register('pip-table', {
+  data: () => (typeof open === 'function' ? open() : []),
+  render: () => renderPipeline(),
+  columns: [
+    { i:2,  label:'ID',               col:'id',   sortable:true },
+    { i:3,  label:'Category',         col:'cat',  sortable:true },
+    { i:4,  label:'Line of Business', col:'lob',  sortable:true,
+      sortVal:o=>((PRESO_SECT[presoHeuristic(o)]||{}).label||'').toLowerCase(),
+      filterVal:o=>(PRESO_SECT[presoHeuristic(o)]||{}).label||'—' },
+    { i:5,  label:'Account',          col:'acct', sortable:true },
+    { i:6,  label:'Location',         col:'loc',  sortable:true },
+    { i:7,  label:'Project',          col:'type' },
+    { i:8,  label:'Scope Tags' },
+    { i:9,  label:'Value',            col:'val',  sortable:true, sortVal:o=>o.val??-1, filterVal:o=>o.val!=null?fmt(o.val):'TBD' },
+    { i:10, label:'Prob',             col:'prob', sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
+    { i:11, label:'Wtd',              col:'wtd',  sortable:true, sortVal:o=>(o.val&&o.prob)?o.val*o.prob:-1 },
+    { i:12, label:'Stage',            col:'stage',sortable:true },
+    { i:13, label:'Close',            col:'close',sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD' },
+    { i:14, label:'Lead',             col:'lead', sortable:true },
+    { i:15, label:'Notes' },
+    { i:16, label:'Last Update' },
+  ],
+  capture: () => { const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+    return { search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), fprob:g('fprob'),
+      tagFilter:[..._tagFilter],
+      closeChip:(typeof activeCloseChip!=='undefined')?activeCloseChip:null,
+      starredOnly:!!(typeof starredOnly!=='undefined'&&starredOnly),
+      followingOnly:!!(typeof followingOnly!=='undefined'&&followingOnly) }; },
+  apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+    setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc); setv('flead',st.flead); setv('fprob',st.fprob);
+    _tagFilter = new Set(st.tagFilter||[]); if(typeof updateTagFilterBtn==='function') updateTagFilterBtn();
+    if(typeof starredOnly!=='undefined') starredOnly=!!st.starredOnly;
+    const sc=document.getElementById('chip-starred'); if(sc) sc.classList.toggle('active',!!st.starredOnly);
+    if(typeof followingOnly!=='undefined') followingOnly=!!st.followingOnly;
+    const fc=document.getElementById('chip-following'); if(fc) fc.classList.toggle('active',!!st.followingOnly);
+    if(typeof activeCloseChip!=='undefined') activeCloseChip=st.closeChip||null;
+    document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c=>c.classList.toggle('active', st.closeChip!=null && c.dataset.mo===String(st.closeChip)));
+    renderPipeline();
+  },
+});
+TableKit.register('imm-table', {
+  data: () => (typeof open === 'function' ? open() : []),
+  render: () => renderImminent(),
+  columns: [
+    { i:2,  label:'PO Target',    col:'close', sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD' },
+    { i:3,  label:'Account',      col:'acct',  sortable:true },
+    { i:4,  label:'Location',     col:'loc' },
+    { i:5,  label:'Project',      col:'type' },
+    { i:6,  label:'Scope Tags' },
+    { i:7,  label:'Value',        col:'val',   sortable:true, sortVal:o=>o.val??-1, filterVal:o=>o.val!=null?fmt(o.val):'TBD' },
+    { i:8,  label:'Prob',         col:'prob',  sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
+    { i:9,  label:'Wtd' },
+    { i:10, label:'Lead',         col:'lead',  sortable:true },
+    { i:11, label:'Action Needed' },
+  ],
+});
+viewStore.pull().then(() => { const p=_tkPopEl; if(p && p.id==='tk-views-pop') TableKit.renderViewsMenu(p.dataset.table); });
 followStore.pull().then(() => renderPipeline());
-applyColumnVisibility();
 
 // ── INIT ──────────────────────────────────────────────────────
 populateFilters();
