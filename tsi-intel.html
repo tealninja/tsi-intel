@@ -3249,7 +3249,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#92 · 2026-07-09';
+const APP_BUILD = '#93 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -6923,17 +6923,6 @@ async function initUserIdentity() {
     applyUserToUI(spUser);
     return;
   }
-  // John's personal web deploy (bodhistoys / workers.dev) → default to his Gmail
-  // identity with no prompt. (This host is John's landing by definition.)
-  if (isCloudflareHost()) {
-    _currentUser = { ...JTEAL_USER };
-    localStorage.setItem(USER_KEY, JTEAL_USER.initials);
-    localStorage.setItem('tsi_user_name_v1',  JTEAL_USER.name);
-    localStorage.setItem('tsi_user_email_v1', JTEAL_USER.email);
-    localStorage.setItem(ONBOARD_KEY, '1');
-    applyUserToUI(_currentUser);
-    return;
-  }
   // Returning user on this browser (incl. a coworker who identified before) → cache.
   const cachedInitials = localStorage.getItem(USER_KEY) || '';
   const cachedName     = localStorage.getItem('tsi_user_name_v1') || '';
@@ -6947,10 +6936,16 @@ async function initUserIdentity() {
     applyUserToUI(_currentUser);
     return;
   }
-  // Unknown local user (a fresh C:\ download can't be auto-detected) → ASK who
-  // they are, pre-filling John so he confirms in one click but a coworker enters
-  // their own. We never silently claim John here.
-  checkOnboarding(isLocalFile() ? JTEAL_MS_USER : null);
+  // Identity can't be determined (no SharePoint, no remembered user) → ASK on
+  // open. Pre-fill the best guess for this context so John one-clicks through,
+  // but a coworker can type their own — nobody is silently claimed as John:
+  //   • local/desktop file  → John's MS identity (jteal@tsi-inc.net)
+  //   • bodhistoys/workers   → John's Gmail (his personal web landing)
+  //   • any other host       → blank (truly unknown)
+  const prefill = isLocalFile() ? JTEAL_MS_USER
+                : isCloudflareHost() ? JTEAL_USER
+                : null;
+  checkOnboarding(prefill);
 }
 
 function applyUserToUI(user) {

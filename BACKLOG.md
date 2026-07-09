@@ -195,6 +195,13 @@ Roles (cumulative ladder):
   onboarding markup was parsed (checkOnboarding now defers to DOMContentLoaded). Verified via
   Playwright over `file://`: John pre-fill→confirm (exec), coworker override (not exec, not
   mislabeled), returning-user cache, no premature greeting.
+- [x] **Ask-on-open everywhere identity is unknown** (build #93) — made the rule uniform:
+  if identity can't be *determined* (no SharePoint session, no remembered user) the app
+  **asks on open** rather than assuming anyone. The bodhistoys/workers.dev web landing no
+  longer silently claims John either — it now shows the same prompt, pre-filled with his
+  **Gmail** (local files pre-fill his **MS** identity; any other host is blank). SharePoint
+  and the per-browser cache still resolve silently. Verified via Playwright: web landing
+  now prompts (source stays 'manual', not auto-claimed) and confirm → Gmail + exec.
 - [x] **Welcome status card** (build #89) — the login greeting grew into a richer,
   longer-lived card (stays ~11s, **pauses on hover**, has a **×** to dismiss). Header is
   the "Hi {name}" + email + avatar as before; below it a **linked-vs-local checklist** of
