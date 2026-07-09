@@ -3408,7 +3408,7 @@ function renderStageBoard(){
   board.innerHTML=cols.map(s=>{
     const list=by[s]||[]; const val=list.reduce((a,o)=>a+(Number(o.val)||0),0); const color=PIP_STAGE_COLORS[s]||'#8a8f98';
     const cards=list.map(o=>psbCard(o,color)).join('')||'<div class="psb-empty">—</div>';
-    return `<div class="psb-col" data-stage="${qattr(s)}" ondragover="psbOver(event)" ondragleave="psbLeave(event)" ondrop="psbDrop(event,'${qattr(s)}')">
+    return `<div class="psb-col" data-stage="${qattr(s)}" style="--c:${color}" ondragover="psbOver(event)" ondragleave="psbLeave(event)" ondrop="psbDrop(event,'${qattr(s)}')">
       <div class="psb-col-h"><span class="psb-dot" style="background:${color}"></span><span class="psb-nm">${qesc(s)}</span><span class="psb-ct">${list.length}${val?' · '+fmt(val):''}</span></div>
       <div class="psb-body">${cards}</div></div>`;
   }).join('');
@@ -3421,24 +3421,68 @@ function psbCard(o,color){
     <div class="m"><span>${o.val!=null?fmt(o.val):'TBD'}</span><span>${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</span>${o.close?`<span>📅 ${qesc(o.close)}</span>`:''}${o.lead?`<span>${qesc(o.lead)}</span>`:''}</div>
   </div>`;
 }
+// ── DropLine — shared card-drag drop-position indicator ─────────────────────
+// Reused by the deck builder (.pb-card) and the pipeline stage board (.psb-card).
+// A single line element is moved to the insertion point as the pointer travels;
+// pointer-events:none keeps it from intercepting the drop.
+const DropLine = {
+  _el:null,
+  _ensure(){ if(!this._el){ this._el=document.createElement('div'); this._el.className='drop-line'; } return this._el; },
+  hide(){ if(this._el && this._el.parentNode) this._el.parentNode.removeChild(this._el); },
+  // Position the line inside bodyEl at the insertion point for clientY.
+  update(bodyEl, clientY, cardSel){
+    if(!bodyEl){ this.hide(); return; }
+    const line=this._ensure();
+    const cards=[...bodyEl.querySelectorAll(cardSel)].filter(c=>!c.classList.contains('dragging'));
+    let before=null;
+    for(const c of cards){ const r=c.getBoundingClientRect(); if(clientY < r.top+r.height/2){ before=c; break; } }
+    if(before) bodyEl.insertBefore(line, before);
+    else { const empty=bodyEl.querySelector('.pb-empty,.psb-empty'); if(empty) bodyEl.insertBefore(line, empty); else bodyEl.appendChild(line); }
+  },
+  // The insertion index + id of the card it lands before (null = at end).
+  indexAt(bodyEl, clientY, cardSel){
+    const cards=[...bodyEl.querySelectorAll(cardSel)].filter(c=>!c.classList.contains('dragging'));
+    for(let i=0;i<cards.length;i++){ const r=cards[i].getBoundingClientRect(); if(clientY < r.top+r.height/2) return { index:i, beforeId:cards[i].getAttribute('data-id') }; }
+    return { index:cards.length, beforeId:null };
+  },
+};
+
 let _psbDrag=null;
 function psbDragStart(e,id){ _psbDrag=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',id);}catch(_){}
   const el=e.target.closest('.psb-card'); if(el) el.classList.add('dragging'); }
 function psbDragEnd(e){ const el=e.target.closest('.psb-card'); if(el) el.classList.remove('dragging'); _psbDrag=null;
+  DropLine.hide();
   document.querySelectorAll('.psb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); }
-function psbOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; const c=e.currentTarget; if(c) c.classList.add('drag-over'); }
-function psbLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)) c.classList.remove('drag-over'); }
+function psbOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; const c=e.currentTarget; if(c) c.classList.add('drag-over');
+  DropLine.update(c.querySelector('.psb-body'), e.clientY, '.psb-card'); }
+function psbLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)){ c.classList.remove('drag-over'); DropLine.hide(); } }
+// Reorder DATA so `rec` sits at the drop position among its stage's cards
+// (session-local ordering; the stage change itself is what persists).
+function psbReorderData(rec, beforeId, stage){
+  const i=DATA.indexOf(rec); if(i<0) return; DATA.splice(i,1);
+  if(beforeId){ const j=DATA.findIndex(r=>r.id===beforeId); if(j>=0){ DATA.splice(j,0,rec); return; } }
+  let lastIdx=-1; DATA.forEach((r,k)=>{ if(r.stage===stage) lastIdx=k; });
+  if(lastIdx>=0) DATA.splice(lastIdx+1,0,rec); else DATA.push(rec);
+}
 function psbDrop(e,stage){
   e.preventDefault();
+  const body=e.currentTarget.querySelector('.psb-body');
+  const drop=DropLine.indexAt(body, e.clientY, '.psb-card');
+  DropLine.hide();
   const id=_psbDrag||(()=>{try{return e.dataTransfer.getData('text/plain');}catch(_){return null;}})();
   document.querySelectorAll('.psb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); _psbDrag=null;
   if(!id || stage==='(No stage)'){ renderStageBoard(); return; }
-  const rec=DATA.find(r=>r.id===id); if(!rec || rec.stage===stage){ renderStageBoard(); return; }
-  rec.stage=stage; rec.updatedAt=new Date().toISOString(); rec.updatedBy=getUserInitials()||'?'; markDirty(id);
-  if(typeof usageLog==='function') usageLog('stage_change', id+' → '+stage);
-  oppPersist(rec);
+  const rec=DATA.find(r=>r.id===id); if(!rec){ renderStageBoard(); return; }
+  const stageChanged = rec.stage!==stage;
+  rec.stage=stage;
+  psbReorderData(rec, drop.beforeId, stage);       // land where the line showed
+  if(stageChanged){
+    rec.updatedAt=new Date().toISOString(); rec.updatedBy=getUserInitials()||'?'; markDirty(id);
+    if(typeof usageLog==='function') usageLog('stage_change', id+' → '+stage);
+    oppPersist(rec);
+  }
   renderStageBoard();
-  showToast(qesc(rec.acct||'Opportunity')+' → '+stage,'var(--tsi-teal)');
+  if(stageChanged) showToast(qesc(rec.acct||'Opportunity')+' → '+stage,'var(--tsi-teal)');
 }
 
 function toggleCloseChip(el) {
@@ -13560,9 +13604,12 @@ startAdminPoll();
 .pz-btn{background:var(--pz-panel);color:var(--pz-ink);border:1px solid var(--pz-line);border-radius:7px;padding:6px 12px;font-size:12.5px;cursor:pointer}
 .pz-btn:hover{background:var(--pz-panel2)}
 .pz-btn.act{color:#fff;border-color:#00929f;background:rgba(0,146,159,.16)}
-/* Fixed-size slide: fills the stage so every slide is identical and never shifts vertically */
-.pz-stage{flex:1 1 auto;overflow:hidden;display:flex;align-items:stretch;justify-content:center;padding:22px}
-.pz-slide{width:100%;max-width:1180px;margin:0 auto;position:relative;
+/* Fixed 16:9 slide: the largest 16:9 box that fits the stage (contain), centered.
+   container-type:size lets us size by both stage width (cqw) and height (cqh) so
+   the slide letterboxes instead of stretching. */
+.pz-stage{flex:1 1 auto;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:22px;container-type:size}
+.pz-slide{aspect-ratio:16/9;width:min(100%, calc(100cqh * 16 / 9));max-width:1280px;height:auto;max-height:100%;
+  margin:0 auto;position:relative;
   background:radial-gradient(1200px 500px at 12% -10%,var(--pz-slidea) 0%,var(--pz-slideb) 55%);
   border:1px solid var(--pz-line);border-radius:16px;padding:34px 40px 30px;box-shadow:var(--pz-shadow);overflow:auto}
 .pz-slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--acc,#00929f)}
@@ -13718,8 +13765,8 @@ startAdminPoll();
   padding:9px 11px;cursor:grab;user-select:none}
 .pb-card:hover{background:var(--pb-card2)}
 .pb-card.dragging{opacity:.4}
-/* Drop-position indicator line shown while dragging a card within a column. */
-.pb-drop-line{height:0;margin:1px 2px;border-top:2px solid var(--c,#00929f);border-radius:2px;
+/* Shared drop-position indicator line (deck builder + pipeline stage board). */
+.drop-line{height:0;margin:1px 2px;border-top:2px solid var(--c,#00929f);border-radius:2px;
   box-shadow:0 0 7px color-mix(in srgb,var(--c,#00929f) 65%,transparent);pointer-events:none}
 .pb-card .a{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
 .pb-card .t{color:var(--pb-muted);font-size:12px;margin-top:2px;line-height:1.35}
@@ -15654,29 +15701,15 @@ function pbCard(id,col){
 function pbDragStart(e,id){ _pbDrag=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',id);}catch{}
   const el=e.target.closest('.pb-card'); if(el) el.classList.add('dragging'); }
 function pbDragEnd(e){ const el=e.target.closest('.pb-card'); if(el) el.classList.remove('dragging'); _pbDrag=null;
-  pbHideDropLine();
+  DropLine.hide();
   document.querySelectorAll('.pb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); }
-// A single reusable line element, moved to the insertion point as the pointer
-// travels, so it's obvious where the card will land. pointer-events:none keeps
-// it from intercepting the drop (pbDrop still reads the real card under cursor).
-let _pbDropLine=null;
-function pbHideDropLine(){ if(_pbDropLine&&_pbDropLine.parentNode) _pbDropLine.parentNode.removeChild(_pbDropLine); }
-function pbShowDropLine(colEl, clientY){
-  const body=colEl.querySelector('.pb-col-body'); if(!body) return;
-  if(!_pbDropLine){ _pbDropLine=document.createElement('div'); _pbDropLine.className='pb-drop-line'; }
-  const cards=[...body.querySelectorAll('.pb-card')].filter(c=>!c.classList.contains('dragging'));
-  let before=null;
-  for(const c of cards){ const r=c.getBoundingClientRect(); if(clientY < r.top+r.height/2){ before=c; break; } }
-  if(before) body.insertBefore(_pbDropLine, before);
-  else { const empty=body.querySelector('.pb-empty'); if(empty) body.insertBefore(_pbDropLine, empty); else body.appendChild(_pbDropLine); }
-}
 function pbColOver(e,col){ e.preventDefault(); e.dataTransfer.dropEffect='move';
   const c=e.currentTarget; if(c&&!c.classList.contains('drag-over')) c.classList.add('drag-over');
-  pbShowDropLine(c, e.clientY); }
-function pbColLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)){ c.classList.remove('drag-over'); pbHideDropLine(); } }
+  DropLine.update(c.querySelector('.pb-col-body'), e.clientY, '.pb-card'); }
+function pbColLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)){ c.classList.remove('drag-over'); DropLine.hide(); } }
 function pbDrop(e,col){
   e.preventDefault();
-  pbHideDropLine();
+  DropLine.hide();
   const id=_pbDrag||(()=>{try{return e.dataTransfer.getData('text/plain');}catch{return null;}})();
   if(!id||!_presoBoard) return;
   // remove from every column
