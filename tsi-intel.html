@@ -175,7 +175,7 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .sync-alert-cta{text-decoration:underline;font-weight:800}
 @keyframes syncAlertIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 /* welcome / session-status card (top-center, on login) */
-.tsi-welcome{position:fixed;top:-120px;left:50%;transform:translateX(-50%);z-index:9999;width:min(340px,calc(100vw - 28px));box-sizing:border-box;padding:14px 16px 13px;border-radius:16px;background:var(--color-surface,#fff);border:1px solid var(--color-border,#e3e3e3);box-shadow:0 14px 38px rgba(0,0,0,.22);opacity:0;transition:top .4s cubic-bezier(.2,.9,.3,1.2),opacity .4s}
+.tsi-welcome{position:fixed;top:-120px;left:50%;transform:translateX(-50%);z-index:2147483000;width:min(340px,calc(100vw - 28px));box-sizing:border-box;padding:14px 16px 13px;border-radius:16px;background:var(--color-surface,#fff);border:1px solid var(--color-border,#e3e3e3);box-shadow:0 14px 38px rgba(0,0,0,.22);opacity:0;transition:top .4s cubic-bezier(.2,.9,.3,1.2),opacity .4s}
 .tsi-welcome.show{top:16px;opacity:1}
 .tsi-welcome .tw-close{position:absolute;top:9px;right:10px;width:22px;height:22px;border:none;background:transparent;color:var(--color-text-muted,#999);font-size:17px;line-height:1;cursor:pointer;border-radius:6px}
 .tsi-welcome .tw-close:hover{background:var(--color-bg-subtle,#f0f0f0);color:var(--color-heading,#333)}
@@ -3243,7 +3243,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#89 · 2026-07-09';
+const APP_BUILD = '#90 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -6750,8 +6750,11 @@ function dismissWelcome() {
 
 function showWelcomeToast() {
   if (_welcomedThisLoad) return;
-  const name = getUserName(), email = getUserEmail();
-  if (!name && !email) return;                 // nothing resolved yet (pre-onboarding)
+  const name = getUserName(), email = getUserEmail(), initials = getUserInitials();
+  // Skip only when NOTHING is known yet (pre-onboarding — the onboarding modal
+  // handles the greeting after the user enters initials). Initials alone are
+  // enough to greet, so a SharePoint API hiccup can't suppress the card.
+  if (!name && !email && !initials) return;
   _welcomedThisLoad = true;
   const old = document.getElementById('tsi-welcome'); if (old) old.remove();
   const w = document.createElement('div');
@@ -6759,12 +6762,19 @@ function showWelcomeToast() {
   w.className = 'tsi-welcome';
   document.body.appendChild(w);
   _welcomeStart = Date.now();
-  _welcomeRender(w, false);
+  try { _welcomeRender(w, false); }
+  catch (e) {                                  // never let a render error leave an invisible card
+    const who = name || email || initials || 'there';
+    w.innerHTML = `<button class="tw-close" title="Dismiss" onclick="dismissWelcome()">×</button>
+      <div class="tw-head"><div class="tw-avatar">${initials||'?'}</div>
+      <div class="tw-text"><div class="tw-hi">Hi ${who}</div>${email?`<div class="tw-email">${email}</div>`:''}</div></div>`;
+    console.warn('welcome card render fell back:', e && e.message);
+  }
   requestAnimationFrame(() => w.classList.add('show'));
   // Re-render as async store pulls settle (Syncing… → Linked).
   const tick = setInterval(() => {
     if (!document.getElementById('tsi-welcome')) return;
-    _welcomeRender(w, (Date.now() - _welcomeStart) > 3500);
+    try { _welcomeRender(w, (Date.now() - _welcomeStart) > 3500); } catch (_) {}
   }, 1200);
   // Auto-dismiss ~11s; pause the countdown while hovered so it can be read.
   _welcomeTimers = { tick, dismiss: setTimeout(dismissWelcome, 11000) };
@@ -12397,7 +12407,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(refreshCollapseHeights, 700);
 });
 // Identity: try SharePoint first, fall back to manual
-initUserIdentity().then(() => { showLastEditOnLoad(); showWelcomeToast(); });
+initUserIdentity()
+  .then(() => { showLastEditOnLoad(); showWelcomeToast(); })
+  .catch(() => { try { showWelcomeToast(); } catch (_) {} });   // a rejected identity probe must not suppress the greeting
+// Safety net: if identity resolution stalls (slow/blocked SharePoint API),
+// still greet once we at least have cached/derived initials.
+setTimeout(() => { try { showWelcomeToast(); } catch (_) {} }, 3000);
 // Note: checkOnboarding() called inside initUserIdentity if needed
 if(API_WORKER_URL){const sb=document.getElementById('sync-btn');if(sb)sb.style.display='';}
 // Load from worker if configured (async — won't block UI)
