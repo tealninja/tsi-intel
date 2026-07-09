@@ -16,7 +16,7 @@ const KV_USAGE    = 'usage_log';
 
 // ── AI model tiering (soft user classes; enforced here, server-side) ──
 // Adjust the model IDs to whatever the Anthropic API key can access.
-const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','wteal@tsi-inc.net','bteal@tsi-inc.net'];
+const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','teal.john@gmail.com','wteal@tsi-inc.net','bteal@tsi-inc.net'];
 // NOTE: model IDs must be ones your Anthropic key can access, else the API
 // returns a 404 "model not found" (which the client surfaced as "[object
 // Object]"). The executive id 'claude-sonnet-4-6' was NOT valid — that's why
