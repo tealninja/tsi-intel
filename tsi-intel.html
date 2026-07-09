@@ -13718,6 +13718,9 @@ startAdminPoll();
   padding:9px 11px;cursor:grab;user-select:none}
 .pb-card:hover{background:var(--pb-card2)}
 .pb-card.dragging{opacity:.4}
+/* Drop-position indicator line shown while dragging a card within a column. */
+.pb-drop-line{height:0;margin:1px 2px;border-top:2px solid var(--c,#00929f);border-radius:2px;
+  box-shadow:0 0 7px color-mix(in srgb,var(--c,#00929f) 65%,transparent);pointer-events:none}
 .pb-card .a{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px}
 .pb-card .t{color:var(--pb-muted);font-size:12px;margin-top:2px;line-height:1.35}
 .pb-card .m{color:var(--pb-faint);font-size:11px;margin-top:5px;display:flex;gap:8px;flex-wrap:wrap}
@@ -15651,12 +15654,29 @@ function pbCard(id,col){
 function pbDragStart(e,id){ _pbDrag=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',id);}catch{}
   const el=e.target.closest('.pb-card'); if(el) el.classList.add('dragging'); }
 function pbDragEnd(e){ const el=e.target.closest('.pb-card'); if(el) el.classList.remove('dragging'); _pbDrag=null;
+  pbHideDropLine();
   document.querySelectorAll('.pb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); }
+// A single reusable line element, moved to the insertion point as the pointer
+// travels, so it's obvious where the card will land. pointer-events:none keeps
+// it from intercepting the drop (pbDrop still reads the real card under cursor).
+let _pbDropLine=null;
+function pbHideDropLine(){ if(_pbDropLine&&_pbDropLine.parentNode) _pbDropLine.parentNode.removeChild(_pbDropLine); }
+function pbShowDropLine(colEl, clientY){
+  const body=colEl.querySelector('.pb-col-body'); if(!body) return;
+  if(!_pbDropLine){ _pbDropLine=document.createElement('div'); _pbDropLine.className='pb-drop-line'; }
+  const cards=[...body.querySelectorAll('.pb-card')].filter(c=>!c.classList.contains('dragging'));
+  let before=null;
+  for(const c of cards){ const r=c.getBoundingClientRect(); if(clientY < r.top+r.height/2){ before=c; break; } }
+  if(before) body.insertBefore(_pbDropLine, before);
+  else { const empty=body.querySelector('.pb-empty'); if(empty) body.insertBefore(_pbDropLine, empty); else body.appendChild(_pbDropLine); }
+}
 function pbColOver(e,col){ e.preventDefault(); e.dataTransfer.dropEffect='move';
-  const c=e.currentTarget; if(c&&!c.classList.contains('drag-over')) c.classList.add('drag-over'); }
-function pbColLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)) c.classList.remove('drag-over'); }
+  const c=e.currentTarget; if(c&&!c.classList.contains('drag-over')) c.classList.add('drag-over');
+  pbShowDropLine(c, e.clientY); }
+function pbColLeave(e){ const c=e.currentTarget; if(c&&!c.contains(e.relatedTarget)){ c.classList.remove('drag-over'); pbHideDropLine(); } }
 function pbDrop(e,col){
   e.preventDefault();
+  pbHideDropLine();
   const id=_pbDrag||(()=>{try{return e.dataTransfer.getData('text/plain');}catch{return null;}})();
   if(!id||!_presoBoard) return;
   // remove from every column
