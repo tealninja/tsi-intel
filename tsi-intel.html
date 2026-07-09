@@ -3243,7 +3243,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#90 · 2026-07-09';
+const APP_BUILD = '#91 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -6719,7 +6719,7 @@ function _welcomeRender(w, elapsed) {
   const name = getUserName(), email = getUserEmail(), initials = getUserInitials();
   const who  = (name && name !== initials) ? name : (email || initials);
   const chips = [`<span class="tw-chip">${(APP_BUILD||'').split('·')[0].trim()||'build'}</span>`];
-  const srcMap = { sharepoint:'SharePoint', cloudflare:'Web · bodhistoys', cached:'Cached', manual:'Manual' };
+  const srcMap = { sharepoint:'SharePoint', cloudflare:'Web · bodhistoys', desktop:'Desktop · local file', cached:'Cached', manual:'Manual' };
   const src = srcMap[_currentUser.source] || _currentUser.source;
   if (src) chips.push(`<span class="tw-chip">${src}</span>`);
   if (typeof dirtyIds !== 'undefined' && dirtyIds.size)
@@ -6832,11 +6832,19 @@ async function detectSharePointUser() {
   } catch { return null; }
 }
 
-// The Cloudflare-hosted web app has no SharePoint context; treat that login as
-// jteal (the deployment owner / executive tier) unless SharePoint says otherwise.
+// Contexts with no SharePoint identity — the Cloudflare-hosted web app AND a
+// locally-opened download (file:// or localhost, i.e. John testing the build) —
+// default to jteal (deployment owner / executive tier) unless SharePoint says
+// otherwise. This also means the login greeting shows when testing the download.
 function isCloudflareHost(){
   const h=(location.hostname||'').toLowerCase();
-  return /(^|\.)bodhistoys\.com$/.test(h) || h.endsWith('.workers.dev');
+  return isLocalFile() || /(^|\.)bodhistoys\.com$/.test(h) || h.endsWith('.workers.dev');
+}
+// A locally-opened copy (file:// from C:\, OneDrive, a network share, localhost)
+// can't reach the SharePoint API, so we can't fetch the live MS identity there.
+function isLocalFile(){
+  const h=(location.hostname||'').toLowerCase();
+  return location.protocol==='file:' || h==='' || h==='localhost' || h==='127.0.0.1';
 }
 // The bodhistoys.com / workers.dev deployment is John Teal's personal landing —
 // identify him by his Gmail there. Initials are derived from the name so any
@@ -6846,6 +6854,9 @@ const JTEAL_USER = (() => {
   const initials = name.split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2);
   return { name, email, initials, source:'cloudflare' };
 })();
+// Desktop / local-file opens default to John's MS identity (jteal@tsi-inc.net)
+// rather than the Gmail — SharePoint still overrides whenever it's reachable.
+const JTEAL_MS_USER = { name:'John Teal', email:'jteal@tsi-inc.net', initials:'JT', source:'desktop' };
 
 // ── User classes / AI tiering (soft; enforced server-side in the worker) ──
 const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','teal.john@gmail.com','wteal@tsi-inc.net','bteal@tsi-inc.net'];
@@ -6875,12 +6886,14 @@ async function initUserIdentity() {
     applyUserToUI(spUser);
     return;
   }
-  // Cloudflare-hosted (no SharePoint) → default identity is jteal.
+  // No SharePoint context → default to John's identity. A local/desktop open
+  // (C:\ / OneDrive / share) uses his MS email; the web landing uses his Gmail.
   if (isCloudflareHost()) {
-    _currentUser = { ...JTEAL_USER };
-    localStorage.setItem(USER_KEY, JTEAL_USER.initials);
-    localStorage.setItem('tsi_user_name_v1',  JTEAL_USER.name);
-    localStorage.setItem('tsi_user_email_v1', JTEAL_USER.email);
+    const owner = isLocalFile() ? JTEAL_MS_USER : JTEAL_USER;
+    _currentUser = { ...owner };
+    localStorage.setItem(USER_KEY, owner.initials);
+    localStorage.setItem('tsi_user_name_v1',  owner.name);
+    localStorage.setItem('tsi_user_email_v1', owner.email);
     localStorage.setItem(ONBOARD_KEY, '1');
     applyUserToUI(_currentUser);
     return;

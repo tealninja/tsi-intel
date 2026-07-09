@@ -178,6 +178,18 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Greeting robustness + local-file identity** (builds #90–#91) — the welcome card
+  wasn't appearing when the downloaded `tsi-intel.html` is opened directly (a `file://`
+  open has no SharePoint login, so there was no one to greet). Fixes: (a) a local/desktop
+  open (`file://` / localhost / OneDrive / share) now defaults to John's **MS identity**
+  `jteal@tsi-inc.net` (JT, executive), while the bodhistoys/workers.dev web landing keeps
+  his **Gmail** and SharePoint still wins live whenever reachable — a file opened from C:\
+  physically can't call the SP `/_api/web/currentuser`, so live MS identity isn't
+  retrievable there and we default instead; (b) greet on initials alone so a slow SP API
+  can't suppress it; (c) wrap the checklist render in try/catch with a minimal-greeting
+  fallback; (d) `.catch` + 3s safety-net trigger on the identity promise; (e) card
+  z-index raised above SharePoint's fixed suite bar. Verified via Playwright over `file://`
+  (auto-greets with MS identity, no manual step).
 - [x] **Welcome status card** (build #89) — the login greeting grew into a richer,
   longer-lived card (stays ~11s, **pauses on hover**, has a **×** to dismiss). Header is
   the "Hi {name}" + email + avatar as before; below it a **linked-vs-local checklist** of
