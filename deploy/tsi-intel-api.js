@@ -17,12 +17,16 @@ const KV_USAGE    = 'usage_log';
 // ── AI model tiering (soft user classes; enforced here, server-side) ──
 // Adjust the model IDs to whatever the Anthropic API key can access.
 const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','wteal@tsi-inc.net','bteal@tsi-inc.net'];
+// NOTE: model IDs must be ones your Anthropic key can access, else the API
+// returns a 404 "model not found" (which the client surfaced as "[object
+// Object]"). The executive id 'claude-sonnet-4-6' was NOT valid — that's why
+// members (haiku, below) worked but executives (jteal) got the error.
 const AI_MODELS = {
-  standard:  'claude-3-5-haiku-latest',   // members — fast/cheap
-  executive: 'claude-sonnet-4-6',         // executives — "just under Opus"
+  standard:  'claude-3-5-haiku-latest',    // members — fast/cheap (confirmed working)
+  executive: 'claude-sonnet-4-5',          // executives — corrected from invalid claude-sonnet-4-6
 };
 const AI_EXEC_CHOICES = {                  // an executive may pick any of these
-  sonnet: 'claude-sonnet-4-6',
+  sonnet: 'claude-sonnet-4-5',
   haiku:  'claude-3-5-haiku-latest',
 };
 function aiModelFor(email, tier){
