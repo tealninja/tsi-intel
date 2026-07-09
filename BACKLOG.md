@@ -178,6 +178,13 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Quote Builder — quick-create account** (build #97) — when the customer typed into a
+  quote doesn't match an existing account, a "No matching account — ➕ Quick-create it" prompt
+  appears. It opens a modal (name pre-filled, optional contact, bill-to + optional separate
+  ship-to), saves a new top-level account + linked contact to the Accounts store (localStorage
+  + D1), then points the quote at it — filling customer, contact, and auto-populating the
+  bill-to/ship-to from the new account — and closes. Dedupes against an existing name. Verified
+  via Playwright (prompt → create → use → persist → dedupe).
 - [x] **Update Agent — conversational opportunity updates** (build #95) — a new
   **💬 Update Agent** sub-tab in the AI + Parse area: an AI chat that updates existing
   opportunities (or adds new ones) from natural language ("Drax Princeton slipped to Q1

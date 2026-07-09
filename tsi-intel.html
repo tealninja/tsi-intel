@@ -3287,7 +3287,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#96 · 2026-07-09';
+const APP_BUILD = '#97 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14162,6 +14162,10 @@ startAdminPoll();
         <label>Customer (legal entity)</label>
         <input class="dinput" id="q-customer" list="q-account-options" placeholder="Account or company name" autocomplete="off" oninput="onQuoteCustomerInput(this.value)">
         <datalist id="q-account-options"></datalist>
+        <div id="q-quickcreate" style="display:none;margin-top:5px;font-size:11.5px">
+          <span style="color:var(--color-text-muted)">No matching account —</span>
+          <a onclick="qcOpen()" style="cursor:pointer;color:var(--tsi-teal);font-weight:600;text-decoration:underline">➕ Quick-create it</a>
+        </div>
         <input type="hidden" id="q-customer-org">
       </div>
       <div class="drow-2">
@@ -14316,6 +14320,47 @@ startAdminPoll();
         <span class="ship-est-note" id="ship-est-note"></span>
       </div>
       <div class="ship-rates" id="ship-rates"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUICK-CREATE ACCOUNT (from Quote Builder) ══ -->
+<div class="ship-est-overlay" id="qc-acct-overlay" onclick="if(event.target===this)qcClose()">
+  <div class="ship-est" style="max-width:520px">
+    <div class="ship-est-h"><b>➕ Quick-create account</b><span class="ship-est-sub">saved to Accounts, then used on this quote</span>
+      <button class="ship-est-x" onclick="qcClose()">✕</button></div>
+    <div class="ship-est-body">
+      <div class="drow"><label>Account / company name *</label>
+        <input class="dinput" id="qc-name" placeholder="Legal entity or company name" autocomplete="off"></div>
+      <div class="drow-3">
+        <div class="drow"><label>Contact name</label><input class="dinput" id="qc-c-name" placeholder="optional"></div>
+        <div class="drow"><label>Contact email</label><input class="dinput" id="qc-c-email" placeholder="optional"></div>
+        <div class="drow"><label>Contact phone</label><input class="dinput" id="qc-c-phone" placeholder="optional"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px">Bill-to address</div>
+      <div class="drow"><input class="dinput" id="qc-b-street" placeholder="Street"></div>
+      <div class="drow-3">
+        <div class="drow"><input class="dinput" id="qc-b-city" placeholder="City"></div>
+        <div class="drow"><input class="dinput" id="qc-b-state" placeholder="State/Prov"></div>
+        <div class="drow"><input class="dinput" id="qc-b-zip" placeholder="ZIP/Postal"></div>
+      </div>
+      <div class="drow"><input class="dinput" id="qc-b-country" placeholder="Country (e.g. US)" value="US"></div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:10px 0 4px;cursor:pointer">
+        <input type="checkbox" id="qc-ship-same" checked onchange="qcToggleShip()"> Ship-to same as bill-to</label>
+      <div id="qc-ship-fields" style="display:none">
+        <div class="drow"><input class="dinput" id="qc-s-street" placeholder="Street"></div>
+        <div class="drow-3">
+          <div class="drow"><input class="dinput" id="qc-s-city" placeholder="City"></div>
+          <div class="drow"><input class="dinput" id="qc-s-state" placeholder="State/Prov"></div>
+          <div class="drow"><input class="dinput" id="qc-s-zip" placeholder="ZIP/Postal"></div>
+        </div>
+        <div class="drow"><input class="dinput" id="qc-s-country" placeholder="Country (e.g. US)" value="US"></div>
+      </div>
+      <div class="ship-est-actions" style="margin-top:12px">
+        <button class="btn-add-opp" id="qc-save-btn" onclick="qcSave()">Save &amp; use →</button>
+        <button class="btn" style="background:var(--color-bg-subtle)" onclick="qcClose()">Cancel</button>
+        <span class="ship-est-note" id="qc-note"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -15408,10 +15453,81 @@ function populateQuoteAccounts(){
 }
 function onQuoteCustomerInput(name){
   const hid=document.getElementById('q-customer-org');
-  let match=null; try{ match=getAccounts().accounts.find(a=>a.name===name.trim()); }catch{}
+  const typed=name.trim();
+  let match=null; try{ match=getAccounts().accounts.find(a=>a.name===typed); }catch{}
   hid.value = match ? (match.seedId||match.id||'') : '';
   const idEl=document.getElementById('q-customer-acct-id'); if(idEl) idEl.value = match?match.id:'';
   qPopulateAddrSources(match?match.id:'', false);   // prefill bill-to/ship-to from the account
+  // Offer quick-create when a name is typed that doesn't match any account.
+  const qc=document.getElementById('q-quickcreate'); if(qc) qc.style.display = (typed && !match) ? '' : 'none';
+}
+
+// ── QUICK-CREATE ACCOUNT (from the Quote Builder) ─────────────────────────
+function qcToggleShip(){
+  const same=document.getElementById('qc-ship-same').checked;
+  const f=document.getElementById('qc-ship-fields'); if(f) f.style.display = same ? 'none' : '';
+}
+function qcOpen(){
+  const typed=(document.getElementById('q-customer')?.value||'').trim();
+  document.getElementById('qc-name').value = typed;
+  ['qc-c-name','qc-c-email','qc-c-phone','qc-b-street','qc-b-city','qc-b-state','qc-b-zip',
+   'qc-s-street','qc-s-city','qc-s-state','qc-s-zip'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';});
+  document.getElementById('qc-b-country').value='US';
+  document.getElementById('qc-s-country').value='US';
+  document.getElementById('qc-ship-same').checked=true; qcToggleShip();
+  const note=document.getElementById('qc-note'); if(note) note.textContent='';
+  const ov=document.getElementById('qc-acct-overlay'); if(ov) ov.classList.add('open');
+  setTimeout(()=>document.getElementById(typed?'qc-b-street':'qc-name')?.focus(), 120);
+}
+function qcClose(){ const ov=document.getElementById('qc-acct-overlay'); if(ov) ov.classList.remove('open'); }
+function _qcAddr(p){
+  const g=id=>(document.getElementById(id)?.value||'').trim();
+  const a={ street:g(p+'-street'), city:g(p+'-city'), state:g(p+'-state'), zip:g(p+'-zip'), country:g(p+'-country')||'US' };
+  return (a.street||a.city||a.state||a.zip) ? a : null;
+}
+function qcSave(){
+  const name=(document.getElementById('qc-name')?.value||'').trim();
+  if(!name){ const i=document.getElementById('qc-name'); i.style.borderColor='var(--tsi-coral)'; setTimeout(()=>i.style.borderColor='',1500); return; }
+  const data=getAccounts();
+  // Guard against creating a duplicate of an existing account name.
+  const dup=data.accounts.find(a=>a.name.toLowerCase()===name.toLowerCase());
+  if(dup){ const note=document.getElementById('qc-note'); if(note){ note.textContent='That account already exists — using it.'; } qcUseAccount(dup, dup.primaryContactId?data.contacts.find(c=>c.id===dup.primaryContactId):null); qcClose(); return; }
+  const bill=_qcAddr('qc-b');
+  const ship=document.getElementById('qc-ship-same').checked ? null : _qcAddr('qc-s');
+  const id='AG-'+name.replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase()+'-'+Date.now().toString(36).slice(-4).toUpperCase();
+  const now=new Date().toISOString(), by=getUserInitials();
+  // Optional contact
+  let contact=null;
+  const cName=(document.getElementById('qc-c-name')?.value||'').trim();
+  if(cName){
+    contact={ id:'C-'+Date.now().toString(36).toUpperCase(), accountIds:[id], name:cName,
+      title:'', email:(document.getElementById('qc-c-email')?.value||'').trim(),
+      phone:(document.getElementById('qc-c-phone')?.value||'').trim(), notes:'', addedAt:now, addedBy:by };
+    data.contacts.push(contact);
+  }
+  const rec={ id, parentId:null, name, industry:'', locType:'headquarters',
+    plantTags:[], plantType:'', acctMatch:name,
+    loc:[bill&&bill.city,bill&&bill.state].filter(Boolean).join(', '),
+    city:(bill&&bill.city)||'', state:(bill&&bill.state)||'', country:(bill&&bill.country)||'US',
+    billTo:bill, shipTo:ship, billToRef:'', shipToRef:'',
+    primaryContactId: contact?contact.id:'', associatedContactIds: contact?[contact.id]:[],
+    createdAt:now, createdBy:by, updatedAt:now, updatedBy:by };
+  data.accounts.push(rec);
+  saveAccounts(data);
+  if(typeof renderAcctSidebar==='function'){ try{ renderAcctSidebar(); }catch(_){} }
+  qcUseAccount(rec, contact);
+  qcClose();
+  showToast('✓ '+name+' created & selected', 'var(--tsi-succ-green)');
+}
+// Point the current quote at an account (fills customer + contact + addresses).
+function qcUseAccount(rec, contact){
+  const S=(id,v)=>{const e=document.getElementById(id); if(e)e.value=v||'';};
+  S('q-customer', rec.name);
+  S('q-customer-org', rec.seedId||rec.id||'');
+  S('q-customer-acct-id', rec.id);
+  if(contact){ S('q-contact-name', contact.name); S('q-contact-email', contact.email); S('q-contact-phone', contact.phone); }
+  const qc=document.getElementById('q-quickcreate'); if(qc) qc.style.display='none';
+  qPopulateAddrSources(rec.id, false);   // populate + auto-fill bill/ship from the new account
 }
 // ── Quote bill-to / ship-to (pulls addresses from the chosen account) ──
 let _qBillAddr=null;
