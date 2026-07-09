@@ -100,6 +100,7 @@ body{font-family:var(--font-ui);background:var(--color-bg);color:var(--color-tex
 /* TSI Intel badge */
 .tsi-intel{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:rgba(255,255,255,0.35);letter-spacing:.04em}
 .tsi-intel-dot{width:5px;height:5px;border-radius:50%;background:var(--tsi-teal);animation:pulse 2s infinite}
+.app-build{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:.02em;cursor:default;white-space:nowrap}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* ── KPI ROW ───────────────────────────────────────────────── */
@@ -2816,6 +2817,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <span class="header-badge">$323M Weighted</span>
     <span class="header-badge won">$5.9M Won YTD</span>
     <div class="tsi-intel"><div class="tsi-intel-dot"></div>TSI Intel</div>
+    <span class="app-build" id="app-build" title="Deployed build — bumps every deploy; confirm this matches after redeploying"></span>
     <div class="dm-toggle" onclick="toggleDark()" title="Toggle dark mode">
       <span class="dm-icon">☀</span>
       <div class="dm-pill"><div class="dm-dot"></div></div>
@@ -3202,6 +3204,12 @@ const SCHEMA_VERSION = 2;
 // e.g. 'https://tsi-intel-api.yoursubdomain.workers.dev'
 const API_WORKER_URL = 'https://tsi-intel-api.teal-john.workers.dev';   // ← paste your worker URL here (leave empty for local-only mode)
 const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
+
+// ── Build stamp ── shown in the header so you can confirm a redeploy landed.
+// BUMP THIS on every deployable change (kept ~= branch commit count · date).
+const APP_BUILD = '#86 · 2026-07-09';
+try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
+try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
 
 function workerHeaders() {

@@ -29,6 +29,37 @@ Backends (separate Cloudflare Workers, **not** deployable from a web session):
   `feature/db-seed-and-auth`; migrations in `migrations/`. `product_prices`,
   `quotes`, `quote_lines` are live.
 
+## Deploying to Cloudflare (what Claude can/can't do via MCP)
+The `mcp__Cloudflare_Developer_Platform__*` tools let Claude **inspect and verify**
+Cloudflare, but **not deploy**. There is no MCP tool to upload a Worker script or
+static assets — the two `wrangler deploy` steps and all secrets are **human/CLI only**.
+
+**Claude CAN (via MCP):**
+- **Query/verify D1** — `d1_database_query` on db `e18ad8cb-ce35-42b2-ba01-8a1d31551398`.
+  Handy checks: `SELECT name FROM sqlite_master WHERE type='table'`; row counts on
+  `quotes` / `collections` / `product_prices` to confirm data is landing.
+- **Inspect deployed Workers** — `workers_list`, `workers_get_worker`,
+  `workers_get_worker_code` (e.g. confirm the deployed `tsi-intel-api` contains
+  `/api/store`, `/api/quotes`, `/api/shipping/rates`). `*_code` may need approval.
+- **Manage resources** — `kv_namespace_*`, `r2_bucket_*`, `d1_database_*`; search CF docs.
+
+**Claude CANNOT (needs a human running `wrangler`):**
+- **Deploy** the static app or the API Worker (no upload tool exists).
+- **Set secrets** (`wrangler secret put SHIPPING_API_KEY` / `ANTHROPIC_API_KEY` / `TSI_API_KEY`).
+- **Read the live static site** — WebFetch to tsi-intel.bodhistoys.com 403s through the
+  agent proxy. Use the header **build stamp** (`APP_BUILD` in `tsi-intel.html`) for
+  human confirmation, and **bump `APP_BUILD` on every deployable change**.
+
+**Human deploy steps (wrangler):**
+1. Static app: `git checkout <branch> && npx wrangler deploy` (repo root, `wrangler.jsonc`).
+2. API worker: `cd deploy && wrangler deploy` (`deploy/wrangler.toml` + `tsi-intel-api.js`;
+   binds DB=D1 + TSI_DATA=KV; adds prices/quotes/store/shipping routes).
+3. Shipping: `cd deploy && wrangler secret put SHIPPING_API_KEY` (EasyPost; rating is free).
+
+**Claude's post-deploy verification (MCP):** read the deployed `tsi-intel-api` code for
+the new route strings, then after the user saves a quote / edits an account,
+`d1_database_query` that `quotes` / `collections` gained rows.
+
 ## Conventions
 - Match the surrounding style in `tsi-intel.html`; data lives inline as JS consts.
 - Products/prices/quote lines key on `products.seed_id` (stable across SKU schemes).
