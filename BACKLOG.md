@@ -178,18 +178,23 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
-- [x] **Greeting robustness + local-file identity** (builds #90–#91) — the welcome card
-  wasn't appearing when the downloaded `tsi-intel.html` is opened directly (a `file://`
-  open has no SharePoint login, so there was no one to greet). Fixes: (a) a local/desktop
-  open (`file://` / localhost / OneDrive / share) now defaults to John's **MS identity**
-  `jteal@tsi-inc.net` (JT, executive), while the bodhistoys/workers.dev web landing keeps
-  his **Gmail** and SharePoint still wins live whenever reachable — a file opened from C:\
-  physically can't call the SP `/_api/web/currentuser`, so live MS identity isn't
-  retrievable there and we default instead; (b) greet on initials alone so a slow SP API
-  can't suppress it; (c) wrap the checklist render in try/catch with a minimal-greeting
-  fallback; (d) `.catch` + 3s safety-net trigger on the identity promise; (e) card
-  z-index raised above SharePoint's fixed suite bar. Verified via Playwright over `file://`
-  (auto-greets with MS identity, no manual step).
+- [x] **Greeting robustness + coworker-safe local identity** (builds #90–#92) — the welcome
+  card wasn't appearing when the downloaded `tsi-intel.html` is opened directly (a `file://`
+  open has no SharePoint login, so there was no one to greet). A `file://` page also can't
+  call the SP `/_api/web/currentuser`, so the live MS identity isn't retrievable locally.
+  Rather than silently assume John (which would mislabel a **coworker** who opens their own
+  download as John, executive tier and all), a local/desktop open now **asks who's using it**:
+  the onboarding modal gained **name + email + initials** fields, **pre-filled with John** so
+  he confirms in one click while a coworker types their own; the choice is remembered per
+  browser (cache wins on return). The bodhistoys/workers.dev web landing still auto-defaults
+  to John's Gmail, and SharePoint still auto-detects and overrides live whenever reachable.
+  Also hardened: (a) greet on initials alone so a slow SP API can't suppress the card;
+  (b) checklist render wrapped in try/catch with a minimal-greeting fallback; (c) `.catch` +
+  3s safety-net trigger on the identity promise; (d) card z-index raised above SharePoint's
+  suite bar; (e) fixed a load-order race where the identity microtask ran before the
+  onboarding markup was parsed (checkOnboarding now defers to DOMContentLoaded). Verified via
+  Playwright over `file://`: John pre-fill→confirm (exec), coworker override (not exec, not
+  mislabeled), returning-user cache, no premature greeting.
 - [x] **Welcome status card** (build #89) — the login greeting grew into a richer,
   longer-lived card (stays ~11s, **pauses on hover**, has a **×** to dismiss). Header is
   the "Hi {name}" + email + avatar as before; below it a **linked-vs-local checklist** of

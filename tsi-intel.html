@@ -983,6 +983,12 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   transition:border-color var(--transition); margin-bottom:16px;
 }
 .onboard-input:focus { border-color:var(--tsi-teal); }
+/* name + email want normal casing/spacing; only initials keep the mono look */
+#onboard-name, #onboard-email {
+  font-family:var(--font-ui); font-size:15px; letter-spacing:normal;
+  text-transform:none; text-align:left; margin-bottom:12px;
+}
+#onboard-initials { max-width:160px; margin-left:auto; margin-right:auto; }
 .onboard-btn {
   width:100%; padding:12px; background:var(--tsi-deep-blue); color:white;
   border:none; border-radius:var(--radius-md); font-size:14px; font-weight:500;
@@ -3243,7 +3249,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#91 · 2026-07-09';
+const APP_BUILD = '#92 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -6276,27 +6282,53 @@ function prefillFromAccount(acctName) {
 // ── ONBOARDING ────────────────────────────────────────────────
 const ONBOARD_KEY = 'tsi_pipeline_onboarded_v1';
 
-function checkOnboarding() {
+function checkOnboarding(prefill) {
   const done = localStorage.getItem(ONBOARD_KEY);
   const initials = getUserInitials();
   if (!done || !initials) {
+    // Identity resolves via an awaited microtask that can land before the parser
+    // has reached the onboarding markup lower in the page. If the overlay isn't
+    // in the DOM yet, wait for DOMContentLoaded and retry.
+    if (!document.getElementById('onboard-overlay')) {
+      document.addEventListener('DOMContentLoaded', () => checkOnboarding(prefill), { once:true });
+      return;
+    }
+    // Pre-fill the fields when we have a suggested identity (e.g. John on a
+    // local file). The values are only a suggestion — a coworker can overwrite.
+    const nameEl = document.getElementById('onboard-name');
+    const emailEl= document.getElementById('onboard-email');
+    const initEl = document.getElementById('onboard-initials');
+    if (prefill) {
+      if (nameEl)  nameEl.value  = prefill.name  || '';
+      if (emailEl) emailEl.value = prefill.email || '';
+      if (initEl)  initEl.value  = prefill.initials || deriveInitials(prefill.name);
+    }
     const _oo=document.getElementById('onboard-overlay'); if(_oo) _oo.style.display='flex';
-    setTimeout(() => document.getElementById('onboard-initials')?.focus(), 100);
+    setTimeout(() => (prefill ? nameEl : initEl)?.focus(), 100);
   }
 }
 
 function completeOnboarding(skip=false) {
-  const inp = document.getElementById('onboard-initials');
-  const val = (inp?.value||'').trim().toUpperCase();
+  const nameEl = document.getElementById('onboard-name');
+  const emailEl= document.getElementById('onboard-email');
+  const inp    = document.getElementById('onboard-initials');
+  const name   = (nameEl?.value||'').trim();
+  const email  = (emailEl?.value||'').trim();
+  let   val    = (inp?.value||'').trim().toUpperCase();
+  if (!val && name) val = deriveInitials(name);   // fall back to initials from the name
   if (!skip && !val) {
     inp.style.borderColor = 'var(--tsi-coral)';
     setTimeout(() => inp.style.borderColor = '', 1200);
     return;
   }
-  if (val) {
+  if (val || name || email) {
     _currentUser.initials = val;
+    _currentUser.name     = name || _currentUser.name || val;
+    _currentUser.email    = email || _currentUser.email || '';
     _currentUser.source   = 'manual';
     localStorage.setItem(USER_KEY, val);
+    if (name)  localStorage.setItem('tsi_user_name_v1',  name);
+    if (email) localStorage.setItem('tsi_user_email_v1', email);
     const uInp = document.getElementById('user-initials');
     if (uInp) uInp.value = val;
   }
@@ -6838,13 +6870,18 @@ async function detectSharePointUser() {
 // otherwise. This also means the login greeting shows when testing the download.
 function isCloudflareHost(){
   const h=(location.hostname||'').toLowerCase();
-  return isLocalFile() || /(^|\.)bodhistoys\.com$/.test(h) || h.endsWith('.workers.dev');
+  return /(^|\.)bodhistoys\.com$/.test(h) || h.endsWith('.workers.dev');
 }
 // A locally-opened copy (file:// from C:\, OneDrive, a network share, localhost)
-// can't reach the SharePoint API, so we can't fetch the live MS identity there.
+// can't reach the SharePoint API, so the live MS identity isn't retrievable there.
+// We therefore ASK who's using it (pre-filling John) rather than assume anyone —
+// otherwise a coworker who opens their own download would be mislabeled as John.
 function isLocalFile(){
   const h=(location.hostname||'').toLowerCase();
   return location.protocol==='file:' || h==='' || h==='localhost' || h==='127.0.0.1';
+}
+function deriveInitials(name){
+  return (name||'').split(/\s+/).filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,3);
 }
 // The bodhistoys.com / workers.dev deployment is John Teal's personal landing —
 // identify him by his Gmail there. Initials are derived from the name so any
@@ -6886,32 +6923,34 @@ async function initUserIdentity() {
     applyUserToUI(spUser);
     return;
   }
-  // No SharePoint context → default to John's identity. A local/desktop open
-  // (C:\ / OneDrive / share) uses his MS email; the web landing uses his Gmail.
+  // John's personal web deploy (bodhistoys / workers.dev) → default to his Gmail
+  // identity with no prompt. (This host is John's landing by definition.)
   if (isCloudflareHost()) {
-    const owner = isLocalFile() ? JTEAL_MS_USER : JTEAL_USER;
-    _currentUser = { ...owner };
-    localStorage.setItem(USER_KEY, owner.initials);
-    localStorage.setItem('tsi_user_name_v1',  owner.name);
-    localStorage.setItem('tsi_user_email_v1', owner.email);
+    _currentUser = { ...JTEAL_USER };
+    localStorage.setItem(USER_KEY, JTEAL_USER.initials);
+    localStorage.setItem('tsi_user_name_v1',  JTEAL_USER.name);
+    localStorage.setItem('tsi_user_email_v1', JTEAL_USER.email);
     localStorage.setItem(ONBOARD_KEY, '1');
     applyUserToUI(_currentUser);
     return;
   }
-  // Fallback: try cached identity
+  // Returning user on this browser (incl. a coworker who identified before) → cache.
   const cachedInitials = localStorage.getItem(USER_KEY) || '';
   const cachedName     = localStorage.getItem('tsi_user_name_v1') || '';
   const cachedEmail    = localStorage.getItem('tsi_user_email_v1') || '';
-  if (cachedInitials) {
+  if (cachedInitials || cachedName || cachedEmail) {
     _currentUser = {
       name: cachedName, email: cachedEmail,
-      initials: cachedInitials, source: 'cached'
+      initials: cachedInitials || deriveInitials(cachedName),
+      source: 'cached'
     };
     applyUserToUI(_currentUser);
     return;
   }
-  // Nothing cached — show onboarding
-  checkOnboarding();
+  // Unknown local user (a fresh C:\ download can't be auto-detected) → ASK who
+  // they are, pre-filling John so he confirms in one click but a coworker enters
+  // their own. We never silently claim John here.
+  checkOnboarding(isLocalFile() ? JTEAL_MS_USER : null);
 }
 
 function applyUserToUI(user) {
@@ -13129,11 +13168,19 @@ startAdminPoll();
       </g></g>
     </svg>
     <h2>Welcome to TSI Intel</h2>
-    <p>Before you start, enter your initials below. They'll appear on every edit you make — so the team always knows who updated what and when.</p>
-    <input class="onboard-input" id="onboard-initials" maxlength="4"
-      placeholder="JT" autocomplete="off"
+    <p>Who's using this copy? Your name &amp; initials appear on every edit you make — so the team always knows who updated what and when.</p>
+    <input class="onboard-input" id="onboard-name"
+      placeholder="Full name (e.g. John Teal)" autocomplete="off"
+      oninput="{const i=document.getElementById('onboard-initials'); if(i&&!i.dataset.touched) i.value=deriveInitials(this.value);}"
+      onkeydown="if(event.key==='Enter') document.getElementById('onboard-email').focus()">
+    <input class="onboard-input" id="onboard-email" type="email"
+      placeholder="Email (optional)" autocomplete="off"
       onkeydown="if(event.key==='Enter') completeOnboarding()">
-    <button class="onboard-btn" onclick="completeOnboarding()">Let's go →</button>
+    <input class="onboard-input" id="onboard-initials" maxlength="4"
+      placeholder="Initials (e.g. JT)" autocomplete="off"
+      oninput="this.dataset.touched='1'"
+      onkeydown="if(event.key==='Enter') completeOnboarding()">
+    <button class="onboard-btn" onclick="completeOnboarding()">That's me →</button>
     <div class="onboard-skip" onclick="completeOnboarding(true)">Skip for now</div>
   </div>
 </div>
