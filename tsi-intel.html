@@ -2753,6 +2753,9 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 
 .q-adjust-row { display:flex; gap:6px; }
 .q-adjust-mode { width:74px; flex-shrink:0; }
+.q-addr-src { font-size:10px; padding:1px 5px; border:1px solid var(--color-border-mid); border-radius:5px; background:var(--color-surface); color:var(--color-text-secondary); margin-left:4px; max-width:150px; }
+.q-addr-verify { font-size:10px; color:var(--tsi-teal); cursor:pointer; margin-left:6px; }
+.q-addr-verify:hover { text-decoration:underline; }
 .q-totals { margin-top:12px; padding:12px 14px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-md); }
 .q-total-line { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; color:var(--color-text-secondary); }
 .q-total-line .q-total-val { font-family:var(--font-mono); }
@@ -13592,7 +13595,21 @@ startAdminPoll();
         <datalist id="q-account-options"></datalist>
         <input type="hidden" id="q-customer-org">
       </div>
-      <div class="drow"><label>Customer Address</label><input class="dinput" id="q-customer-address" placeholder="Street, city, country"></div>
+      <div class="drow-2">
+        <div class="drow">
+          <label>Bill-to <select class="q-addr-src" id="q-billto-src" onchange="qAddrSrcChange('billto')"></select>
+            <span class="q-addr-verify" onclick="qAddrVerify('billto')" title="Confirm via geocode">🔍 verify</span></label>
+          <textarea class="dinput" id="q-billto-text" rows="3" placeholder="Bill-to address" oninput="qAddrEdited('billto')"></textarea>
+        </div>
+        <div class="drow">
+          <label>Ship-to <select class="q-addr-src" id="q-shipto-src" onchange="qAddrSrcChange('shipto')"></select>
+            <span class="q-addr-verify" onclick="qAddrVerify('shipto')" title="Confirm via geocode">🔍 verify</span></label>
+          <textarea class="dinput" id="q-shipto-text" rows="3" placeholder="Ship-to address" oninput="qAddrEdited('shipto')"></textarea>
+          <input type="hidden" id="q-shipto-zip"><input type="hidden" id="q-shipto-country">
+          <input type="hidden" id="q-billto-zip"><input type="hidden" id="q-billto-country">
+        </div>
+      </div>
+      <input type="hidden" id="q-customer-address"><input type="hidden" id="q-customer-acct-id">
       <div class="drow-3">
         <div><label>Contact Name</label><input class="dinput" id="q-contact-name" placeholder="Contact"></div>
         <div><label>Contact Email</label><input class="dinput" id="q-contact-email" placeholder="email@…"></div>
@@ -14785,10 +14802,70 @@ function populateQuoteAccounts(){
   try{ dl.innerHTML=getAccounts().accounts.map(a=>`<option value="${qattr(a.name)}">`).join(''); }catch{ dl.innerHTML=''; }
 }
 function onQuoteCustomerInput(name){
-  const hid=document.getElementById('q-customer-org'); const addr=document.getElementById('q-customer-address');
+  const hid=document.getElementById('q-customer-org');
   let match=null; try{ match=getAccounts().accounts.find(a=>a.name===name.trim()); }catch{}
   hid.value = match ? (match.seedId||match.id||'') : '';
-  if(match && !addr.value){ const parts=[match.address_street||match.city, match.state, match.country].filter(Boolean); if(parts.length) addr.value=parts.join(', '); }
+  const idEl=document.getElementById('q-customer-acct-id'); if(idEl) idEl.value = match?match.id:'';
+  qPopulateAddrSources(match?match.id:'', false);   // prefill bill-to/ship-to from the account
+}
+// ── Quote bill-to / ship-to (pulls addresses from the chosen account) ──
+let _qBillAddr=null;
+function fmtAddr(a){
+  if(!a) return '';
+  const l1=a.street||'';
+  const l2=[a.city,[a.state,a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const l3=(a.country && a.country!=='US')?a.country:'';
+  return [l1,l2,l3].filter(Boolean).join('\n');
+}
+// Source accounts to offer for a quote's bill/ship: the picked account, its
+// parent + siblings, and its child sites.
+function quoteAddrSources(acctId){
+  const data=getAccounts(); const a=data.accounts.find(x=>x.id===acctId); if(!a) return [];
+  const ids=new Set([acctId]);
+  if(a.parentId){ ids.add(a.parentId); data.accounts.filter(x=>x.parentId===a.parentId).forEach(x=>ids.add(x.id)); }
+  data.accounts.filter(x=>x.parentId===acctId).forEach(x=>ids.add(x.id));
+  return [...ids].map(id=>data.accounts.find(x=>x.id===id)).filter(Boolean);
+}
+function qPopulateAddrSources(acctId, keep){
+  const srcs=acctId?quoteAddrSources(acctId):[];
+  const opt=srcs.map(a=>{ const rel=a.id===acctId?'':(a.parentId?' · site':' · parent'); return `<option value="${a.id}">${qesc(a.name)}${rel}</option>`; }).join('');
+  const b=document.getElementById('q-billto-src'), s=document.getElementById('q-shipto-src');
+  if(b) b.innerHTML = opt + `<option value="__manual">Manual entry</option>`;
+  if(s) s.innerHTML = `<option value="__bill">Same as bill-to</option>` + opt + `<option value="__manual">Manual entry</option>`;
+  if(!keep){
+    if(b) b.value = acctId || '__manual';
+    if(s) s.value = acctId ? '__bill' : '__manual';
+    qAddrSrcChange('billto'); qAddrSrcChange('shipto');
+  }
+}
+function qSetHidden(which, a){ const z=document.getElementById('q-'+which+'-zip'), c=document.getElementById('q-'+which+'-country'); if(z)z.value=(a&&a.zip)||''; if(c)c.value=(a&&a.country)||''; }
+function qAddrSrcChange(which){
+  const srcEl=document.getElementById('q-'+which+'-src'); if(!srcEl) return; const src=srcEl.value;
+  const text=document.getElementById('q-'+which+'-text');
+  if(which==='shipto' && src==='__bill'){
+    const bt=document.getElementById('q-billto-text'); if(bt&&text) text.value=bt.value;
+    qSetHidden('shipto', _qBillAddr); if(text) text.setAttribute('readonly','readonly'); return;
+  }
+  if(src==='__manual'){ if(text) text.removeAttribute('readonly'); return; }
+  const kind = which==='billto'?'bill':'ship';
+  const a = resolveAddr(src, kind) || resolveAddr(src, 'bill');
+  if(text){ text.value=fmtAddr(a); text.setAttribute('readonly','readonly'); }
+  qSetHidden(which, a);
+  if(which==='billto'){ _qBillAddr=a; const s=document.getElementById('q-shipto-src'); if(s&&s.value==='__bill') qAddrSrcChange('shipto'); }
+}
+function qAddrEdited(which){ if(which==='billto'){ const s=document.getElementById('q-shipto-src'); if(s&&s.value==='__bill'){ const bt=document.getElementById('q-billto-text'), st=document.getElementById('q-shipto-text'); if(bt&&st) st.value=bt.value; } } }
+async function qAddrVerify(which){
+  const text=document.getElementById('q-'+which+'-text'); if(!text) return;
+  const q=text.value.replace(/\n/g,', ').trim(); if(!q){ showToast('Enter an address first','var(--tsi-amber)'); return; }
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&addressdetails=1`;
+    const res=await fetch(url,{headers:{'Accept-Language':'en'}}); const data=await res.json();
+    if(!data.length){ showToast('Address not found — add city / state','var(--tsi-amber)'); return; }
+    const a=_addrFromNominatim(data[0]);
+    text.value=fmtAddr(a); text.removeAttribute('readonly');
+    qSetHidden(which, a); if(which==='billto') _qBillAddr=a;
+    showToast('✓ '+(which==='billto'?'Bill-to':'Ship-to')+' address confirmed','var(--tsi-succ-green)');
+  }catch{ showToast('Geocode failed — check connection','var(--tsi-coral)'); }
 }
 function populateQuoteCatPicker(){
   const sel=document.getElementById('q-add-cat');
@@ -14815,7 +14892,9 @@ function renderQuickAdd(){
 function blankQuote(){
   const num=nextQuoteNum(window._quotesCache||localQuotes());
   return { id:num.id, seq:num.seq, rev:'R0',
-    customer_org_seed_id:'', customer_name:'', customer_address:'',
+    customer_org_seed_id:'', customer_acct_id:'', customer_name:'', customer_address:'',
+    bill_to_src:'', bill_to:'', bill_to_zip:'', bill_to_country:'',
+    ship_to_src:'__bill', ship_to:'', ship_to_zip:'', ship_to_country:'',
     contact_name:'', contact_email:'', contact_phone:'', project:'',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
@@ -14874,6 +14953,15 @@ function fillQuoteForm(){
   const numEl=document.getElementById('quote-drawer-num'); numEl.textContent=q.id; numEl.title='Auto-generated quote number';
   S('q-customer',q.customer_name); document.getElementById('q-customer-org').value=q.customer_org_seed_id||'';
   S('q-customer-address',q.customer_address); S('q-contact-name',q.contact_name); S('q-contact-email',q.contact_email); S('q-contact-phone',q.contact_phone);
+  // Bill-to / ship-to: rebuild source options, then restore the saved snapshot.
+  const acctId=q.customer_acct_id||''; S('q-customer-acct-id',acctId);
+  qPopulateAddrSources(acctId, true);
+  S('q-billto-src', q.bill_to_src || (acctId||'__manual')); S('q-billto-text', q.bill_to || q.customer_address || '');
+  S('q-billto-zip', q.bill_to_zip); S('q-billto-country', q.bill_to_country);
+  S('q-shipto-src', q.ship_to_src || '__bill'); S('q-shipto-text', q.ship_to || '');
+  S('q-shipto-zip', q.ship_to_zip); S('q-shipto-country', q.ship_to_country);
+  _qBillAddr = { zip:q.bill_to_zip||'', country:q.bill_to_country||'' };
+  ['billto','shipto'].forEach(w=>{ const src=(document.getElementById('q-'+w+'-src')||{}).value; const t=document.getElementById('q-'+w+'-text'); if(t){ (src==='__manual')?t.removeAttribute('readonly'):t.setAttribute('readonly','readonly'); } });
   S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
@@ -14995,7 +15083,13 @@ function readQuoteForm(){
   const q=_qWorking; const V=id=>{ const el=document.getElementById(id); if(!el) return '';
     return el.isContentEditable ? rteToValue(el.innerHTML) : el.value; };
   q.customer_name=V('q-customer').trim(); q.customer_org_seed_id=V('q-customer-org')||null;
-  q.customer_address=V('q-customer-address').trim(); q.contact_name=V('q-contact-name').trim();
+  q.customer_acct_id=V('q-customer-acct-id')||null;
+  q.bill_to_src=V('q-billto-src'); q.bill_to=V('q-billto-text').trim();
+  q.bill_to_zip=V('q-billto-zip'); q.bill_to_country=V('q-billto-country');
+  q.ship_to_src=V('q-shipto-src'); q.ship_to=V('q-shipto-text').trim();
+  q.ship_to_zip=V('q-shipto-zip'); q.ship_to_country=V('q-shipto-country');
+  q.customer_address=q.bill_to;   // back-compat: bill-to is the legacy customer address
+  q.contact_name=V('q-contact-name').trim();
   q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
@@ -15090,7 +15184,8 @@ function printQuote(q){
     <div class="title">Quote${q.project?' — '+qesc(q.project):''}</div>
     <div class="grid2">
       <div><b>Issued to:</b> ${qesc(q.customer_name||'—')}</div><div><b>Quote Date:</b> ${qesc(q.quote_date||'—')}</div>
-      <div><b>Address:</b> ${qesc(q.customer_address||'—')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
+      <div><b>Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
+      ${(q.ship_to && q.ship_to!==(q.bill_to||q.customer_address))?`<div><b>Ship To:</b> ${qesc(q.ship_to).replace(/\n/g,'<br>')}</div><div></div>`:''}
       <div><b>Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</div><div><b>Prepared By:</b> ${qesc(q.prepared_by||'—')}</div>
     </div>
     ${q.description?`<h3>Description</h3><div class="prose">${blk(q.description)}</div>`:''}
@@ -15145,7 +15240,8 @@ function exportQuoteWord(q){
     <div style="font-size:16pt;font-weight:700;color:#19446C;margin:8pt 0 6pt">Quote${q.project?' — '+qesc(q.project):''}</div>
     <table style="width:100%;border-collapse:collapse">
       <tr><td ${metaTd}><b style="color:#19446C">Issued to:</b> ${qesc(q.customer_name||'—')}</td><td ${metaTd}><b style="color:#19446C">Quote Date:</b> ${qesc(q.quote_date||'—')}</td></tr>
-      <tr><td ${metaTd}><b style="color:#19446C">Address:</b> ${qesc(q.customer_address||'—')}</td><td ${metaTd}><b style="color:#19446C">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#19446C">Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</td><td ${metaTd}><b style="color:#19446C">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
+      ${(q.ship_to && q.ship_to!==(q.bill_to||q.customer_address))?`<tr><td ${metaTd}><b style="color:#19446C">Ship To:</b> ${qesc(q.ship_to).replace(/\n/g,'<br>')}</td><td ${metaTd}></td></tr>`:''}
       <tr><td ${metaTd}><b style="color:#19446C">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#19446C">Prepared By:</b> ${qesc(q.prepared_by||'—')}</td></tr>
     </table>
     ${q.description?`<h3 ${h3}>Description</h3><div ${prose}>${blk(q.description)}</div>`:''}
