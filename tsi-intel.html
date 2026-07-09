@@ -769,6 +769,7 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 
 /* drawer form sections */
 .dsec { margin-bottom:18px; }
+.dsec-sep { height:1px; background:var(--color-border); margin:14px 0 12px; }
 .dsec-title {
   font-size:10px; font-weight:500; text-transform:uppercase;
   letter-spacing:.07em; color:var(--color-text-muted);
@@ -11344,6 +11345,7 @@ function openSiteDrawer(accountId, opts) {
   }
 
   renderSiteAssociatedContactTags();
+  siteAddrPopulate(existing, data, accountId);
   updateSiteDrawerNavUI();
 
   document.getElementById('site-drawer-overlay')?.classList.add('open');
@@ -11462,6 +11464,10 @@ function saveSiteDrawer() {
     notes:      document.getElementById('s-notes').value.trim(),
     primaryContactId:      _resolvePrimaryContactId(),
     associatedContactIds:  [..._siteAssociatedContactIds],
+    billToRef:  document.getElementById('s-billto-ref')?.value || '',
+    billTo:     _addrRead('billto'),
+    shipToRef:  document.getElementById('s-shipto-ref')?.value || '',
+    shipTo:     _addrRead('shipto'),
     updatedAt:  new Date().toISOString(),
     updatedBy:  getUserInitials(),
   };
@@ -11570,6 +11576,102 @@ async function sitePortFetch() {
     _sitePortLat = parseFloat(data[0].lat); _sitePortLon = parseFloat(data[0].lon);
     if (st) { st.textContent = `✓ Port located (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})`; st.style.color = 'var(--tsi-succ-green)'; }
   } catch { if (st) { st.textContent = 'Error — check connection'; st.style.color = 'var(--tsi-coral)'; } }
+}
+
+// ── Bill-to / ship-to addresses (per account; may reference another account) ──
+let _addrCoords = { billto:{lat:null,lon:null}, shipto:{lat:null,lon:null} };
+function siteAddrRefChange(which){
+  const ref=document.getElementById('s-'+which+'-ref').value;
+  const own=document.getElementById('s-'+which+'-own');
+  if(own) own.style.display = ref ? 'none' : '';
+}
+function _addrGet(which,f){ return document.getElementById('s-'+which+'-'+f); }
+function _addrSet(which, a){
+  a=a||{};
+  ['street','city','state','zip','country'].forEach(f=>{ const el=_addrGet(which,f); if(el) el.value=a[f]||''; });
+  _addrCoords[which]={ lat:a.lat??null, lon:a.lon??null };
+}
+function _addrRead(which){
+  const v=f=>{ const el=_addrGet(which,f); return el?el.value.trim():''; };
+  const c=_addrCoords[which]||{};
+  return { street:v('street'), city:v('city'), state:v('state'), zip:v('zip'),
+    country:(v('country')||'US').toUpperCase(), lat:c.lat??null, lon:c.lon??null };
+}
+function _addrFromNominatim(r){
+  const a=r.address||{};
+  return { street:[a.house_number,a.road].filter(Boolean).join(' '),
+    city:a.city||a.town||a.village||a.hamlet||a.county||'', state:a.state||a.region||'',
+    zip:a.postcode||'', country:(a.country_code||'us').toUpperCase(),
+    lat:parseFloat(r.lat), lon:parseFloat(r.lon) };
+}
+async function addrGeoFetch(which){
+  const q=document.getElementById('s-'+which+'-search').value.trim();
+  const st=document.getElementById('s-'+which+'-status'); if(!q){ if(st)st.textContent=''; return; }
+  if(st){ st.textContent='Searching…'; st.style.color='var(--tsi-teal)'; }
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&addressdetails=1`;
+    const res=await fetch(url,{headers:{'Accept-Language':'en'}}); const data=await res.json();
+    if(!data.length){ if(st){st.textContent='Address not found — try adding city/state';st.style.color='var(--tsi-coral)';} return; }
+    _addrSet(which, _addrFromNominatim(data[0]));
+    if(st){ st.textContent='✓ Address confirmed'; st.style.color='var(--tsi-succ-green)'; }
+  }catch{ if(st){st.textContent='Error — check connection';st.style.color='var(--tsi-coral)';} }
+}
+let _addrGeoTimer=null;
+function addrGeoSearch(which){
+  clearTimeout(_addrGeoTimer);
+  const inp=document.getElementById('s-'+which+'-search'); const q=inp.value.trim();
+  if(q.length<4){ closeAC(); return; }
+  _addrGeoTimer=setTimeout(async()=>{
+    try{
+      const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`;
+      const res=await fetch(url,{headers:{'Accept-Language':'en'}}); const data=await res.json();
+      const results=data.map(r=>{ const a=_addrFromNominatim(r);
+        a.label=[a.street,a.city,a.state,a.zip].filter(Boolean).join(', '); return a; }).filter(x=>x.label);
+      showAC(inp, results.map(x=>x.label), label=>{
+        const m=results.find(x=>x.label===label); if(!m) return;
+        _addrSet(which, m); inp.value=label;
+        const st=document.getElementById('s-'+which+'-status'); if(st){st.textContent='✓ Address confirmed';st.style.color='var(--tsi-succ-green)';}
+      });
+    }catch{}
+  },400);
+}
+// Populate the source dropdowns + fields for the current account being edited.
+function siteAddrPopulate(existing, data, accountId){
+  const others=(data.accounts||[]).filter(x=>x.id!==accountId);
+  const opts=others.map(x=>`<option value="${x.id}">Same as: ${qesc(x.name)}</option>`).join('');
+  const bref=document.getElementById('s-billto-ref'), sref=document.getElementById('s-shipto-ref');
+  if(bref) bref.innerHTML = `<option value="">This account's own address</option>`+opts;
+  if(sref) sref.innerHTML = `<option value="__bill">Same as billing address</option><option value="">This account's own address</option>`+opts;
+  _addrCoords={ billto:{lat:null,lon:null}, shipto:{lat:null,lon:null} };
+  ['billto','shipto'].forEach(w=>{ _addrSet(w,{}); const s=document.getElementById('s-'+w+'-search'),st=document.getElementById('s-'+w+'-status'); if(s)s.value=''; if(st)st.textContent=''; });
+  if(existing){
+    if(bref) bref.value = existing.billToRef || '';
+    if(sref) sref.value = (existing.shipToRef!==undefined ? (existing.shipToRef||'') : '__bill');
+    if(existing.billTo) _addrSet('billto', existing.billTo);
+    if(existing.shipTo) _addrSet('shipto', existing.shipTo);
+  } else {
+    if(bref) bref.value='';
+    if(sref) sref.value='__bill';   // new accounts: ship-to defaults to billing
+  }
+  siteAddrRefChange('billto'); siteAddrRefChange('shipto');
+}
+// Resolve an account's bill/ship address, following account references. `seen`
+// guards only cross-account hops (a '__bill' switch stays on the same account).
+function resolveAddr(acctId, kind){   // kind: 'bill' | 'ship'
+  const data=getAccounts(); const seen=new Set();
+  let a=data.accounts.find(x=>x.id===acctId);
+  while(a){
+    if(kind==='ship'){
+      const sr=a.shipToRef;
+      if(sr==='__bill'){ kind='bill'; continue; }          // same account, use its bill-to
+      if(sr){ if(seen.has(a.id)) return null; seen.add(a.id); a=data.accounts.find(x=>x.id===sr); continue; }
+      return a.shipTo||null;
+    } else {
+      if(a.billToRef){ if(seen.has(a.id)) return null; seen.add(a.id); a=data.accounts.find(x=>x.id===a.billToRef); continue; }
+      return a.billTo||null;
+    }
+  }
+  return null;
 }
 
 function initSiteMap(lat, lon) {
@@ -12533,6 +12635,66 @@ startAdminPoll();
       </div>
       <div class="drawer-map-wrap" id="s-map-wrap" style="display:none">
         <div id="s-loc-map"></div>
+      </div>
+      </div><!-- /dsec-body -->
+    </div>
+
+    <!-- BILL-TO / SHIP-TO ADDRESSES -->
+    <div class="dsec collapsed" id="dsec-site-addr">
+      <div class="dsec-title" onclick="toggleDsec('site-addr')">
+        <span>Bill-to / Ship-to Addresses</span>
+        <span class="dsec-chevron">▾</span>
+      </div>
+      <div class="dsec-body">
+      <!-- Bill-to -->
+      <div class="drow">
+        <label>Billing address source</label>
+        <select class="dselect" id="s-billto-ref" onchange="siteAddrRefChange('billto')">
+          <option value="">This account's own address</option>
+        </select>
+      </div>
+      <div id="s-billto-own">
+        <div class="drow">
+          <label>Find / confirm billing address <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--tsi-teal)">— type &amp; pick to verify</span></label>
+          <div class="dloc-wrap">
+            <input class="dinput" id="s-billto-search" placeholder="123 Main St, City, ST" style="padding-right:64px" oninput="addrGeoSearch('billto')">
+            <button class="dloc-geo-btn" onclick="addrGeoFetch('billto')">Verify</button>
+          </div>
+          <div class="dloc-status" id="s-billto-status"></div>
+        </div>
+        <div class="drow"><label>Street</label><input class="dinput" id="s-billto-street" placeholder="Street / PO box"></div>
+        <div class="drow-3">
+          <div class="drow"><label>City</label><input class="dinput" id="s-billto-city"></div>
+          <div class="drow"><label>State</label><input class="dinput" id="s-billto-state"></div>
+          <div class="drow"><label>ZIP / Postal</label><input class="dinput" id="s-billto-zip"></div>
+        </div>
+        <div class="drow"><label>Country</label><input class="dinput" id="s-billto-country" placeholder="US" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="dsec-sep"></div>
+      <!-- Ship-to -->
+      <div class="drow">
+        <label>Shipping address source</label>
+        <select class="dselect" id="s-shipto-ref" onchange="siteAddrRefChange('shipto')">
+          <option value="__bill">Same as billing address</option>
+          <option value="">This account's own address</option>
+        </select>
+      </div>
+      <div id="s-shipto-own">
+        <div class="drow">
+          <label>Find / confirm shipping address <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--tsi-teal)">— type &amp; pick to verify</span></label>
+          <div class="dloc-wrap">
+            <input class="dinput" id="s-shipto-search" placeholder="123 Main St, City, ST" style="padding-right:64px" oninput="addrGeoSearch('shipto')">
+            <button class="dloc-geo-btn" onclick="addrGeoFetch('shipto')">Verify</button>
+          </div>
+          <div class="dloc-status" id="s-shipto-status"></div>
+        </div>
+        <div class="drow"><label>Street</label><input class="dinput" id="s-shipto-street" placeholder="Street / PO box"></div>
+        <div class="drow-3">
+          <div class="drow"><label>City</label><input class="dinput" id="s-shipto-city"></div>
+          <div class="drow"><label>State</label><input class="dinput" id="s-shipto-state"></div>
+          <div class="drow"><label>ZIP / Postal</label><input class="dinput" id="s-shipto-zip"></div>
+        </div>
+        <div class="drow"><label>Country</label><input class="dinput" id="s-shipto-country" placeholder="US" maxlength="2" style="text-transform:uppercase"></div>
       </div>
       </div><!-- /dsec-body -->
     </div>
