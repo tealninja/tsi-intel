@@ -969,7 +969,7 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   border:0.5px solid var(--color-border);
   text-align:center;
 }
-.onboard-logo { height:42px; margin-bottom:18px; }
+.onboard-logo { height:60px; margin-bottom:20px; } /* larger so the leaf mark reads as a leaf, not a thin crescent, at modal scale */
 .onboard-box h2 {
   font-family:var(--font-display); font-size:24px; font-weight:400;
   color:var(--color-heading); margin-bottom:8px;
@@ -3249,7 +3249,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#93 · 2026-07-09';
+const APP_BUILD = '#94 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
