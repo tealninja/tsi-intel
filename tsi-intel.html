@@ -2756,6 +2756,26 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 .q-addr-src { font-size:10px; padding:1px 5px; border:1px solid var(--color-border-mid); border-radius:5px; background:var(--color-surface); color:var(--color-text-secondary); margin-left:4px; max-width:150px; }
 .q-addr-verify { font-size:10px; color:var(--tsi-teal); cursor:pointer; margin-left:6px; }
 .q-addr-verify:hover { text-decoration:underline; }
+.q-ship-est-btn { font-size:10px; padding:1px 7px; margin-left:6px; border:1px solid var(--tsi-teal); color:var(--tsi-teal); background:transparent; border-radius:5px; cursor:pointer; }
+.q-ship-est-btn:hover { background:rgba(0,146,159,.1); }
+.q-ship-chosen { font-size:10px; color:var(--color-text-secondary); margin-top:3px; }
+.ship-est-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:12000; display:none; align-items:center; justify-content:center; }
+.ship-est-overlay.open { display:flex; }
+.ship-est { background:var(--color-surface); border:1px solid var(--color-border-mid); border-radius:var(--radius-md); width:min(480px,92vw); max-height:88vh; overflow:auto; box-shadow:0 12px 40px rgba(0,0,0,.28); }
+.ship-est-h { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--color-border); }
+.ship-est-sub { font-size:11px; color:var(--color-text-muted); }
+.ship-est-x { margin-left:auto; background:none; border:none; font-size:15px; cursor:pointer; color:var(--color-text-muted); }
+.ship-est-body { padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+.ship-est-actions { display:flex; align-items:center; gap:10px; margin-top:2px; }
+.ship-est-note { font-size:11px; }
+.ship-rates { display:flex; flex-direction:column; gap:6px; margin-top:4px; }
+.ship-rate { display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--color-border-mid); border-radius:var(--radius-sm); cursor:pointer; }
+.ship-rate:hover { background:rgba(0,146,159,.08); border-color:var(--tsi-teal); }
+.ship-rate-c { flex:1; font-size:12px; }
+.ship-rate-c span { color:var(--color-text-muted); }
+.ship-rate-d { font-size:11px; color:var(--color-text-muted); min-width:56px; text-align:right; }
+.ship-rate-p { font-family:var(--font-mono); font-weight:600; color:var(--tsi-teal); min-width:72px; text-align:right; }
+.ship-rate-empty { font-size:11px; color:var(--color-text-muted); padding:8px; }
 .q-totals { margin-top:12px; padding:12px 14px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-md); }
 .q-total-line { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; color:var(--color-text-secondary); }
 .q-total-line .q-total-val { font-family:var(--font-mono); }
@@ -13682,7 +13702,10 @@ startAdminPoll();
             <select class="dselect q-adjust-mode" id="q-discount-mode" onchange="recalcQuoteTotals()"><option value="pct">%</option><option value="abs">flat</option></select>
           </div>
         </div>
-        <div><label>Freight / Shipping</label><input class="dinput" id="q-freight" type="number" min="0" step="0.01" value="0" oninput="recalcQuoteTotals()"></div>
+        <div><label>Freight / Shipping <button type="button" class="q-ship-est-btn" onclick="openShipEst()" title="Estimate parcel shipping (USPS / UPS / FedEx / DHL)">⚡ Estimate</button></label>
+          <input class="dinput" id="q-freight" type="number" min="0" step="0.01" value="0" oninput="qClearChosenShip();recalcQuoteTotals()">
+          <div class="q-ship-chosen" id="q-ship-chosen" style="display:none"></div>
+        </div>
       </div>
       <div class="q-totals" id="q-totals"></div>
     </div>
@@ -13714,6 +13737,39 @@ startAdminPoll();
     <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Mark Sent; bumps the revision on re-publish">Publish ▸</button>
   </div>
 </div><!-- /quote-drawer -->
+
+<!-- ══ SHIPPING ESTIMATE (parcel rates for sample quotes) ══ -->
+<div class="ship-est-overlay" id="ship-est-overlay" onclick="if(event.target===this)closeShipEst()">
+  <div class="ship-est">
+    <div class="ship-est-h"><b>⚡ Estimate shipping</b><span class="ship-est-sub">parcel · USPS · UPS · FedEx · DHL</span>
+      <button class="ship-est-x" onclick="closeShipEst()">✕</button></div>
+    <div class="ship-est-body">
+      <div class="drow-2">
+        <div class="drow"><label>Ship from ZIP</label><input class="dinput" id="ship-from-zip" placeholder="e.g. 30301" inputmode="numeric"></div>
+        <div class="drow"><label>From country</label><input class="dinput" id="ship-from-country" value="US" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="drow-2">
+        <div class="drow"><label>Ship to ZIP / postal</label><input class="dinput" id="ship-to-zip" placeholder="from ship-to address"></div>
+        <div class="drow"><label>To country</label><input class="dinput" id="ship-to-country" value="US" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="drow-3">
+        <div class="drow"><label>Weight (lb)</label><input class="dinput" id="ship-weight" type="number" min="0" step="0.1" placeholder="e.g. 5"></div>
+        <div class="drow" style="grid-column:span 2"><label>Box L×W×H (in) — optional</label>
+          <div style="display:flex;gap:5px">
+            <input class="dinput" id="ship-l" type="number" min="0" step="0.1" placeholder="L">
+            <input class="dinput" id="ship-w" type="number" min="0" step="0.1" placeholder="W">
+            <input class="dinput" id="ship-h" type="number" min="0" step="0.1" placeholder="H">
+          </div>
+        </div>
+      </div>
+      <div class="ship-est-actions">
+        <button class="btn-add-opp" id="ship-get-btn" onclick="shipGetRates()">Get rates →</button>
+        <span class="ship-est-note" id="ship-est-note"></span>
+      </div>
+      <div class="ship-rates" id="ship-rates"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ══ LEADS INBOX DRAWER ══ -->
 <style>
@@ -14867,6 +14923,75 @@ async function qAddrVerify(which){
     showToast('✓ '+(which==='billto'?'Bill-to':'Ship-to')+' address confirmed','var(--tsi-succ-green)');
   }catch{ showToast('Geocode failed — check connection','var(--tsi-coral)'); }
 }
+
+// ── Shipping estimate (parcel rates via the tsi-intel-api Worker → EasyPost) ──
+const SHIP_FROM_KEY='tsi_ship_from_zip';
+function openShipEst(){
+  const ov=document.getElementById('ship-est-overlay'); if(!ov) return;
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  document.getElementById('ship-to-zip').value = g('q-shipto-zip') || g('q-billto-zip') || '';
+  document.getElementById('ship-to-country').value = (g('q-shipto-country') || g('q-billto-country') || 'US');
+  document.getElementById('ship-from-zip').value = localStorage.getItem(SHIP_FROM_KEY) || '';
+  document.getElementById('ship-from-country').value = 'US';
+  document.getElementById('ship-est-note').textContent='';
+  document.getElementById('ship-rates').innerHTML='';
+  ov.classList.add('open');
+}
+function closeShipEst(){ const ov=document.getElementById('ship-est-overlay'); if(ov) ov.classList.remove('open'); }
+let _shipRates=[];
+async function shipGetRates(){
+  const fromZip=document.getElementById('ship-from-zip').value.trim();
+  const toZip=document.getElementById('ship-to-zip').value.trim();
+  const weight=parseFloat(document.getElementById('ship-weight').value)||0;
+  const note=document.getElementById('ship-est-note'), box=document.getElementById('ship-rates');
+  if(!fromZip){ note.textContent='Enter a ship-from ZIP'; note.style.color='var(--tsi-coral)'; return; }
+  if(!toZip){ note.textContent='Enter a ship-to ZIP'; note.style.color='var(--tsi-coral)'; return; }
+  if(!weight){ note.textContent='Enter a weight'; note.style.color='var(--tsi-coral)'; return; }
+  localStorage.setItem(SHIP_FROM_KEY, fromZip);
+  note.textContent='Fetching rates…'; note.style.color='var(--tsi-teal)'; box.innerHTML='';
+  const payload={ from:{zip:fromZip, country:(document.getElementById('ship-from-country').value||'US').toUpperCase()},
+    to:{zip:toZip, country:(document.getElementById('ship-to-country').value||'US').toUpperCase()},
+    weight_oz: Math.round(weight*16),
+    dims:{ l:parseFloat(document.getElementById('ship-l').value)||0, w:parseFloat(document.getElementById('ship-w').value)||0, h:parseFloat(document.getElementById('ship-h').value)||0 } };
+  const res=await shipEstimate(payload);
+  if(!res || !res.ok){
+    note.textContent=(res&&res.error)?res.error:'Live rates unavailable.'; note.style.color='var(--tsi-amber)';
+    box.innerHTML='<div class="ship-rate-empty">The shipping endpoint isn’t deployed yet — you can still type the freight cost by hand.</div>';
+    return;
+  }
+  _shipRates=(res.rates||[]).slice().sort((a,b)=>(Number(a.rate)||0)-(Number(b.rate)||0));
+  if(!_shipRates.length){ note.textContent='No rates for that route / parcel.'; note.style.color='var(--tsi-amber)'; return; }
+  note.textContent=_shipRates.length+' rate'+(_shipRates.length!==1?'s':'')+' — click to apply'; note.style.color='var(--tsi-succ-green)';
+  box.innerHTML=_shipRates.map((r,i)=>`<div class="ship-rate" onclick="shipPickRate(${i})">
+    <div class="ship-rate-c"><b>${qesc(r.carrier||'')}</b> <span>${qesc(r.service||'')}</span></div>
+    <div class="ship-rate-d">${r.days!=null?r.days+' day'+(r.days!=1?'s':''):''}</div>
+    <div class="ship-rate-p">${qmoney(Number(r.rate)||0, r.currency||'USD')}</div></div>`).join('');
+}
+function shipPickRate(i){
+  const r=_shipRates[i]; if(!r) return;
+  document.getElementById('q-freight').value=(Number(r.rate)||0).toFixed(2);
+  if(_qWorking){ _qWorking.shipping_carrier=r.carrier||''; _qWorking.shipping_service=r.service||''; }
+  qShowChosenShip(r.carrier, r.service);
+  recalcQuoteTotals(); closeShipEst();
+  showToast('✓ Freight set — '+(r.carrier||'')+' '+(r.service||''),'var(--tsi-succ-green)');
+}
+function qShowChosenShip(carrier, service){
+  const el=document.getElementById('q-ship-chosen'); if(!el) return;
+  if(carrier){ el.style.display=''; el.textContent='🚚 '+carrier+(service?' · '+service:''); }
+  else { el.style.display='none'; el.textContent=''; }
+}
+function qClearChosenShip(){ if(_qWorking){ _qWorking.shipping_carrier=''; _qWorking.shipping_service=''; } qShowChosenShip(''); }
+// Worker-proxied rate lookup. Returns {ok:false,...} when the endpoint/key isn't set.
+async function shipEstimate(payload){
+  if(typeof API_WORKER_URL==='undefined' || !API_WORKER_URL) return { ok:false, error:'No API worker configured.' };
+  try{
+    const res=await fetch(API_WORKER_URL+'/api/shipping/rates', { method:'POST', headers:workerHeaders(), body:JSON.stringify(payload) });
+    if(res.status===404 || res.status===501) return { ok:false, error:'Shipping endpoint not deployed yet.' };
+    const data=await res.json().catch(()=>null);
+    if(!res.ok || !data) return { ok:false, error:(data&&data.error)||('HTTP '+res.status) };
+    return { ok:true, rates:data.rates||[] };
+  }catch(e){ return { ok:false, error:'Network error' }; }
+}
 function populateQuoteCatPicker(){
   const sel=document.getElementById('q-add-cat');
   const all=[...new Set(PRODUCTS.map(p=>p.category))];
@@ -14899,7 +15024,7 @@ function blankQuote(){
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
     description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'', terms:Q_TERMS_FULL,
-    discount:0, discount_mode:'pct', freight:0, tax_pct:0, subtotal:0, total:0, lines:[] };
+    discount:0, discount_mode:'pct', freight:0, shipping_carrier:'', shipping_service:'', tax_pct:0, subtotal:0, total:0, lines:[] };
 }
 // ── Rich-text (contenteditable) helpers for the quote prose fields ──
 function rteCmd(e, cmd){ e.preventDefault(); try{ document.execCommand(cmd, false, null); }catch(_){} }
@@ -14965,6 +15090,7 @@ function fillQuoteForm(){
   S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
+  qShowChosenShip(q.shipping_carrier||'', q.shipping_service||'');
   S('q-description',q.description); S('q-scope',q.scope); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
   S('q-terms', q.terms!=null && q.terms!=='' ? q.terms : Q_TERMS_FULL);
 }
@@ -15073,7 +15199,7 @@ function recalcQuoteTotals(){
   const cur=q.currency, t=qTotals(q);
   const rows=[`<div class="q-total-line"><span>Subtotal</span><span class="q-total-val">${qmoney(t.sub,cur)}</span></div>`];
   if(t.disc>0) rows.push(`<div class="q-total-line discount"><span>Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</span><span class="q-total-val">−${qmoney(t.disc,cur)}</span></div>`);
-  if(t.freight>0) rows.push(`<div class="q-total-line"><span>Freight / Shipping</span><span class="q-total-val">${qmoney(t.freight,cur)}</span></div>`);
+  if(t.freight>0) rows.push(`<div class="q-total-line"><span>Freight / Shipping${q.shipping_carrier?` <span style="color:var(--color-text-muted);font-size:10px">(${qesc(q.shipping_carrier)}${q.shipping_service?' '+qesc(q.shipping_service):''})</span>`:''}</span><span class="q-total-val">${qmoney(t.freight,cur)}</span></div>`);
   if(q.tax_pct>0) rows.push(`<div class="q-total-line"><span>Tax / VAT (${q.tax_pct}%)</span><span class="q-total-val">${qmoney(t.tax,cur)}</span></div>`);
   rows.push(`<div class="q-total-line grand"><span>Total (${cur})</span><span class="q-total-val">${qmoney(t.grand,cur)}</span></div>`);
   document.getElementById('q-totals').innerHTML=rows.join('');
@@ -15150,7 +15276,7 @@ function printQuote(q){
     <td class="r">${qesc(String(l.qty||0))}</td><td class="r">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</td></tr>`).join('');
   const foot=[`<tr><td colspan="6" class="r lbl">Subtotal</td><td class="r">${qmoney(t.sub,cur)}</td></tr>`];
   if(t.disc>0) foot.push(`<tr><td colspan="6" class="r lbl">Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</td><td class="r">−${qmoney(t.disc,cur)}</td></tr>`);
-  if(t.freight>0) foot.push(`<tr><td colspan="6" class="r lbl">Freight / Shipping</td><td class="r">${qmoney(t.freight,cur)}</td></tr>`);
+  if(t.freight>0) foot.push(`<tr><td colspan="6" class="r lbl">Freight / Shipping${q.shipping_carrier?' — '+qesc(q.shipping_carrier)+(q.shipping_service?' '+qesc(q.shipping_service):''):''}</td><td class="r">${qmoney(t.freight,cur)}</td></tr>`);
   if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" class="r lbl">Tax / VAT (${q.tax_pct}%)</td><td class="r">${qmoney(t.tax,cur)}</td></tr>`);
   foot.push(`<tr class="grand"><td colspan="6" class="r lbl">Total (${cur})</td><td class="r">${qmoney(t.grand,cur)}</td></tr>`);
   const blk=s=>{ s=String(s==null?'':s); return /<[a-z/][^>]*>/i.test(s) ? rteSanitize(s) : qesc(s).replace(/\n/g,'<br>'); };
@@ -15224,7 +15350,7 @@ function exportQuoteWord(q){
   const ftd='style="padding:5px 7px;font-size:10.5pt"';
   const foot=[`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Subtotal</td><td ${ftd} align="right">${qmoney(t.sub,cur)}</td></tr>`];
   if(t.disc>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Discount${q.discount_mode==='pct'?' ('+q.discount+'%)':''}</td><td ${ftd} align="right">−${qmoney(t.disc,cur)}</td></tr>`);
-  if(t.freight>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Freight / Shipping</td><td ${ftd} align="right">${qmoney(t.freight,cur)}</td></tr>`);
+  if(t.freight>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Freight / Shipping${q.shipping_carrier?' — '+qesc(q.shipping_carrier)+(q.shipping_service?' '+qesc(q.shipping_service):''):''}</td><td ${ftd} align="right">${qmoney(t.freight,cur)}</td></tr>`);
   if((Number(q.tax_pct)||0)>0) foot.push(`<tr><td colspan="6" ${ftd} align="right" style="padding:5px 7px;color:#666">Tax / VAT (${q.tax_pct}%)</td><td ${ftd} align="right">${qmoney(t.tax,cur)}</td></tr>`);
   foot.push(`<tr><td colspan="6" align="right" style="padding:8px 7px;border-top:2px solid #00929F;font-size:13pt;font-weight:700;color:#19446C">Total (${cur})</td><td align="right" style="padding:8px 7px;border-top:2px solid #00929F;font-size:13pt;font-weight:700;color:#19446C">${qmoney(t.grand,cur)}</td></tr>`);
   const h3='style="font-size:11pt;text-transform:uppercase;letter-spacing:.5pt;color:#19446C;border-bottom:1px solid #e5e5e5;padding-bottom:3px;margin:16pt 0 6pt"';

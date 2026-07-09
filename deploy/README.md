@@ -36,6 +36,24 @@ next load. Both bindings the worker needs:
   prices, quotes, and `/api/store/*` (bugs, saved views, follows, **Project Track deck
   arrangement**, and now **opportunities + accounts** — see below).
 
+### Shipping estimates (`POST /api/shipping/rates`) — parcel rate shopping
+
+The Quote Builder's **⚡ Estimate** button (next to Freight / Shipping) fetches
+live parcel rates across USPS / UPS / FedEx / DHL. The browser can't call carriers
+directly (CORS + the key must stay secret), so it POSTs `{from:{zip,country},
+to:{zip,country}, weight_oz, dims}` to this Worker, which proxies to **EasyPost**
+and returns normalized `[{carrier, service, rate, currency, days}]`.
+
+To turn it on:
+```bash
+wrangler secret put SHIPPING_API_KEY      # your EasyPost API key
+```
+- Getting **rate quotes is free** on EasyPost (you only pay if you buy a label).
+- Until the secret is set the route returns **501** and the client degrades to
+  the manual freight field — nothing breaks.
+- Provider is abstracted in one place (the EasyPost `fetch` call); swap it for
+  Shippo or direct carrier APIs there if desired.
+
 ### Opportunities + accounts now persist to D1 (`/api/store/*`)
 
 The pipeline (opportunities) and the accounts/sites CRM used to live only in KV

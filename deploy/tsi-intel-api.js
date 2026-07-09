@@ -495,6 +495,41 @@ export default {
       return json({ success: true, id }, 200, origin);
     }
 
+    // ── POST /api/shipping/rates ── parcel rate shopping via EasyPost ──
+    // Proxies to EasyPost so the API key never reaches the browser. Returns
+    // 501 (not 500) when unconfigured so the client falls back to manual entry.
+    if (path === '/api/shipping/rates' && request.method === 'POST') {
+      const key = env.SHIPPING_API_KEY || env.EASYPOST_API_KEY;
+      if (!key) return json({ error: 'Shipping not configured (set SHIPPING_API_KEY).' }, 501, origin);
+      let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
+      const from = body.from || {}, to = body.to || {}, dims = body.dims || {};
+      const oz = Number(body.weight_oz) || 0;
+      if (!from.zip || !to.zip || !oz) return json({ error: 'from.zip, to.zip and weight_oz are required' }, 400, origin);
+      const parcel = { weight: oz };
+      if (dims.l && dims.w && dims.h) { parcel.length = Number(dims.l); parcel.width = Number(dims.w); parcel.height = Number(dims.h); }
+      const shipment = {
+        to_address:   { zip: String(to.zip),   country: (to.country || 'US') },
+        from_address: { zip: String(from.zip), country: (from.country || 'US') },
+        parcel,
+      };
+      try {
+        const ep = await fetch('https://api.easypost.com/v2/shipments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(key + ':') },
+          body: JSON.stringify({ shipment }),
+        });
+        const data = await ep.json();
+        if (!ep.ok) return json({ error: (data && data.error && data.error.message) || ('EasyPost HTTP ' + ep.status) }, 502, origin);
+        const rates = (data.rates || []).map(r => ({
+          carrier: r.carrier, service: r.service, rate: Number(r.rate), currency: r.currency || 'USD',
+          days: (r.delivery_days != null ? r.delivery_days : (r.est_delivery_days != null ? r.est_delivery_days : null)),
+        }));
+        return json({ rates }, 200, origin);
+      } catch (e) {
+        return json({ error: 'Shipping upstream error: ' + ((e && e.message) || e) }, 502, origin);
+      }
+    }
+
     // ── GET /api/health ───────────────────────────────────────
     if (path === '/api/health') {
       return json({ status: 'ok', ts: new Date().toISOString() }, 200, origin);
