@@ -178,6 +178,22 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Update Agent — conversational opportunity updates** (build #95) — a new
+  **💬 Update Agent** sub-tab in the AI + Parse area: an AI chat that updates existing
+  opportunities (or adds new ones) from natural language ("Drax Princeton slipped to Q1
+  2027, now 80%", "we won the Berneck dryer"). It matches the deal by its stable **id**
+  (asking to disambiguate when an account has several open deals), then shows a
+  **proposed-change diff** (old → new per field) in the sidebar for review before anything
+  is written. **Apply** patches the record by id, bumps version, stamps updater + a history
+  entry, marks it dirty, and syncs to D1. Degrades gracefully with a clear "set
+  ANTHROPIC_API_KEY" message when the AI endpoint is unconfigured. Complements the
+  intake-focused AgentJohn (still in MGMT). **Note:** all AI features (this, AI Assistant,
+  Parse Updates, AgentJohn) require the **ANTHROPIC_API_KEY** secret on the `tsi-intel-api`
+  Worker — until it's set the endpoint returns 503/404 and chats show no response.
+  Verified via Playwright (propose diff, apply-by-id, version bump + history, AI-down path).
+- [x] **Onboarding logo** (build #94) — the TSI leaf mark was aliasing into a thin crescent
+  at 42px; rendered at 60px in the welcome modal it reads as a leaf again.
+
 - [x] **Greeting robustness + coworker-safe local identity** (builds #90–#92) — the welcome
   card wasn't appearing when the downloaded `tsi-intel.html` is opened directly (a `file://`
   open has no SharePoint login, so there was no one to greet). A `file://` page also can't

@@ -1463,6 +1463,15 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 
 /* AgentJohn chat */
 .aj-layout { display:grid; grid-template-columns:1fr 280px; gap:var(--sp-3); }
+/* Update Agent proposed-change diffs */
+.ua-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:4px;vertical-align:middle}
+.ua-badge.upd{background:rgba(196,162,48,.16);color:var(--tsi-amber,#c4a230)}
+.ua-badge.new{background:rgba(110,140,52,.16);color:var(--tsi-succ-green,#6e8c34)}
+.ua-diff-row{display:flex;align-items:center;gap:5px;font-size:10.5px;margin-top:3px}
+.ua-diff-k{flex:0 0 62px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.03em;font-size:9px}
+.ua-diff-old{color:var(--color-text-muted);text-decoration:line-through;opacity:.8;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ua-diff-arw{color:var(--color-text-muted)}
+.ua-diff-new{color:var(--color-heading);font-weight:600;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .aj-chat-card {
   background:var(--color-surface); border:0.5px solid var(--color-border);
   border-radius:var(--radius-lg); display:flex; flex-direction:column;
@@ -3173,6 +3182,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 </style>
 <div id="tools-subnav" class="tools-subnav" style="display:none">
   <button class="subtab active" data-sub="ai" onclick="showToolsSub('ai')">🤖 AI Assistant</button>
+  <button class="subtab" data-sub="agent" onclick="showToolsSub('agent')">💬 Update Agent</button>
   <button class="subtab" data-sub="parser" onclick="showToolsSub('parser')">📥 Parse Updates</button>
 </div>
 <div id="view-ai" class="view">
@@ -3234,6 +3244,34 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   </div>
 </div>
 
+<!-- ══ UPDATE AGENT ══ (conversational interview to update/add opportunities) -->
+<div id="view-agent" class="view">
+  <div class="aj-layout">
+    <div class="aj-chat-card">
+      <div class="aj-chat-msgs" id="ua-msgs">
+        <div class="aj-msg agent">
+          <div class="aj-name">Update Agent</div>
+          <div class="aj-bubble">Hi — I'm the pipeline Update Agent. Tell me what's changed on any deal and I'll draft the update: "Alfanar FEED slipped to Q4, now 60%", "we won the Berneck dryer", "Enviva bumped to $12M". You can also describe a brand-new opportunity. I'll show the change on the right before anything is saved.</div>
+        </div>
+      </div>
+      <div class="aj-footer">
+        <textarea id="ua-input" rows="2" placeholder="What changed? e.g. 'Drax Princeton moved to negotiation, close now Q1 2027'…"></textarea>
+        <button class="btn-aj-send" id="ua-send-btn" onclick="uaSend()">Send</button>
+      </div>
+    </div>
+    <div class="aj-sidebar">
+      <div class="aj-sidebar-title">Proposed changes</div>
+      <div id="ua-extracted" style="font-size:11px;color:var(--color-text-muted)">
+        Updates appear here as we talk — review, then apply.
+      </div>
+      <button class="btn-aj-merge" id="ua-merge-btn" onclick="uaMerge()" disabled>
+        ✓ Apply to Pipeline
+      </button>
+      <button class="btn-aj-reset" onclick="uaReset()">↺ New conversation</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // API_KEY removed — AI calls proxied through Cloudflare Worker
 const MODEL   = 'claude-sonnet-4-6';  // Used in worker proxy
@@ -3249,7 +3287,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#94 · 2026-07-09';
+const APP_BUILD = '#95 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -4288,13 +4326,16 @@ function showTab(name) {
 }
 
 function showToolsSub(sub){
-  _toolsSub = (sub==='parser') ? 'parser' : 'ai';
+  _toolsSub = (sub==='parser'||sub==='agent') ? sub : 'ai';
   const ai = document.getElementById('view-ai');
   const pa = document.getElementById('view-parser');
+  const ag = document.getElementById('view-agent');
   if (ai) ai.classList.toggle('active', _toolsSub==='ai');
   if (pa) pa.classList.toggle('active', _toolsSub==='parser');
+  if (ag) ag.classList.toggle('active', _toolsSub==='agent');
   document.querySelectorAll('#tools-subnav .subtab').forEach(b => b.classList.toggle('active', b.dataset.sub===_toolsSub));
   if(_toolsSub==='ai' && typeof refreshAiClassUI==='function') refreshAiClassUI();
+  if(_toolsSub==='agent' && typeof uaSyncContext==='function') uaSyncContext();
 }
 
 function toggleTabMenu(){
@@ -7412,6 +7453,180 @@ document.addEventListener('DOMContentLoaded', () => {
   if(ta) ta.addEventListener('keydown', e=>{
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ajSend();}
   });
+});
+
+// ── UPDATE AGENT ──────────────────────────────────────────────
+// A conversational agent to UPDATE existing opportunities (or add new ones).
+// Unlike AgentJohn (intake), it targets a specific opp by its stable id and
+// emits only the changed fields, so multi-deal accounts update the right row.
+let _uaHistory  = [];
+let _uaExtracted = [];
+
+const UA_FIELD_LABELS = { acct:'Account', loc:'Location', type:'Project', cat:'Category',
+  val:'Value', prob:'Probability', close:'Close', stage:'Stage', lead:'Lead',
+  tags:'Scope tags', notes:'Notes', status:'Status' };
+
+function uaSystemPrompt(){
+  const open = DATA.filter(o=>o.status==='O').map(o=>({
+    id:o.id, acct:o.acct, loc:o.loc, type:o.type, val:o.val, prob:o.prob,
+    close:o.close, stage:o.stage, lead:o.lead
+  }));
+  return `You are the Update Agent for Teal Sales Inc. (TSI) — a Washington-based capital equipment company (rotary dryers, Torreactor torrefaction, WESPs, RTOs, furnaces). Your job: help a salesperson UPDATE opportunities in the live pipeline through natural conversation. Be concise and collegial — a chat, not a form.
+
+CURRENT OPEN PIPELINE (id → deal). Match what the user describes to one of these by id:
+${JSON.stringify(open)}
+
+HOW TO WORK:
+- When the user describes a change, identify the single best-matching opportunity by its "id". If the account has several deals, ask a short clarifying question naming the candidates (e.g. "LP has 12 open — which site: Sagola RTO, Newberry PH2, …?").
+- Confirm your understanding in one short sentence, then emit the change.
+- If they clearly describe a brand-new deal not in the list, treat it as new (id:null) and gather at least account + project + rough value or probability first.
+- Values: dollars as numbers (e.g. 12000000). Probability as a 0–1 decimal (60% → 0.6). Close as "2026-Q4" / "2027" / an ISO date. Stage is one of: Lead, Qualified, Proposal, Negotiation, PO Received. To mark a deal WON set "status":"W"; LOST set "status":"L".
+
+After you have a concrete change, append a JSON block at the END of your reply in EXACTLY this format (only the fields that change):
+
+EXTRACTED_UPDATES:
+[{"id":"DPR","fields":{"stage":"Negotiation","close":"2027-Q1"}}]
+
+For a new deal use "id":null and include the full fields (acct, loc, type, cat, val, prob, close, stage, lead, tags, notes). You may revise a pending change by re-emitting the whole EXTRACTED_UPDATES block. Never invent ids that aren't in the list above. Keep chat replies short.`;
+}
+function uaSyncContext(){ /* system prompt is rebuilt per send from live DATA */ }
+
+async function uaSend(){
+  const ta = document.getElementById('ua-input');
+  const msg = ta.value.trim(); if(!msg) return;
+  ta.value=''; uaAddMsg('user', msg); _uaHistory.push({role:'user',content:msg});
+  const btn = document.getElementById('ua-send-btn'); btn.disabled = true;
+  const typing = uaAddTyping();
+  try {
+    const res = await fetch(API_WORKER_URL + '/api/ai', {
+      method:'POST', headers: aiHeaders(),
+      body: JSON.stringify({ model:MODEL, tier:aiTier(), max_tokens:1200, system:uaSystemPrompt(), messages:_uaHistory })
+    });
+    const data = await res.json(); typing.remove();
+    if (!res.ok || !data.content) {
+      const why = (data && (data.error||data.message)) || ('HTTP '+res.status);
+      uaAddMsg('agent', `⚠ AI unavailable (${why}). The pipeline AI needs the ANTHROPIC_API_KEY set on the tsi-intel-api Worker.`);
+      btn.disabled=false; return;
+    }
+    const reply = data.content?.find(b=>b.type==='text')?.text || 'Sorry, no response.';
+    const m = reply.match(/EXTRACTED_UPDATES:\s*(\[[\s\S]*?\])/);
+    let shown = reply;
+    if (m) {
+      shown = reply.replace(/EXTRACTED_UPDATES:[\s\S]*$/, '').trim();
+      try { _uaExtracted = JSON.parse(m[1]); renderUaExtracted(); } catch {}
+    }
+    uaAddMsg('agent', shown);
+    _uaHistory.push({role:'assistant',content:reply});
+    usageLog('update_agent_msg', msg.slice(0,60));
+  } catch(e){ typing.remove(); uaAddMsg('agent','Connection error — check that the API worker is reachable.'); }
+  btn.disabled = false;
+}
+
+function uaAddMsg(role, text){
+  const msgs = document.getElementById('ua-msgs');
+  const div = document.createElement('div'); div.className = 'aj-msg '+role;
+  div.innerHTML = `<div class="aj-name">${role==='user'?(getUserName()||'You'):'Update Agent'}</div><div class="aj-bubble">${String(text).replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight; return div;
+}
+function uaAddTyping(){
+  const msgs = document.getElementById('ua-msgs');
+  const div = document.createElement('div'); div.className = 'aj-msg agent';
+  div.innerHTML = `<div class="aj-name">Update Agent</div><div class="aj-bubble typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight; return div;
+}
+
+function uaFmtVal(v){ if(v==null) return 'TBD'; if(v>=1e9) return '$'+(v/1e9).toFixed(2)+'B'; if(v>=1e6) return '$'+(v/1e6).toFixed(1)+'M'; return '$'+Math.round(v).toLocaleString('en-US'); }
+function uaFmtField(k,v){
+  if(v==null||v==='') return '—';
+  if(k==='val') return uaFmtVal(v);
+  if(k==='prob') return Math.round(v*100)+'%';
+  if(k==='tags') return Array.isArray(v)? (v.join(', ')||'—') : v;
+  if(k==='status') return v==='W'?'Won':v==='L'?'Lost':v==='O'?'Open':v;
+  return v;
+}
+
+function renderUaExtracted(){
+  const el = document.getElementById('ua-extracted');
+  const btn = document.getElementById('ua-merge-btn');
+  if(!_uaExtracted.length){
+    el.innerHTML = '<span style="color:var(--color-text-muted)">Updates appear here as we talk…</span>';
+    btn.disabled = true; return;
+  }
+  el.innerHTML = _uaExtracted.map(u=>{
+    const opp = u.id ? DATA.find(r=>r.id===u.id) : null;
+    const fields = u.fields || u.new || {};
+    if (u.id && opp){
+      const rows = Object.keys(fields).map(k=>{
+        const oldV = uaFmtField(k, opp[k]);
+        const newV = uaFmtField(k, fields[k]);
+        return `<div class="ua-diff-row"><span class="ua-diff-k">${UA_FIELD_LABELS[k]||k}</span><span class="ua-diff-old">${oldV}</span><span class="ua-diff-arw">→</span><span class="ua-diff-new">${newV}</span></div>`;
+      }).join('');
+      return `<div class="aj-extracted-card"><div class="ajc-head">${opp.acct} <span class="ua-badge upd">UPDATE</span></div>
+        <div class="ajc-meta">${opp.id} · ${opp.loc||'—'}</div>${rows}</div>`;
+    }
+    if (u.id && !opp){
+      return `<div class="aj-extracted-card"><div class="ajc-head" style="color:var(--tsi-coral)">Unknown id ${u.id}</div><div class="ajc-meta">No matching opportunity — I'll skip this one.</div></div>`;
+    }
+    // new deal
+    return `<div class="aj-extracted-card"><div class="ajc-head">${fields.acct||'New deal'} <span class="ua-badge new">NEW</span></div>
+      <div class="ajc-meta">${fields.loc||'—'} · ${uaFmtVal(fields.val)} · ${fields.prob!=null?Math.round(fields.prob*100)+'%':'—'}</div>
+      <div class="ajc-meta">${fields.type||''}</div></div>`;
+  }).join('');
+  const applicable = _uaExtracted.some(u => (u.id && DATA.find(r=>r.id===u.id)) || (!u.id && (u.fields||u.new||{}).acct));
+  btn.disabled = !applicable;
+}
+
+function uaMerge(){
+  if(!_uaExtracted.length) return;
+  const now = new Date().toISOString();
+  const by = getUserInitials()||'?';
+  let updated=0, added=0, skipped=0;
+  _uaExtracted.forEach(u=>{
+    const fields = u.fields || u.new || {};
+    if (u.id){
+      const idx = DATA.findIndex(r=>r.id===u.id);
+      if (idx<0){ skipped++; return; }
+      const prev = DATA[idx];
+      const rec = { ...prev, ...fields,
+        version:(prev.version||0)+1, updatedAt:now, updatedBy:by,
+        lastUpdatedAt:now, lastUpdatedBy:by };
+      if(!Array.isArray(rec.history)) rec.history = Array.isArray(prev.history)?prev.history.slice():[];
+      rec.history.unshift({ at:now, by, action:'Updated via Update Agent: '+Object.keys(fields).map(k=>UA_FIELD_LABELS[k]||k).join(', ') });
+      DATA[idx] = rec; markDirty(u.id);
+      try { if(typeof oppPersist==='function') oppPersist(rec); } catch(_){}
+      updated++;
+    } else if (fields.acct){
+      const id = 'UA-'+Date.now().toString(36).toUpperCase().slice(-4)+'-'+added;
+      const rec = { id, status:'O', source:'Update Agent', cat:fields.cat||'Aftermarket/CO',
+        currency:'USD', electricalInst:false, mechanicalInst:false, freightTerms:'Not Included',
+        starred:false, createdAt:now, createdBy:by, updatedAt:now, updatedBy:by,
+        lastUpdatedAt:now, lastUpdatedBy:by, version:1,
+        history:[{at:now,by,action:'Created via Update Agent'}], ...fields };
+      DATA.unshift(rec); markDirty(id);
+      try { if(typeof oppPersist==='function') oppPersist(rec); } catch(_){}
+      added++;
+    }
+  });
+  populateFilters(); renderPipeline();
+  try { renderImminent(); renderTorr(); renderWon(); renderHotCards(); updateCharts(currentFilteredRows()); updateMap(currentFilteredRows()); } catch(_){}
+  if (API_WORKER_URL) saveToWorker().then(ok=>showSyncStatus(ok?'✓ Synced to cloud':'⚠ Sync failed', ok?'var(--tsi-succ-green)':'var(--tsi-amber)'));
+  const parts=[]; if(updated)parts.push(updated+' updated'); if(added)parts.push(added+' added'); if(skipped)parts.push(skipped+' skipped');
+  uaAddMsg('agent', '✓ Applied — '+(parts.join(' · ')||'nothing')+'. Check the Pipeline tab.');
+  showToast('✓ '+(parts.join(' · ')||'No changes'), 'var(--tsi-succ-green)');
+  _uaExtracted = []; renderUaExtracted();
+  usageLog('update_agent_apply', `updated:${updated} added:${added}`);
+}
+
+function uaReset(){
+  _uaHistory = []; _uaExtracted = [];
+  const msgs = document.getElementById('ua-msgs');
+  if(msgs) msgs.innerHTML = `<div class="aj-msg agent"><div class="aj-name">Update Agent</div><div class="aj-bubble">Fresh start. What changed on the pipeline?</div></div>`;
+  renderUaExtracted();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('ua-input');
+  if(ta) ta.addEventListener('keydown', e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();uaSend();} });
 });
 
 
