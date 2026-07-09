@@ -178,6 +178,16 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Quote shipping + addresses** — (A) accounts carry separate **bill-to / ship-to**
+  addresses, each own / "same as another account" (child→parent sharing) / ship-same-as-
+  bill, with nominatim geocode confirm + `resolveAddr()`. (B) Quote builder pulls bill-to/
+  ship-to from the chosen account (source dropdown: parent / site / associated / manual),
+  prints both on PDF + Word. (C) **⚡ Estimate** button → live parcel rates (USPS/UPS/FedEx/
+  DHL) via new Worker route `POST /api/shipping/rates` → EasyPost (key = `SHIPPING_API_KEY`
+  secret; free to quote; 501-degrades to manual until deployed). Fills freight + stamps carrier.
+- [x] **Preso 16:9 + real-estate** — slides locked to a contained 16:9 box; raised the
+  fill cap (1280→1760) so 1080p/1440p screens aren't wasted.
+- [x] **Shared DropLine** — drop-position indicator (deck builder + pipeline stage board).
 - [x] **TableKit — reusable list-table engine** — one registration-driven component
   (`TableKit.register(id,{columns,data,render,capture/apply})`) providing sort, column
   show/hide, column drag/resize, per-column value filters, and per-table **saved views**
