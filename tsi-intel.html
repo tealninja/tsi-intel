@@ -164,6 +164,16 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .row-link-badge:hover{opacity:1}
 .row-link-badge .rlb-n{font-size:9px;font-weight:700;color:var(--tsi-teal);vertical-align:super;margin-left:1px}
 .tr-starred .row-link-badge .rlb-n{color:#fff}
+/* stale-record badge — this opp was changed by someone else since we loaded */
+.stale-badge{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:var(--tsi-amber,#f5a623);color:#3a2a00;font-size:11px;font-weight:800;line-height:1;cursor:pointer;vertical-align:middle;box-shadow:0 0 0 2px rgba(245,166,35,.25);animation:stalePulse 2s ease-in-out infinite}
+.stale-badge:hover{filter:brightness(1.08)}
+@keyframes stalePulse{0%,100%{box-shadow:0 0 0 2px rgba(245,166,35,.25)}50%{box-shadow:0 0 0 4px rgba(245,166,35,.12)}}
+/* floating sync-alert pill — N records updated by others */
+.sync-alert{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:22px;background:var(--tsi-amber,#f5a623);color:#3a2a00;font-size:12.5px;font-weight:600;box-shadow:0 6px 22px rgba(0,0,0,.28);cursor:pointer;white-space:nowrap;animation:syncAlertIn .25s ease}
+.sync-alert:hover{filter:brightness(1.05)}
+.sync-alert-dot{font-size:14px}
+.sync-alert-cta{text-decoration:underline;font-weight:800}
+@keyframes syncAlertIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 .opp-id{font-size:10px;color:var(--color-text-muted);font-family:var(--font-mono)}
 .notes-cell{font-size:11px;color:var(--color-text-secondary);max-width:220px}
 .close-cell{font-size:11px;font-family:var(--font-mono);color:var(--color-text-secondary)}
@@ -3207,7 +3217,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#86 · 2026-07-09';
+const APP_BUILD = '#87 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3275,6 +3285,99 @@ async function loadFromWorker() {
 // Bulk save (used by import/admin flows) → replace the whole D1 collection.
 async function saveToWorker() {
   try { return await oppStore().saveAll(DATA); } catch (e) { console.warn('Opportunity bulk save failed:', e.message); return false; }
+}
+
+// ── Sync audit: notice records others changed ─────────────────────────────
+// Every ~60s we fetch the server copy of the opportunities collection
+// (non-destructively — no cache clobber) and compare record *versions* to our
+// local DATA. Records someone else bumped get a yellow (!) badge on the row;
+// records they newly added surface via the "Refresh all" pill. Rows we're
+// mid-edit on (dirty or open in the drawer) are skipped so we never stomp
+// local work. Clicking a badge / the pill pulls the server copy into DATA.
+let _staleOpps = new Map();     // id → { kind:'update'|'new', by, version, rec }
+let _syncAuditTimer = null;
+
+async function auditSync(){
+  if (!API_WORKER_URL) return;
+  let server;
+  try {
+    const r = await storeApi('GET', 'opportunities');
+    if (!r.ok || !r.data || !Array.isArray(r.data.items)) return;
+    server = r.data.items;
+  } catch { return; }
+  const localById = new Map(DATA.map(o => [o.id, o]));
+  const next = new Map();
+  for (const srv of server){
+    if (!srv || !srv.id) continue;
+    if (dirtyIds.has(srv.id) || srv.id === _drawerEditId) continue;   // our edit wins until saved
+    const loc = localById.get(srv.id);
+    const sv  = srv.version || 0;
+    if (!loc){
+      next.set(srv.id, { kind:'new', by: srv.updatedBy||srv.createdBy||'someone', version:sv, rec:srv });
+    } else if (sv > (loc.version||0)){
+      next.set(srv.id, { kind:'update', by: srv.updatedBy||'someone', version:sv, rec:srv });
+    }
+  }
+  // re-render only if the flagged set changed (cheap identity check)
+  const same = next.size === _staleOpps.size && [...next.keys()].every(id => _staleOpps.has(id));
+  _staleOpps = next;
+  if (!same) renderPipeline();
+  updateSyncAlert();
+}
+
+function updateSyncAlert(){
+  let pill = document.getElementById('sync-alert');
+  const n = _staleOpps.size;
+  if (!n){ if (pill) pill.style.display = 'none'; return; }
+  if (!pill){
+    pill = document.createElement('div');
+    pill.id = 'sync-alert';
+    pill.className = 'sync-alert';
+    pill.onclick = refreshAllStale;
+    document.body.appendChild(pill);
+  }
+  const news = [..._staleOpps.values()].filter(s => s.kind==='new').length;
+  const upd  = n - news;
+  const bits = [];
+  if (upd)  bits.push(`${upd} updated`);
+  if (news) bits.push(`${news} new`);
+  pill.innerHTML = `<span class="sync-alert-dot">⚠</span> ${bits.join(' · ')} by others · <span class="sync-alert-cta">Refresh all</span>`;
+  pill.style.display = '';
+}
+
+// Adopt one server record into local DATA (badge click).
+function refreshOpp(id){
+  const s = _staleOpps.get(id);
+  if (!s) return;
+  const idx = DATA.findIndex(r => r.id === id);
+  if (idx >= 0) DATA[idx] = s.rec; else DATA.unshift(s.rec);
+  _staleOpps.delete(id);
+  dirtyIds.delete(id);
+  populateFilters(); renderPipeline();
+  try { renderImminent(); renderTorr(); renderWon(); renderHotCards(); updateMap(currentFilteredRows()); } catch(_){}
+  updateSyncAlert();
+  showToast('✓ Refreshed ' + id, 'var(--tsi-succ-green)');
+}
+
+function refreshAllStale(){
+  if (!_staleOpps.size) return;
+  const ids = [..._staleOpps.keys()];
+  for (const id of ids){
+    const s = _staleOpps.get(id);
+    const idx = DATA.findIndex(r => r.id === id);
+    if (idx >= 0) DATA[idx] = s.rec; else DATA.unshift(s.rec);
+    dirtyIds.delete(id);
+  }
+  _staleOpps.clear();
+  populateFilters(); renderPipeline();
+  try { renderImminent(); renderTorr(); renderWon(); renderHotCards(); updateCharts(currentFilteredRows()); updateMap(currentFilteredRows()); } catch(_){}
+  updateSyncAlert();
+  showToast('✓ Refreshed ' + ids.length + ' record' + (ids.length!==1?'s':''), 'var(--tsi-succ-green)');
+}
+
+function startSyncAudit(){
+  if (_syncAuditTimer || !API_WORKER_URL) return;
+  _syncAuditTimer = setInterval(() => { if (document.visibilityState !== 'hidden') auditSync(); }, 60000);
 }
 
 // Sync bugs to Worker
@@ -3892,7 +3995,16 @@ function renderPipeline() {
     if(starredIds.has(o.id)) tr.classList.add("tr-starred");
     tr.appendChild(makeStarCell(o));
     const tdId=document.createElement("td");
-    tdId.innerHTML=`<span class="opp-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Click to edit in form" onclick="openOppDrawer('${o.id}')">${o.id}</span>`; tr.appendChild(tdId);
+    tdId.innerHTML=`<span class="opp-id" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Click to edit in form" onclick="openOppDrawer('${o.id}')">${o.id}</span>`;
+    const _stale=_staleOpps.get(o.id);
+    if(_stale && _stale.kind==='update'){
+      const sb=document.createElement("span");
+      sb.className="stale-badge"; sb.textContent="!";
+      sb.title=`Updated by ${_stale.by} since you loaded — click to refresh this record`;
+      sb.onclick=(e)=>{ e.stopPropagation(); refreshOpp(o.id); };
+      tdId.appendChild(sb);
+    }
+    tr.appendChild(tdId);
     tr.appendChild(makeTextCell(o,"cat",CATS));
     tr.appendChild(makeLobCell(o));
     const tdAcct=document.createElement("td"); tdAcct.className="editable";
@@ -12174,6 +12286,7 @@ if(API_WORKER_URL) {
   bugStore.pull().then(() => renderBugs());   // authoritative bugs from D1 (localStorage is cache)
   syncAccountsFromServer();                    // adopt/seed the D1 'accounts' collection
   startAdminPoll();
+  startSyncAudit();                            // ~60s: flag opps others changed
 }
 usageLog('session_start');
 renderHotCards();

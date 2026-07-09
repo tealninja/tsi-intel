@@ -178,6 +178,16 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Sync audit — spot records others changed** (build #87) — a ~60s background
+  check (`auditSync`, paused when the tab is hidden) fetches the server copy of the
+  `opportunities` collection non-destructively (no cache clobber) and compares record
+  **versions** (not details) to local `DATA`. Rows someone else bumped get a pulsing
+  yellow **(!)** badge in the ID cell (`title` names who); brand-new records surface via
+  a floating **"⚠ N updated · M new by others · Refresh all"** pill. Clicking a badge
+  pulls that one record into `DATA`; the pill pulls them all. Rows we're mid-edit on
+  (`dirtyIds` or open in the drawer, `_drawerEditId`) are **skipped** so local work is
+  never stomped. Verified via Playwright (badge/pill counts, refresh adoption, dirty/open
+  skip).
 - [x] **Quote shipping + addresses** — (A) accounts carry separate **bill-to / ship-to**
   addresses, each own / "same as another account" (child→parent sharing) / ship-same-as-
   bill, with nominatim geocode confirm + `resolveAddr()`. (B) Quote builder pulls bill-to/
