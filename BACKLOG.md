@@ -178,6 +178,14 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Login welcome + landing identity** (build #88) — a one-time **"Hi {name}"**
+  greeting toast (with the user's email + initials avatar) slides in from the top once
+  identity resolves on load (SharePoint, bodhistoys landing, or manual onboarding; shown
+  once per page load). Landing via **bodhistoys.com / workers.dev** now identifies John
+  Teal by his personal Gmail **teal.john@gmail.com** (initials derived from the name → JT;
+  kept on the executive AI tier). **SharePoint (and everyone else) still uses SharePoint
+  creds**, with initials derived from their Title. Verified via Playwright (both identity
+  paths, initials derivation, exec-tier flag, no-duplicate greeting).
 - [x] **Sync audit — spot records others changed** (build #87) — a ~60s background
   check (`auditSync`, paused when the tab is hidden) fetches the server copy of the
   `opportunities` collection non-destructively (no cache clobber) and compares record

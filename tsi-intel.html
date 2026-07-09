@@ -174,6 +174,12 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .sync-alert-dot{font-size:14px}
 .sync-alert-cta{text-decoration:underline;font-weight:800}
 @keyframes syncAlertIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+/* welcome greeting toast (top-center, on login) */
+.tsi-welcome{position:fixed;top:-80px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:11px;padding:11px 18px 11px 12px;border-radius:14px;background:var(--color-surface,#fff);border:1px solid var(--color-border,#e3e3e3);box-shadow:0 10px 30px rgba(0,0,0,.18);opacity:0;transition:top .4s cubic-bezier(.2,.9,.3,1.2),opacity .4s}
+.tsi-welcome.show{top:18px;opacity:1}
+.tsi-welcome .tw-avatar{width:36px;height:36px;border-radius:50%;background:var(--tsi-teal,#0a7d7d);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.tsi-welcome .tw-hi{font-size:14px;font-weight:700;color:var(--color-heading,#1a1a1a);line-height:1.2}
+.tsi-welcome .tw-email{font-size:11.5px;color:var(--color-text-muted,#888);font-family:var(--font-mono);margin-top:1px}
 .opp-id{font-size:10px;color:var(--color-text-muted);font-family:var(--font-mono)}
 .notes-cell{font-size:11px;color:var(--color-text-secondary);max-width:220px}
 .close-cell{font-size:11px;font-family:var(--font-mono);color:var(--color-text-secondary)}
@@ -3217,7 +3223,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#87 · 2026-07-09';
+const APP_BUILD = '#88 · 2026-07-09';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -6276,6 +6282,7 @@ function completeOnboarding(skip=false) {
   }
   localStorage.setItem(ONBOARD_KEY, '1');
   const _oo2=document.getElementById('onboard-overlay'); if(_oo2) _oo2.style.display='none';
+  showWelcomeToast();
 }
 
 // ── AI UPDATE ATTRIBUTION ─────────────────────────────────────
@@ -6652,6 +6659,31 @@ function showToast(msg, color='var(--tsi-teal)') {
   t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
 
+// One-time welcome greeting shown once identity resolves on login/landing.
+let _welcomedThisLoad = false;
+function showWelcomeToast() {
+  if (_welcomedThisLoad) return;
+  const name     = getUserName();
+  const email    = getUserEmail();
+  const initials = getUserInitials();
+  if (!name && !email) return;                 // nothing resolved yet (pre-onboarding)
+  _welcomedThisLoad = true;
+  const who = (name && name !== initials) ? name : (email || initials);
+  const old = document.getElementById('tsi-welcome'); if (old) old.remove();
+  const w = document.createElement('div');
+  w.id = 'tsi-welcome';
+  w.className = 'tsi-welcome';
+  w.innerHTML = `
+    <div class="tw-avatar">${initials || '?'}</div>
+    <div class="tw-text">
+      <div class="tw-hi">Hi ${who}</div>
+      ${email ? `<div class="tw-email">${email}</div>` : ''}
+    </div>`;
+  document.body.appendChild(w);
+  requestAnimationFrame(() => w.classList.add('show'));
+  setTimeout(() => { w.classList.remove('show'); setTimeout(() => w.remove(), 400); }, 4200);
+}
+
 
 async function manualSync() {
   const btn = document.getElementById('sync-btn');
@@ -6708,10 +6740,17 @@ function isCloudflareHost(){
   const h=(location.hostname||'').toLowerCase();
   return /(^|\.)bodhistoys\.com$/.test(h) || h.endsWith('.workers.dev');
 }
-const JTEAL_USER = { name:'John Teal', email:'jteal@tsi-inc.net', initials:'JT', source:'cloudflare' };
+// The bodhistoys.com / workers.dev deployment is John Teal's personal landing —
+// identify him by his Gmail there. Initials are derived from the name so any
+// rename stays consistent.
+const JTEAL_USER = (() => {
+  const name = 'John Teal', email = 'teal.john@gmail.com';
+  const initials = name.split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  return { name, email, initials, source:'cloudflare' };
+})();
 
 // ── User classes / AI tiering (soft; enforced server-side in the worker) ──
-const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','wteal@tsi-inc.net','bteal@tsi-inc.net'];
+const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','teal.john@gmail.com','wteal@tsi-inc.net','bteal@tsi-inc.net'];
 function userClass(){ return AI_EXEC_EMAILS.includes((getUserEmail()||'').toLowerCase()) ? 'executive' : 'member'; }
 function isExecutive(){ return userClass()==='executive'; }
 let _aiTier = 'sonnet';                                   // executive model choice
@@ -12270,7 +12309,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(refreshCollapseHeights, 700);
 });
 // Identity: try SharePoint first, fall back to manual
-initUserIdentity().then(() => showLastEditOnLoad());
+initUserIdentity().then(() => { showLastEditOnLoad(); showWelcomeToast(); });
 // Note: checkOnboarding() called inside initUserIdentity if needed
 if(API_WORKER_URL){const sb=document.getElementById('sync-btn');if(sb)sb.style.display='';}
 // Load from worker if configured (async — won't block UI)
