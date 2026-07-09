@@ -178,6 +178,16 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Welcome status card** (build #89) — the login greeting grew into a richer,
+  longer-lived card (stays ~11s, **pauses on hover**, has a **×** to dismiss). Header is
+  the "Hi {name}" + email + avatar as before; below it a **linked-vs-local checklist** of
+  the six data areas — Pipeline, Accounts, Quotes/price book, Saved views·follows, Bug
+  register, Account photos — each tagged **Linked** (✓ green, D1), **Syncing** (⋯ while a
+  pull is in flight, e.g. Quotes until its tab loads), or **Local** (○ amber, this browser
+  only). A cloud banner summarizes "☁ Linked · N/6 synced" (or "○ Local only" with no API).
+  Footer status chips: build #, identity source (SharePoint / Web·bodhistoys), and — when
+  present — **N unsaved** and **N updated by others**. Re-renders every 1.2s so Syncing→Linked
+  updates live. Verified via Playwright (states, transitions, chips, hover-pause, dismiss).
 - [x] **Login welcome + landing identity** (build #88) — a one-time **"Hi {name}"**
   greeting toast (with the user's email + initials avatar) slides in from the top once
   identity resolves on load (SharePoint, bodhistoys landing, or manual onboarding; shown
