@@ -3287,7 +3287,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#97 · 2026-07-09';
+const APP_BUILD = '#98 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -8240,6 +8240,29 @@ function accountsStore(){ return _accountsStore || (_accountsStore = Store('acco
 function saveAccounts(data) {
   try { localStorage.setItem(ACCT_KEY, JSON.stringify(data)); } catch {}
   try { accountsStore().put({ id:'main', data }); } catch(_){}   // → D1 (fire-and-forget)
+}
+// Explicit "push everything now" — force the full accounts+contacts blob to D1
+// and confirm. Edits already auto-sync via saveAccounts(); this is a manual
+// belt-and-suspenders push (e.g. seeding a freshly-live database).
+async function pushAccountsToCloud() {
+  const btn = document.getElementById('acct-push-btn');
+  if (typeof API_WORKER_URL === 'undefined' || !API_WORKER_URL) {
+    showToast('No cloud API configured for this build', 'var(--tsi-coral)'); return;
+  }
+  const data = getAccounts();
+  const nAcct = (data.accounts||[]).length, nCont = (data.contacts||[]).length;
+  if (btn) { btn.disabled = true; btn.textContent = '☁ …'; }
+  try {
+    localStorage.setItem(ACCT_KEY, JSON.stringify(data));
+    const ok = await accountsStore().put({ id:'main', data });
+    showToast(ok ? `✓ Pushed ${nAcct} accounts · ${nCont} contacts to cloud`
+                 : '⚠ Push failed — check the API worker',
+             ok ? 'var(--tsi-succ-green)' : 'var(--tsi-coral)');
+  } catch (e) {
+    showToast('⚠ Push failed: ' + (e && e.message || e), 'var(--tsi-coral)');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '☁ Push'; }
+  }
 }
 // Startup: adopt the server copy if present (then client migrations re-apply on
 // read); otherwise push the local seed/migrated copy up so the server is seeded.
@@ -13622,6 +13645,7 @@ startAdminPoll();
       <div class="acct-sidebar-header">
         <span class="acct-sidebar-title">Account Groups</span>
         <button class="btn-acct-add" onclick="toggleAcctMap()" id="acct-map-toggle-btn" title="Show all sites on map">🗺</button>
+        <button class="btn-acct-add" id="acct-push-btn" onclick="pushAccountsToCloud()" title="Push all accounts + contacts to the cloud database now">☁ Push</button>
         <button class="btn-acct-add" onclick="openNewSiteModal()">+ Site</button>
       </div>
       <input class="acct-search" id="acct-search" placeholder="Search accounts…" oninput="renderAcctSidebar()">

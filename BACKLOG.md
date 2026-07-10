@@ -178,6 +178,12 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Accounts — "☁ Push" to cloud button** (build #98) — an explicit force-push of the whole
+  accounts+contacts blob to D1 with a confirmation toast ("✓ Pushed N accounts · M contacts").
+  Edits already auto-sync via saveAccounts(); this is a manual belt-and-suspenders control for
+  seeding a freshly-live DB. Confirmed live D1 state via MCP: `accounts` = 1 blob (37 KB, 160
+  accounts), `opportunities` = 79 rows — the seed is already persisted; the button just lets you
+  re-push on demand.
 - [x] **Quote Builder — quick-create account** (build #97) — when the customer typed into a
   quote doesn't match an existing account, a "No matching account — ➕ Quick-create it" prompt
   appears. It opens a modal (name pre-filled, optional contact, bill-to + optional separate
