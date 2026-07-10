@@ -3296,7 +3296,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#102 · 2026-07-10';
+const APP_BUILD = '#103 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14377,6 +14377,10 @@ startAdminPoll();
         <div><label>Project / Title</label><input class="dinput" id="q-project" placeholder="e.g. EFB Pilot Study — TAP"></div>
         <div><label>Reference</label><input class="dinput" id="q-rev" placeholder="R0" value="R0"></div>
       </div>
+      <div class="drow">
+        <label>Issued by (seller) <a onclick="openCompanies()" style="cursor:pointer;color:var(--tsi-teal);font-weight:600;text-transform:none;letter-spacing:0">— manage companies</a></label>
+        <select class="dselect" id="q-seller"></select>
+      </div>
       <div class="drow-3">
         <div><label>Quote Date</label><input class="dinput" id="q-date" type="date"></div>
         <div><label>Valid Until</label><input class="dinput" id="q-valid" type="date"></div>
@@ -14555,6 +14559,15 @@ startAdminPoll();
         <span class="ship-est-note" id="qc-note"></span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ MY COMPANIES (seller entities that issue quotes) ══ -->
+<div class="ship-est-overlay" id="companies-overlay" onclick="if(event.target===this)closeCompanies()">
+  <div class="ship-est" style="max-width:660px">
+    <div class="ship-est-h"><b>🏢 My Companies</b><span class="ship-est-sub">sellers that can issue a quote — name, address, EIN &amp; logo</span>
+      <button class="ship-est-x" onclick="closeCompanies()">✕</button></div>
+    <div class="ship-est-body" id="companies-body"></div>
   </div>
 </div>
 
@@ -15351,7 +15364,10 @@ function prodDateStr(){ const d=new Date(); return d.toISOString().slice(0,10); 
 function qesc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function qattr(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 const Q_CUR_SYM = { USD:'$', EUR:'€', GBP:'£', CAD:'$' };
-function qmoney(n, cur){ const v=(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); return (Q_CUR_SYM[cur||'USD']||'$')+v; }
+// Accounting format: symbol + thousands + 2dp; negatives shown in parentheses.
+function qmoney(n, cur){ const sym=(Q_CUR_SYM[cur||'USD']||'$'); const num=Number(n)||0;
+  const abs=Math.abs(num).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return num<0 ? '('+sym+abs+')' : sym+abs; }
 function qToday(){ return new Date().toISOString().slice(0,10); }
 function qPlusDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
 function qNewId(pfx){ return (pfx||'x_')+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -15376,6 +15392,26 @@ const BIOCARBON_SELLER = {
   name:'Biocarbon, LLC', addr:'19 Farmer Street, Hazlehurst, GA 31539 USA', ein:'99-4862672',
   facility:'Telfair Forest Products, 11 Industrial Blvd, Lumber City, GA 31549 USA'
 };
+// ── My Companies — the seller entity that issues a quote (TSI or Biocarbon) ──
+// Each: {id, name, addr, ein, logo(dataURL), isDefault}. Persisted in the D1
+// 'companies' collection (localStorage cache); seeded on first use.
+const SELLER_COMPANIES_SEED = [
+  { id:'biocarbon', name:'Biocarbon, LLC', addr:'19 Farmer Street, Hazlehurst, GA 31539 USA', ein:'99-4862672', logo:'', isDefault:true },
+  { id:'tsi', name:'Teal Sales, Inc. (TSI)', addr:'20818 44th Ave W, Ste 201, Lynnwood, WA 98036 USA', ein:'91-1574278', logo:'', isDefault:false },
+];
+let _companyStore = (typeof Store==='function') ? Store('companies') : null;
+function getCompanies(){
+  let list = _companyStore ? _companyStore.all() : [];
+  if(!list || !list.length){ list = SELLER_COMPANIES_SEED.map(c=>({...c})); if(_companyStore) _companyStore.setAll(list); }
+  return list;
+}
+function companyById(id){ return getCompanies().find(c=>c.id===id) || null; }
+function defaultCompany(){ const l=getCompanies(); return l.find(c=>c.isDefault) || l[0]; }
+function quoteSeller(q){ return (q && q.seller_id && companyById(q.seller_id)) || defaultCompany() || SELLER_COMPANIES_SEED[0]; }
+function saveCompany(c){ if(_companyStore){ try{ _companyStore.put(c); }catch(_){} } }
+function removeCompany(id){ if(_companyStore){ try{ _companyStore.remove(id); }catch(_){} } }
+// Seed/adopt the seller companies from D1 (runs after _companyStore is defined).
+if(_companyStore){ _companyStore.pull().then(()=>{ if(!_companyStore.all().length) _companyStore.saveAll(SELLER_COMPANIES_SEED.map(c=>({...c}))); if(typeof qPopulateSellers==='function') qPopulateSellers(); }).catch(()=>{}); }
 const Q_DEFAULT_ASSUMPTIONS =
 `Pricing is on a bone-dry output mass basis.
 Material produced at Seller's facility in Lumber City, GA using Seller's torrefaction process.
@@ -15653,6 +15689,59 @@ function onQuoteCustomerInput(name){
   qPopulateAddrSources(match?match.id:'', false);   // prefill bill-to/ship-to from the account
   // Offer quick-create when a name is typed that doesn't match any account.
   const qc=document.getElementById('q-quickcreate'); if(qc) qc.style.display = (typed && !match) ? '' : 'none';
+}
+
+// ── MY COMPANIES (seller entities) ────────────────────────────────────────
+function openCompanies(){ renderCompanies(); const o=document.getElementById('companies-overlay'); if(o) o.classList.add('open'); }
+function closeCompanies(){ const o=document.getElementById('companies-overlay'); if(o) o.classList.remove('open'); if(typeof qPopulateSellers==='function') qPopulateSellers(); }
+function renderCompanies(){
+  const list=getCompanies(); const el=document.getElementById('companies-body'); if(!el) return;
+  el.innerHTML = list.map(c=>`
+    <div class="co-card" style="border:1px solid var(--color-border);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="text-align:center;flex:0 0 auto">
+          <div style="width:104px;height:60px;border:1px dashed var(--color-border);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff">
+            ${c.logo?`<img src="${c.logo}" style="max-width:100%;max-height:100%">`:'<span style="font-size:10px;color:var(--color-text-muted)">no logo</span>'}
+          </div>
+          <label style="font-size:10px;color:var(--tsi-teal);cursor:pointer;display:block;margin-top:5px">⬆ upload logo<input type="file" accept="image/*" style="display:none" onchange="companyLogoUpload('${c.id}', this.files&&this.files[0])"></label>
+        </div>
+        <div style="flex:1;min-width:0">
+          <input class="dinput" id="co-name-${c.id}" value="${qesc(c.name||'')}" placeholder="Company name" style="margin-bottom:5px">
+          <input class="dinput" id="co-addr-${c.id}" value="${qesc(c.addr||'')}" placeholder="Address (street, city, state, ZIP)" style="margin-bottom:5px">
+          <div class="drow-2" style="align-items:center">
+            <input class="dinput" id="co-ein-${c.id}" value="${qesc(c.ein||'')}" placeholder="EIN">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="radio" name="co-default" ${c.isDefault?'checked':''} onchange="setDefaultCompany('${c.id}')"> Default seller</label>
+          </div>
+          <div style="margin-top:7px;display:flex;gap:8px">
+            <button class="btn-add-opp" onclick="saveCompanyFromForm('${c.id}')">Save</button>
+            ${list.length>1?`<button class="btn" style="background:var(--color-bg-subtle)" onclick="deleteCompanyUI('${c.id}')">Delete</button>`:''}
+          </div>
+        </div>
+      </div>
+    </div>`).join('') + `<button class="btn-add-opp" onclick="addCompanyUI()">+ Add company</button>`;
+}
+function saveCompanyFromForm(id){
+  const c=companyById(id)||{id};
+  c.name=(document.getElementById('co-name-'+id)?.value||'').trim();
+  c.addr=(document.getElementById('co-addr-'+id)?.value||'').trim();
+  c.ein=(document.getElementById('co-ein-'+id)?.value||'').trim();
+  saveCompany(c); showToast('✓ '+(c.name||'Company')+' saved','var(--tsi-succ-green)'); renderCompanies();
+}
+async function companyLogoUpload(id, file){
+  if(!file) return;
+  try{ const dataUrl=await compressImage(file, 420, 0.85); const c=companyById(id); if(c){ c.logo=dataUrl; saveCompany(c); renderCompanies(); showToast('✓ Logo updated','var(--tsi-succ-green)'); } }
+  catch(e){ showToast('Logo upload failed','var(--tsi-coral)'); }
+}
+function setDefaultCompany(id){ getCompanies().forEach(c=>{ c.isDefault=(c.id===id); saveCompany(c); }); }
+function addCompanyUI(){ const id='co-'+Date.now().toString(36); saveCompany({id,name:'New company',addr:'',ein:'',logo:'',isDefault:false}); renderCompanies(); }
+function deleteCompanyUI(id){ removeCompany(id); renderCompanies(); }
+// Populate the quote's "Issued by" selector from the companies list.
+function qPopulateSellers(){
+  const sel=document.getElementById('q-seller'); if(!sel) return;
+  const cur=sel.value;
+  const list=getCompanies();
+  sel.innerHTML=list.map(c=>`<option value="${c.id}">${qesc(c.name)}</option>`).join('');
+  if(cur && list.some(c=>c.id===cur)) sel.value=cur; else { const d=defaultCompany(); if(d) sel.value=d.id; }
 }
 
 // ── QUICK-CREATE ACCOUNT (from the Quote Builder) ─────────────────────────
@@ -15937,6 +16026,7 @@ function blankQuote(){
     bill_to_src:'', bill_to:'', bill_to_zip:'', bill_to_country:'',
     ship_to_src:'__bill', ship_to:'', ship_to_zip:'', ship_to_country:'',
     contact_name:'', contact_email:'', contact_phone:'', project:'',
+    seller_id:(defaultCompany()&&defaultCompany().id)||'biocarbon',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
     description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'', terms:Q_TERMS_FULL,
@@ -16004,6 +16094,7 @@ function fillQuoteForm(){
   _qBillAddr = { zip:q.bill_to_zip||'', country:q.bill_to_country||'' };
   ['billto','shipto'].forEach(w=>{ const src=(document.getElementById('q-'+w+'-src')||{}).value; const t=document.getElementById('q-'+w+'-text'); if(t){ (src==='__manual')?t.removeAttribute('readonly'):t.setAttribute('readonly','readonly'); } });
   S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
+  qPopulateSellers(); S('q-seller', q.seller_id || (defaultCompany()&&defaultCompany().id) || '');
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
   qShowChosenShip(q.shipping_carrier||'', q.shipping_service||'');
@@ -16134,6 +16225,7 @@ function readQuoteForm(){
   q.contact_name=V('q-contact-name').trim();
   q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
+  q.seller_id=V('q-seller')||q.seller_id||((defaultCompany()&&defaultCompany().id)||'');
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
   q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.assumptions=V('q-assumptions').trim();
   q.payment_terms=V('q-payment').trim(); q.delivery_terms=V('q-delivery').trim(); q.notes=V('q-notes').trim();
@@ -16185,7 +16277,7 @@ async function saveQuote(opts){
 function exportQuotePrint(){ if(_qWorking){ readQuoteForm(); printQuote(_qWorking); } }
 async function printQuoteById(id){ const q=await loadOneQuote(id); if(q) printQuote(q); }
 function printQuote(q){
-  const cur=q.currency||'USD'; const t=qTotals(q);
+  const cur=q.currency||'USD'; const t=qTotals(q); const seller=quoteSeller(q);
   const lines=(q.lines||[]).map((l,i)=>`<tr>
     <td class="c">${i+1}</td><td class="pn">${qesc(qLinePN(l))}</td><td>${qesc(l.description||'')}</td>
     <td class="c">${qesc(l.unit||'')}</td><td class="r">${qmoney(l.unit_price,cur)}</td>
@@ -16217,10 +16309,20 @@ function printQuote(q){
     tfoot td{padding:4px 7px}tfoot .lbl{color:#666}tfoot .grand td{border-top:2px solid #00929F;font-size:15px;font-weight:700;color:#19446C;padding-top:9px}
     .prose{white-space:pre-wrap;font-size:11.5px;color:#444}
     .terms{margin-top:20px;font-size:9.5px;color:#888;line-height:1.5;border-top:1px solid #eee;padding-top:10px}
-    @media print{body{padding:0}}
+    .accept{margin-top:26px;page-break-inside:avoid}
+    table.sig{width:100%;border-collapse:collapse}
+    table.sig td.line{border-bottom:1.2px solid #333;height:44px;width:46%}
+    table.sig td.gap{width:8%}
+    table.sig td.cap{font-size:9.5px;color:#777;padding-top:4px}
+    table.sig td.sp{height:34px}
+    .pfoot{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#999;padding:6px 40px;border-top:1px solid #eee}
+    .pfoot .pc{letter-spacing:.06em}
+    .pfoot .pg::after{content:counter(page) " of " counter(pages)}
+    @page{margin:0.7in}
+    @media print{body{padding:40px 40px 60px}}
   </style></head><body>
     <div class="head">
-      <div class="co">${qesc(BIOCARBON_SELLER.name)}<small>${qesc(BIOCARBON_SELLER.addr)} · EIN ${qesc(BIOCARBON_SELLER.ein)}</small></div>
+      <div class="co">${seller.logo?`<img src="${seller.logo}" style="max-height:46px;max-width:230px;margin-bottom:7px;display:block">`:''}${qesc(seller.name)}<small>${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</small></div>
       <div class="qt"><div class="qn">${qesc(q.id)}</div><div style="font-size:10px;color:#999;font-family:'Courier New',monospace">Rev ${qesc(q.rev||'R0')}</div><div class="qs">${qesc(q.status||'Draft')}</div></div>
     </div>
     <div class="title">Quote${q.project?' — '+qesc(q.project):''}</div>
@@ -16240,6 +16342,16 @@ function printQuote(q){
     ${q.payment_terms?`<h3>Payment Terms</h3><div class="prose">${blk(q.payment_terms)}</div>`:''}
     ${q.notes?`<h3>Notes</h3><div class="prose">${blk(q.notes)}</div>`:''}
     <h3>Terms &amp; Conditions</h3><div class="terms">${blk(q.terms||Q_TERMS_FULL)}</div>
+    <div class="accept">
+      <h3>Acceptance</h3>
+      <div style="font-size:11.5px;color:#333;margin:2px 0 26px">Accepted and agreed by ${qesc(q.customer_name||'the Buyer')}, including the Terms &amp; Conditions above:</div>
+      <table class="sig"><tr><td class="line">&nbsp;</td><td class="gap"></td><td class="line">&nbsp;</td></tr>
+        <tr><td class="cap">Authorized Signature</td><td></td><td class="cap">Date</td></tr>
+        <tr><td class="sp"></td><td></td><td></td></tr>
+        <tr><td class="line">&nbsp;</td><td class="gap"></td><td class="line">&nbsp;</td></tr>
+        <tr><td class="cap">Printed Name</td><td></td><td class="cap">Title</td></tr></table>
+    </div>
+    <div class="pfoot"><span class="pl">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</span><span class="pc">CONFIDENTIAL</span><span class="pr">Page <span class="pg"></span></span></div>
     <script>window.onload=function(){setTimeout(function(){window.print();},450);};<\/script>
   </body></html>`;
   const w=window.open('','_blank'); if(!w){ showToast('Pop-up blocked — allow pop-ups to print','var(--tsi-coral)'); return; }
@@ -16252,7 +16364,7 @@ function printQuote(q){
 function exportQuoteWordCurrent(){ if(_qWorking){ readQuoteForm(); exportQuoteWord(_qWorking); } }
 async function exportQuoteWordById(id){ const q=await loadOneQuote(id); if(q) exportQuoteWord(q); }
 function exportQuoteWord(q){
-  const cur=q.currency||'USD'; const t=qTotals(q);
+  const cur=q.currency||'USD'; const t=qTotals(q); const seller=quoteSeller(q);
   const blk=s=>{ s=String(s==null?'':s); return /<[a-z/][^>]*>/i.test(s) ? rteSanitize(s) : qesc(s).replace(/\n/g,'<br>'); };
   const cellTd='style="padding:6px 7px;border-bottom:1px solid #eee;font-size:10.5pt;vertical-align:top"';
   const rows=(q.lines||[]).map((l,i)=>`<tr>
@@ -16274,8 +16386,8 @@ function exportQuoteWord(q){
   const metaTd='style="padding:2px 0;font-size:10.5pt;width:50%"';
   const body=`
     <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #00929F"><tr>
-      <td style="padding-bottom:10px"><div style="font-size:20pt;font-weight:700;color:#19446C">${qesc(BIOCARBON_SELLER.name)}</div>
-        <div style="font-size:9pt;color:#777">${qesc(BIOCARBON_SELLER.addr)} · EIN ${qesc(BIOCARBON_SELLER.ein)}</div></td>
+      <td style="padding-bottom:10px">${seller.logo?`<img src="${seller.logo}" style="max-height:54px;max-width:250px;display:block;margin-bottom:6px">`:''}<div style="font-size:20pt;font-weight:700;color:#19446C">${qesc(seller.name)}</div>
+        <div style="font-size:9pt;color:#777">${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</div></td>
       <td align="right" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#00929F;font-family:Consolas,monospace">${qesc(q.id)}</div>
         <div style="font-size:9pt;color:#999">Rev ${qesc(q.rev||'R0')} · ${qesc(q.status||'Draft')}</div></td>
     </tr></table>
@@ -16296,12 +16408,35 @@ function exportQuoteWord(q){
     ${q.delivery_terms?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(q.payment_terms)}</div>`:''}
     ${q.notes?`<h3 ${h3}>Notes</h3><div ${prose}>${blk(q.notes)}</div>`:''}
-    <h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(q.terms||Q_TERMS_FULL)}</div>`;
+    <h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(q.terms||Q_TERMS_FULL)}</div>
+    <div style="page-break-inside:avoid">
+      <h3 ${h3}>Acceptance</h3>
+      <div style="font-size:10pt;color:#333;margin:2pt 0 22pt">Accepted and agreed by ${qesc(q.customer_name||'the Buyer')}, including the Terms &amp; Conditions above:</div>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="width:56%;border-bottom:1px solid #333;height:40pt">&nbsp;</td><td style="width:6%"></td><td style="width:38%;border-bottom:1px solid #333;height:40pt">&nbsp;</td></tr>
+        <tr><td style="font-size:8.5pt;color:#777;padding-top:3pt">Authorized Signature</td><td></td><td style="font-size:8.5pt;color:#777;padding-top:3pt">Date</td></tr>
+        <tr><td style="height:30pt"></td><td></td><td></td></tr>
+        <tr><td style="border-bottom:1px solid #333;height:34pt">&nbsp;</td><td></td><td style="border-bottom:1px solid #333;height:34pt">&nbsp;</td></tr>
+        <tr><td style="font-size:8.5pt;color:#777;padding-top:3pt">Printed Name</td><td></td><td style="font-size:8.5pt;color:#777;padding-top:3pt">Title</td></tr>
+      </table>
+    </div>`;
+  const footer=`<div style='mso-element:footer' id='f1'><table class="footer-tbl" style="width:100%;border-collapse:collapse"><tr>
+      <td style="text-align:left;width:34%">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</td>
+      <td style="text-align:center;width:32%;letter-spacing:.5pt">CONFIDENTIAL</td>
+      <td style="text-align:right;width:34%">Page <span style='mso-field-code:PAGE'></span> of <span style='mso-field-code:NUMPAGES'></span></td>
+    </tr></table></div>`;
   const doc=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head><meta charset='utf-8'><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
     <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
-    <style>@page{margin:0.9in} body{font-family:Calibri,'Segoe UI',Arial,sans-serif;color:#333;font-size:11pt}</style>
-    </head><body>${body}</body></html>`;
+    <style>
+      @page Section1 { margin:1in; mso-header-margin:0.5in; mso-footer-margin:0.5in;
+        mso-footer:f1; }
+      div.Section1 { page:Section1; }
+      body{font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#333;font-size:11pt}
+      p.MsoFooter, li.MsoFooter, div.MsoFooter { margin:0; font-family:Aptos,'Segoe UI',Arial,sans-serif; font-size:8pt; color:#888; }
+      .footer-tbl td { font-size:8pt; color:#888; border-top:1px solid #ddd; padding-top:4px; }
+    </style>
+    </head><body><div class="Section1">${body}${footer}</div></body></html>`;
   const fname=(q.id||'quote')+(q.rev&&q.rev!=='R0'?'-'+q.rev:'')+'.doc';
   try { prodDownload(new Blob(['﻿'+doc], {type:'application/msword'}), fname); }
   catch(e){ showToast('Word export failed: '+e.message,'var(--tsi-coral)'); return; }
