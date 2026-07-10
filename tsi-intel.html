@@ -3287,7 +3287,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#98 · 2026-07-10';
+const APP_BUILD = '#99 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14356,12 +14356,18 @@ startAdminPoll();
     <div class="ship-est-body">
       <div class="drow"><label>Account / company name *</label>
         <input class="dinput" id="qc-name" placeholder="Legal entity or company name" autocomplete="off"></div>
-      <div class="drow-3">
-        <div class="drow"><label>Contact name</label><input class="dinput" id="qc-c-name" placeholder="optional"></div>
-        <div class="drow"><label>Contact email</label><input class="dinput" id="qc-c-email" placeholder="optional"></div>
-        <div class="drow"><label>Contact phone</label><input class="dinput" id="qc-c-phone" placeholder="optional"></div>
+      <div class="drow"><label>Contact <span style="font-weight:400;color:var(--color-text-muted)">— search existing or type a new name</span></label>
+        <input class="dinput" id="qc-c-name" placeholder="Look up or add a contact…" autocomplete="off"
+               oninput="qcContactSearch()" onfocus="qcContactSearch()">
+        <input type="hidden" id="qc-c-id">
+        <span class="ship-est-note" id="qc-c-hint"></span></div>
+      <div class="drow-2">
+        <div class="drow"><input class="dinput" id="qc-c-email" placeholder="Contact email"></div>
+        <div class="drow"><input class="dinput" id="qc-c-phone" placeholder="Contact phone"></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px">Bill-to address</div>
+      <div class="drow"><input class="dinput" id="qc-b-search" placeholder="🔍 Type an address to auto-fill / verify…" autocomplete="off" oninput="qcAddrSearch('qc-b')">
+        <span class="ship-est-note" id="qc-b-status"></span></div>
       <div class="drow"><input class="dinput" id="qc-b-street" placeholder="Street"></div>
       <div class="drow-3">
         <div class="drow"><input class="dinput" id="qc-b-city" placeholder="City"></div>
@@ -14372,6 +14378,8 @@ startAdminPoll();
       <label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:10px 0 4px;cursor:pointer">
         <input type="checkbox" id="qc-ship-same" checked onchange="qcToggleShip()"> Ship-to same as bill-to</label>
       <div id="qc-ship-fields" style="display:none">
+        <div class="drow"><input class="dinput" id="qc-s-search" placeholder="🔍 Type an address to auto-fill / verify…" autocomplete="off" oninput="qcAddrSearch('qc-s')">
+          <span class="ship-est-note" id="qc-s-status"></span></div>
         <div class="drow"><input class="dinput" id="qc-s-street" placeholder="Street"></div>
         <div class="drow-3">
           <div class="drow"><input class="dinput" id="qc-s-city" placeholder="City"></div>
@@ -15494,14 +15502,62 @@ function qcToggleShip(){
 function qcOpen(){
   const typed=(document.getElementById('q-customer')?.value||'').trim();
   document.getElementById('qc-name').value = typed;
-  ['qc-c-name','qc-c-email','qc-c-phone','qc-b-street','qc-b-city','qc-b-state','qc-b-zip',
-   'qc-s-street','qc-s-city','qc-s-state','qc-s-zip'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';});
+  ['qc-c-name','qc-c-id','qc-c-email','qc-c-phone','qc-b-search','qc-b-street','qc-b-city','qc-b-state','qc-b-zip',
+   'qc-s-search','qc-s-street','qc-s-city','qc-s-state','qc-s-zip'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';});
+  ['qc-c-hint','qc-b-status','qc-s-status','qc-note'].forEach(id=>{const e=document.getElementById(id); if(e)e.textContent='';});
   document.getElementById('qc-b-country').value='US';
   document.getElementById('qc-s-country').value='US';
   document.getElementById('qc-ship-same').checked=true; qcToggleShip();
-  const note=document.getElementById('qc-note'); if(note) note.textContent='';
   const ov=document.getElementById('qc-acct-overlay'); if(ov) ov.classList.add('open');
-  setTimeout(()=>document.getElementById(typed?'qc-b-street':'qc-name')?.focus(), 120);
+  setTimeout(()=>document.getElementById(typed?'qc-c-name':'qc-name')?.focus(), 120);
+}
+// Address autocomplete (nominatim) for a quick-create address group ('qc-b'|'qc-s').
+let _qcAddrTimer=null;
+function qcAddrFill(p, a){
+  const S=(f,v)=>{const e=document.getElementById(p+'-'+f); if(e)e.value=v||'';};
+  S('street',a.street); S('city',a.city); S('state',a.state); S('zip',a.zip); S('country',a.country||'US');
+  const st=document.getElementById(p+'-status'); if(st){ st.textContent='✓ Address confirmed'; st.style.color='var(--tsi-succ-green)'; }
+}
+function qcAddrSearch(p){
+  clearTimeout(_qcAddrTimer);
+  const inp=document.getElementById(p+'-search'); const q=(inp.value||'').trim();
+  const st=document.getElementById(p+'-status'); if(st) st.textContent='';
+  if(q.length<4){ closeAC(); return; }
+  _qcAddrTimer=setTimeout(async()=>{
+    if(st){ st.textContent='Searching…'; st.style.color='var(--tsi-teal)'; }
+    try{
+      const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`;
+      const res=await fetch(url,{headers:{'Accept-Language':'en'}}); const data=await res.json();
+      const results=data.map(r=>{ const a=_addrFromNominatim(r); a.label=[a.street,a.city,a.state,a.zip].filter(Boolean).join(', '); return a; }).filter(x=>x.label);
+      if(!results.length){ if(st){ st.textContent='No match — enter fields manually'; st.style.color='var(--tsi-coral)'; } closeAC(); return; }
+      if(st) st.textContent='';
+      // showAC() filters its items by the input's current text; a free-text
+      // address query won't substring-match the formatted labels, so blank the
+      // value while it builds the list (all results show), then restore it.
+      const saved=inp.value; inp.value='';
+      showAC(inp, results.map(x=>x.label), label=>{ const m=results.find(x=>x.label===label); if(m){ qcAddrFill(p,m); inp.value=label; } });
+      inp.value=saved;
+    }catch{ if(st){ st.textContent='Lookup error — enter manually'; st.style.color='var(--tsi-coral)'; } }
+  },400);
+}
+// Contact lookup-or-create: search existing contacts by name; pick one to
+// autofill email/phone (and link it), or type a new name to create on save.
+function qcContactSearch(){
+  const inp=document.getElementById('qc-c-name'); const q=(inp.value||'').trim();
+  document.getElementById('qc-c-id').value='';   // typing clears any prior pick (until re-selected)
+  const hint=document.getElementById('qc-c-hint'); if(hint) hint.textContent='';
+  let contacts=[]; try{ contacts=getAccounts().contacts||[]; }catch{}
+  if(!contacts.length || q.length<1){ closeAC(); return; }
+  const byName={}; contacts.forEach(c=>{ byName[c.name]=c; });
+  const names=contacts.map(c=>c.name);
+  showAC(inp, names, name=>{
+    const c=byName[name]; if(!c) return;
+    inp.value=c.name;
+    document.getElementById('qc-c-id').value=c.id;
+    const e=document.getElementById('qc-c-email'), p=document.getElementById('qc-c-phone');
+    if(e)e.value=c.email||''; if(p)p.value=c.phone||'';
+    if(hint){ hint.textContent='✓ Existing contact — will be linked to this account'; hint.style.color='var(--tsi-succ-green)'; }
+  }, true);
 }
 function qcClose(){ const ov=document.getElementById('qc-acct-overlay'); if(ov) ov.classList.remove('open'); }
 function _qcAddr(p){
@@ -15520,13 +15576,23 @@ function qcSave(){
   const ship=document.getElementById('qc-ship-same').checked ? null : _qcAddr('qc-s');
   const id='AG-'+name.replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase()+'-'+Date.now().toString(36).slice(-4).toUpperCase();
   const now=new Date().toISOString(), by=getUserInitials();
-  // Optional contact
+  // Contact: link an existing one (picked from lookup) or create a new one.
   let contact=null;
   const cName=(document.getElementById('qc-c-name')?.value||'').trim();
-  if(cName){
+  const cId=(document.getElementById('qc-c-id')?.value||'').trim();
+  const cEmail=(document.getElementById('qc-c-email')?.value||'').trim();
+  const cPhone=(document.getElementById('qc-c-phone')?.value||'').trim();
+  if(cId){
+    contact=data.contacts.find(c=>c.id===cId) || null;
+    if(contact){
+      contact.accountIds=[...new Set([...(contact.accountIds||[]), id])];   // link to the new account
+      if(cEmail && !contact.email) contact.email=cEmail;
+      if(cPhone && !contact.phone) contact.phone=cPhone;
+    }
+  }
+  if(!contact && cName){
     contact={ id:'C-'+Date.now().toString(36).toUpperCase(), accountIds:[id], name:cName,
-      title:'', email:(document.getElementById('qc-c-email')?.value||'').trim(),
-      phone:(document.getElementById('qc-c-phone')?.value||'').trim(), notes:'', addedAt:now, addedBy:by };
+      title:'', email:cEmail, phone:cPhone, notes:'', addedAt:now, addedBy:by };
     data.contacts.push(contact);
   }
   const rec={ id, parentId:null, name, industry:'', locType:'headquarters',
