@@ -3302,7 +3302,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#109 · 2026-07-10';
+const APP_BUILD = '#110 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -15471,6 +15471,7 @@ const QUICKADD_SEEDS = ['prod_0121','prod_0122','prod_0123','prod_0126','prod_01
 let PRICEBOOK = {};          // seedId → {price, cost, currency}
 let _pbDirty = {};           // seedId → {price,cost} pending save
 let _qMode = 'local';        // 'db' | 'local'
+let _qLastSaveErr = '';      // last write-failure reason (shown when a save falls back to local)
 let _qWorking = null;
 let _qExisting = false;
 let _qSub = 'quotes';
@@ -15622,8 +15623,19 @@ async function savePriceBookChanges(){
 function localQuotes(){ try{ return JSON.parse(localStorage.getItem(QUOTES_KEY)||'[]'); }catch{ return []; } }
 function saveLocalQuotes(qs){ try{ localStorage.setItem(QUOTES_KEY, JSON.stringify(qs)); }catch{} }
 async function fetchQuotes(){
-  if(_qMode==='db'){ const r=await qApi('GET','/api/quotes'); if(r.ok && r.data && Array.isArray(r.data.quotes)) return r.data.quotes.map(normalizeQuoteRow); setQMode('local'); }
-  return localQuotes();
+  const local=localQuotes();
+  if(_qMode==='db'){
+    const r=await qApi('GET','/api/quotes');
+    if(r.ok && r.data && Array.isArray(r.data.quotes)){
+      const remote=r.data.quotes.map(normalizeQuoteRow);
+      const rIds=new Set(remote.map(q=>q.id));
+      // Merge: D1 quotes are authoritative, but any local-only quotes not yet
+      // saved to D1 stay visible (so switching to db mode never hides them).
+      return [...remote, ...local.filter(q=>!rIds.has(q.id))];
+    }
+    setQMode('local');
+  }
+  return local;
 }
 function normalizeQuoteRow(q){ q.n_lines = q.n_lines!=null ? q.n_lines : (q.lines?q.lines.length:0); return q; }
 function nextQuoteNum(list){
@@ -16354,7 +16366,8 @@ async function persistQuote(q, isNew){
       // keep a local mirror for offline/list resilience
       const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'db'; }
     setQMode('local');
-    console.warn('Quote save to D1 failed:', r.status||r.error||'unknown', '— saved locally');
+    _qLastSaveErr = (r.status ? ('HTTP '+r.status) : (r.error||'unreachable'));
+    console.warn('Quote save to D1 failed:', _qLastSaveErr, '— saved locally');
   }
   const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'local';
 }
@@ -16386,7 +16399,7 @@ async function saveQuote(opts){
   closeQuoteBuilder(); renderQuotesList();
   const verb=(opts&&opts.verb)||('Saved '+q.id);
   if(where==='db') showToast('✓ '+verb+' — saved to D1','var(--tsi-succ-green)');
-  else showToast('⚠ '+verb+' — THIS BROWSER ONLY (not the database)','var(--tsi-coral)');
+  else showToast('⚠ '+verb+' — browser only'+(_qLastSaveErr?(' ('+_qLastSaveErr+')'):'')+'. The DB write failed — see console.','var(--tsi-coral)');
 }
 
 // ── PRINT / PDF (Biocarbon LLC proposal) ──
