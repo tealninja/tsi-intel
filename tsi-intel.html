@@ -3296,7 +3296,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#103 · 2026-07-10';
+const APP_BUILD = '#104 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14374,6 +14374,10 @@ startAdminPoll();
         <div><label>Contact Phone</label><input class="dinput" id="q-contact-phone" placeholder="+…"></div>
       </div>
       <div class="drow-2">
+        <div><label>Issue PO to — Name <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— who at the customer can cut the PO</span></label><input class="dinput" id="q-po-name" placeholder="PO contact name"></div>
+        <div><label>Issue PO to — Email</label><input class="dinput" id="q-po-email" placeholder="po-contact@…"></div>
+      </div>
+      <div class="drow-2">
         <div><label>Project / Title</label><input class="dinput" id="q-project" placeholder="e.g. EFB Pilot Study — TAP"></div>
         <div><label>Reference</label><input class="dinput" id="q-rev" placeholder="R0" value="R0"></div>
       </div>
@@ -14456,6 +14460,7 @@ startAdminPoll();
       <div class="dsec-title">Quote Text &amp; Terms <span class="q-line-count" style="text-transform:none;letter-spacing:0">— rich text: B, I, • bullets</span></div>
       <div class="drow"><label>Description <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— shown under the customer info</span></label><div class="dtextarea q-rte" id="q-description" contenteditable="true" data-ph="Short overview of the offering / opportunity…"></div></div>
       <div class="drow"><label>Scope of Supply</label><div class="dtextarea q-rte" id="q-scope" contenteditable="true" data-ph="Description of what we are supplying…"></div></div>
+      <div class="drow"><label>Schedule <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— production / delivery schedule, printed right after the pricing</span></label><div class="dtextarea q-rte" id="q-schedule" contenteditable="true" data-ph="e.g. Production within 30 days of PO + deposit; ship-ready notice to follow…"></div></div>
       <div class="drow"><label>Assumptions &amp; Clarifications <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— printed after the pricing</span></label><div class="dtextarea q-rte" id="q-assumptions" contenteditable="true" data-ph="Assumptions &amp; clarifications…"></div></div>
       <div class="drow-2">
         <div><label>Payment Terms</label><div class="dtextarea q-rte" id="q-payment" contenteditable="true" data-ph="Payment terms…"></div></div>
@@ -16026,6 +16031,7 @@ function blankQuote(){
     bill_to_src:'', bill_to:'', bill_to_zip:'', bill_to_country:'',
     ship_to_src:'__bill', ship_to:'', ship_to_zip:'', ship_to_country:'',
     contact_name:'', contact_email:'', contact_phone:'', project:'',
+    po_contact_name:'', po_contact_email:'', schedule:'',
     seller_id:(defaultCompany()&&defaultCompany().id)||'biocarbon',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
@@ -16084,6 +16090,7 @@ function fillQuoteForm(){
   const numEl=document.getElementById('quote-drawer-num'); numEl.textContent=q.id; numEl.title='Auto-generated quote number';
   S('q-customer',q.customer_name); document.getElementById('q-customer-org').value=q.customer_org_seed_id||'';
   S('q-customer-address',q.customer_address); S('q-contact-name',q.contact_name); S('q-contact-email',q.contact_email); S('q-contact-phone',q.contact_phone);
+  S('q-po-name',q.po_contact_name); S('q-po-email',q.po_contact_email);
   // Bill-to / ship-to: rebuild source options, then restore the saved snapshot.
   const acctId=q.customer_acct_id||''; S('q-customer-acct-id',acctId);
   qPopulateAddrSources(acctId, true);
@@ -16098,7 +16105,7 @@ function fillQuoteForm(){
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
   qShowChosenShip(q.shipping_carrier||'', q.shipping_service||'');
-  S('q-description',q.description); S('q-scope',q.scope); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
+  S('q-description',q.description); S('q-scope',q.scope); S('q-schedule',q.schedule); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
   S('q-terms', q.terms!=null && q.terms!=='' ? q.terms : Q_TERMS_FULL);
 }
 function onQuoteCurrencyChange(){ if(_qWorking){ _qWorking.currency=document.getElementById('q-currency').value; renderQuoteLines(); recalcQuoteTotals(); } }
@@ -16224,6 +16231,7 @@ function readQuoteForm(){
   q.customer_address=q.bill_to;   // back-compat: bill-to is the legacy customer address
   q.contact_name=V('q-contact-name').trim();
   q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
+  q.po_contact_name=V('q-po-name').trim(); q.po_contact_email=V('q-po-email').trim(); q.schedule=V('q-schedule').trim();
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
   q.seller_id=V('q-seller')||q.seller_id||((defaultCompany()&&defaultCompany().id)||'');
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
@@ -16331,12 +16339,14 @@ function printQuote(q){
       <div><b>Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
       ${(q.ship_to && q.ship_to!==(q.bill_to||q.customer_address))?`<div><b>Ship To:</b> ${qesc(q.ship_to).replace(/\n/g,'<br>')}</div><div></div>`:''}
       <div><b>Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</div><div><b>Prepared By:</b> ${qesc(q.prepared_by||'—')}</div>
+      ${(q.po_contact_name||q.po_contact_email)?`<div><b>Issue PO to:</b> ${qesc(q.po_contact_name||'')}${q.po_contact_email?' · '+qesc(q.po_contact_email):''}</div><div></div>`:''}
     </div>
     ${q.description?`<h3>Description</h3><div class="prose">${blk(q.description)}</div>`:''}
     ${q.scope?`<h3>Scope of Supply</h3><div class="prose">${blk(q.scope)}</div>`:''}
     <h3>Pricing Summary</h3>
     <table class="items"><thead><tr><th class="c">#</th><th>PN</th><th>Product</th><th class="c">Unit</th><th class="r">Price</th><th class="r">Qty</th><th class="r">Extended</th></tr></thead>
       <tbody>${lines}</tbody><tfoot>${foot.join('')}</tfoot></table>
+    ${q.schedule?`<h3>Schedule</h3><div class="prose">${blk(q.schedule)}</div>`:''}
     ${q.assumptions?`<h3>Assumptions &amp; Clarifications</h3><div class="prose">${blk(q.assumptions)}</div>`:''}
     ${q.delivery_terms?`<h3>Delivery Terms</h3><div class="prose">${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3>Payment Terms</h3><div class="prose">${blk(q.payment_terms)}</div>`:''}
@@ -16397,6 +16407,7 @@ function exportQuoteWord(q){
       <tr><td ${metaTd}><b style="color:#19446C">Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</td><td ${metaTd}><b style="color:#19446C">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
       ${(q.ship_to && q.ship_to!==(q.bill_to||q.customer_address))?`<tr><td ${metaTd}><b style="color:#19446C">Ship To:</b> ${qesc(q.ship_to).replace(/\n/g,'<br>')}</td><td ${metaTd}></td></tr>`:''}
       <tr><td ${metaTd}><b style="color:#19446C">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#19446C">Prepared By:</b> ${qesc(q.prepared_by||'—')}</td></tr>
+      ${(q.po_contact_name||q.po_contact_email)?`<tr><td ${metaTd}><b style="color:#19446C">Issue PO to:</b> ${qesc(q.po_contact_name||'')}${q.po_contact_email?' · '+qesc(q.po_contact_email):''}</td><td ${metaTd}></td></tr>`:''}
     </table>
     ${q.description?`<h3 ${h3}>Description</h3><div ${prose}>${blk(q.description)}</div>`:''}
     ${q.scope?`<h3 ${h3}>Scope of Supply</h3><div ${prose}>${blk(q.scope)}</div>`:''}
@@ -16404,6 +16415,7 @@ function exportQuoteWord(q){
     <table style="width:100%;border-collapse:collapse">
       <thead><tr>${['#','PN','Product','Unit','Price','Qty','Extended'].map((h,ix)=>`<th align="${ix===0||ix===3?'center':(ix>=4?'right':'left')}" bgcolor="#19446C" style="font-size:9pt;text-transform:uppercase;color:#ffffff;padding:6px 7px">${h}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody><tfoot>${foot.join('')}</tfoot></table>
+    ${q.schedule?`<h3 ${h3}>Schedule</h3><div ${prose}>${blk(q.schedule)}</div>`:''}
     ${q.assumptions?`<h3 ${h3}>Assumptions &amp; Clarifications</h3><div ${prose}>${blk(q.assumptions)}</div>`:''}
     ${q.delivery_terms?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(q.delivery_terms)}</div>`:''}
     ${q.payment_terms?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(q.payment_terms)}</div>`:''}
