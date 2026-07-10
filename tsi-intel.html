@@ -3302,7 +3302,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#108 · 2026-07-10';
+const APP_BUILD = '#109 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -16345,12 +16345,16 @@ function readQuoteForm(){
   recalcQuoteTotals();
 }
 async function persistQuote(q, isNew){
-  if(_qMode==='db' || (qApiOn() && _qMode!=='local')){
+  // Always try D1 when a worker is configured — don't gate on _qMode, which may
+  // still be 'local' just because the price book hasn't loaded yet this session.
+  // Only fall back to browser-only when the API call actually fails.
+  if(qApiOn()){
     const r=await qApi(isNew?'POST':'PUT', isNew?'/api/quotes':'/api/quotes/'+encodeURIComponent(q.id), { quote:q, lines:q.lines });
     if(r.ok){ if(r.data){ q.subtotal=r.data.subtotal; q.total=r.data.total; } setQMode('db');
       // keep a local mirror for offline/list resilience
       const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'db'; }
     setQMode('local');
+    console.warn('Quote save to D1 failed:', r.status||r.error||'unknown', '— saved locally');
   }
   const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'local';
 }
