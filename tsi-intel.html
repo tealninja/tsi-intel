@@ -1594,6 +1594,10 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); white-space:nowrap; }
 .accf-chip:hover { border-color:var(--tsi-teal); }
 .accf-chip.active { background:var(--tsi-teal); border-color:var(--tsi-teal); color:#fff; }
+.addr-radios { display:flex; flex-direction:column; gap:4px; margin:4px 0 2px; }
+.addr-radios label { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--color-text-primary); cursor:pointer; font-weight:400; text-transform:none; letter-spacing:0; }
+.addr-radios input[type=radio] { accent-color:var(--tsi-teal); }
+.addr-other { margin-top:6px; }
 .acct-group {
   border-bottom:0.5px solid var(--color-border);
 }
@@ -3292,7 +3296,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#101 · 2026-07-10';
+const APP_BUILD = '#102 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -12255,10 +12259,50 @@ async function sitePortFetch() {
 
 // ── Bill-to / ship-to addresses (per account; may reference another account) ──
 let _addrCoords = { billto:{lat:null,lon:null}, shipto:{lat:null,lon:null} };
-function siteAddrRefChange(which){
-  const ref=document.getElementById('s-'+which+'-ref').value;
+// Address source is a hidden ref value: '' = own · '__bill' (ship only) = same
+// as billing · <accountId> = use another account's address. Radios + an account
+// autocomplete drive that value; save/resolveAddr read it unchanged.
+function _addrShow(which, mode){
   const own=document.getElementById('s-'+which+'-own');
-  if(own) own.style.display = ref ? 'none' : '';
+  const other=document.getElementById('s-'+which+'-other');
+  if(own) own.style.display = (mode==='own') ? '' : 'none';
+  if(other) other.style.display = (mode==='other') ? '' : 'none';
+}
+function siteAddrMode(which, mode){
+  const refEl=document.getElementById('s-'+which+'-ref');
+  if(mode==='own') refEl.value='';
+  else if(mode==='__bill') refEl.value='__bill';
+  else if(mode==='other'){ if(refEl.value===''||refEl.value==='__bill') refEl.value=''; }   // wait for a pick
+  _addrShow(which, mode);
+  if(mode==='other') setTimeout(()=>document.getElementById('s-'+which+'-other-search')?.focus(), 40);
+}
+function siteAddrSyncUI(which){
+  const ref=document.getElementById('s-'+which+'-ref').value;
+  const mode = ref==='__bill' ? '__bill' : (ref==='' ? 'own' : 'other');
+  document.querySelectorAll('input[name="'+which+'-mode"]').forEach(r=>{ r.checked = (r.value===mode); });
+  _addrShow(which, mode);
+  if(mode==='other'){
+    const acct=(getAccounts().accounts||[]).find(a=>a.id===ref);
+    const inp=document.getElementById('s-'+which+'-other-search'), lbl=document.getElementById('s-'+which+'-other-label');
+    if(inp) inp.value = acct?acct.name:'';
+    if(lbl){ lbl.textContent = acct?('✓ Using '+acct.name+'’s address'):''; lbl.style.color='var(--tsi-succ-green)'; }
+  } else {
+    const inp=document.getElementById('s-'+which+'-other-search'), lbl=document.getElementById('s-'+which+'-other-label');
+    if(inp) inp.value=''; if(lbl) lbl.textContent='';
+  }
+}
+function siteAddrRefChange(which){ siteAddrSyncUI(which); }   // back-compat alias
+function siteAddrAccountSearch(which){
+  const inp=document.getElementById('s-'+which+'-other-search'); const q=(inp.value||'').trim();
+  const accounts=(getAccounts().accounts||[]).filter(a=>a.id!==_siteDrawerEditId);
+  if(!accounts.length){ closeAC(); return; }
+  const byName={}; accounts.forEach(a=>{ byName[a.name]=a; });
+  showAC(inp, accounts.map(a=>a.name), name=>{
+    const a=byName[name]; if(!a) return;
+    document.getElementById('s-'+which+'-ref').value=a.id;
+    inp.value=a.name;
+    const lbl=document.getElementById('s-'+which+'-other-label'); if(lbl){ lbl.textContent='✓ Using '+a.name+'’s address'; lbl.style.color='var(--tsi-succ-green)'; }
+  });
 }
 function _addrGet(which,f){ return document.getElementById('s-'+which+'-'+f); }
 function _addrSet(which, a){
@@ -12312,11 +12356,7 @@ function addrGeoSearch(which){
 }
 // Populate the source dropdowns + fields for the current account being edited.
 function siteAddrPopulate(existing, data, accountId){
-  const others=(data.accounts||[]).filter(x=>x.id!==accountId);
-  const opts=others.map(x=>`<option value="${x.id}">Same as: ${qesc(x.name)}</option>`).join('');
   const bref=document.getElementById('s-billto-ref'), sref=document.getElementById('s-shipto-ref');
-  if(bref) bref.innerHTML = `<option value="">This account's own address</option>`+opts;
-  if(sref) sref.innerHTML = `<option value="__bill">Same as billing address</option><option value="">This account's own address</option>`+opts;
   _addrCoords={ billto:{lat:null,lon:null}, shipto:{lat:null,lon:null} };
   ['billto','shipto'].forEach(w=>{ _addrSet(w,{}); const s=document.getElementById('s-'+w+'-search'),st=document.getElementById('s-'+w+'-status'); if(s)s.value=''; if(st)st.textContent=''; });
   if(existing){
@@ -12328,7 +12368,7 @@ function siteAddrPopulate(existing, data, accountId){
     if(bref) bref.value='';
     if(sref) sref.value='__bill';   // new accounts: ship-to defaults to billing
   }
-  siteAddrRefChange('billto'); siteAddrRefChange('shipto');
+  siteAddrSyncUI('billto'); siteAddrSyncUI('shipto');
 }
 // Resolve an account's bill/ship address, following account references. `seen`
 // guards only cross-account hops (a '__bill' switch stays on the same account).
@@ -13337,10 +13377,16 @@ startAdminPoll();
       <div class="dsec-body">
       <!-- Bill-to -->
       <div class="drow">
-        <label>Billing address source</label>
-        <select class="dselect" id="s-billto-ref" onchange="siteAddrRefChange('billto')">
-          <option value="">This account's own address</option>
-        </select>
+        <label>Billing address</label>
+        <input type="hidden" id="s-billto-ref">
+        <div class="addr-radios">
+          <label><input type="radio" name="billto-mode" value="own" onchange="siteAddrMode('billto','own')"> This account's own address</label>
+          <label><input type="radio" name="billto-mode" value="other" onchange="siteAddrMode('billto','other')"> Use another account's address</label>
+        </div>
+        <div class="drow addr-other" id="s-billto-other" style="display:none">
+          <input class="dinput" id="s-billto-other-search" placeholder="🔍 Find the account to bill through…" autocomplete="off" oninput="siteAddrAccountSearch('billto')" onfocus="siteAddrAccountSearch('billto')">
+          <span class="dloc-status" id="s-billto-other-label"></span>
+        </div>
       </div>
       <div id="s-billto-own">
         <div class="drow">
@@ -13362,11 +13408,17 @@ startAdminPoll();
       <div class="dsec-sep"></div>
       <!-- Ship-to -->
       <div class="drow">
-        <label>Shipping address source</label>
-        <select class="dselect" id="s-shipto-ref" onchange="siteAddrRefChange('shipto')">
-          <option value="__bill">Same as billing address</option>
-          <option value="">This account's own address</option>
-        </select>
+        <label>Shipping address</label>
+        <input type="hidden" id="s-shipto-ref">
+        <div class="addr-radios">
+          <label><input type="radio" name="shipto-mode" value="__bill" onchange="siteAddrMode('shipto','__bill')"> Same as billing address</label>
+          <label><input type="radio" name="shipto-mode" value="own" onchange="siteAddrMode('shipto','own')"> This account's own address</label>
+          <label><input type="radio" name="shipto-mode" value="other" onchange="siteAddrMode('shipto','other')"> Use another account's address</label>
+        </div>
+        <div class="drow addr-other" id="s-shipto-other" style="display:none">
+          <input class="dinput" id="s-shipto-other-search" placeholder="🔍 Find the account to ship through…" autocomplete="off" oninput="siteAddrAccountSearch('shipto')" onfocus="siteAddrAccountSearch('shipto')">
+          <span class="dloc-status" id="s-shipto-other-label"></span>
+        </div>
       </div>
       <div id="s-shipto-own">
         <div class="drow">

@@ -178,6 +178,13 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Account bill/ship address source → radios + account finder** (build #102) — replaced the
+  bill-to / ship-to source `<select>` in the account editor with radio buttons: **This account's
+  own address** (shows the editable + geocode-verified fields) vs **Use another account's address**
+  (an autocomplete box to find the account to bill/ship through); ship-to also keeps **Same as
+  billing**. The picked account's id is stored in billToRef/shipToRef exactly as before, so
+  resolveAddr and quotes are unchanged. Verified via Playwright (default own, switch to other,
+  autocomplete pick, save ref, resolveAddr follows it, reopen restores state).
 - [x] **KML mill import + customer-status flag/filter** (builds #100–#101) — accounts gained a
   **Customer status** field (Current / Potential / not set) in the editor plus an **All / ✅
   Current / 🎯 Potential** filter row in the sidebar (a group shows if it or any site matches).
