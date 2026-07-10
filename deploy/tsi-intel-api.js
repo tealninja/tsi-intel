@@ -59,7 +59,12 @@ const ALLOWED_ORIGINS = [
   // 'https://<your-tenant>.sharepoint.com',   // ← only used once you enforce the allowlist
 ];
 function corsHeaders(origin) {
-  const allow = origin || '*';   // reflect caller origin; '*' when none (permissive)
+  // Reflect the caller's origin, but coerce a missing or opaque origin to '*'.
+  // A local download (file://) sends `Origin: null`; echoing `null` back is
+  // rejected by Chrome ("value 'null' is not equal to the supplied origin"),
+  // which surfaces as an opaque "Failed to fetch" on writes. '*' is accepted
+  // for these non-credentialed requests, so the downloaded copy can still save.
+  const allow = (origin && origin !== 'null') ? origin : '*';
   const h = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User, X-TSI-Email',
@@ -84,6 +89,7 @@ function err(msg, status=400, origin) {
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin');
+   try {
     const url    = new URL(request.url);
     const path   = url.pathname;
 
@@ -540,6 +546,12 @@ export default {
     }
 
     return err('Not found', 404, origin);
+   } catch (e) {
+    // Any unhandled exception would otherwise return a CORS-less 500, which the
+    // browser reports only as an opaque "Failed to fetch". Return the real error
+    // WITH CORS headers so the client can surface it.
+    return err('Server error: ' + (e && e.message ? e.message : String(e)), 500, origin);
+   }
   }
 };
 

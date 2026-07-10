@@ -90,6 +90,7 @@ function err(msg, status=400, origin) {
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin');
+   try {
     const url    = new URL(request.url);
     const path   = url.pathname;
 
@@ -540,6 +541,12 @@ export default {
     }
 
     return err('Not found', 404, origin);
+   } catch (e) {
+    // Any unhandled exception would otherwise return a CORS-less 500, which the
+    // browser reports only as an opaque "Failed to fetch". Return the real error
+    // WITH CORS headers so the client can surface it.
+    return err('Server error: ' + (e && e.message ? e.message : String(e)), 500, origin);
+   }
   }
 };
 
