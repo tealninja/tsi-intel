@@ -3302,7 +3302,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#106 · 2026-07-10';
+const APP_BUILD = '#107 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14351,8 +14351,7 @@ startAdminPoll();
       <div class="dsec-title">Customer &amp; Quote Details</div>
       <div class="drow">
         <label>Customer (legal entity)</label>
-        <input class="dinput" id="q-customer" list="q-account-options" placeholder="Account or company name" autocomplete="off" oninput="onQuoteCustomerInput(this.value)">
-        <datalist id="q-account-options"></datalist>
+        <input class="dinput" id="q-customer" placeholder="Type to search accounts…" autocomplete="off" oninput="qCustomerSearch()" onfocus="qCustomerSearch()">
         <div id="q-quickcreate" style="display:none;margin-top:5px;font-size:11.5px">
           <span style="color:var(--color-text-muted)">No matching account —</span>
           <a onclick="qcOpen()" style="cursor:pointer;color:var(--tsi-teal);font-weight:600;text-decoration:underline">➕ Quick-create it</a>
@@ -15716,6 +15715,17 @@ async function duplicateQuote(id){
 function populateQuoteAccounts(){
   const dl=document.getElementById('q-account-options'); if(!dl) return;
   try{ dl.innerHTML=getAccounts().accounts.map(a=>`<option value="${qattr(a.name)}">`).join(''); }catch{ dl.innerHTML=''; }
+}
+// Customer field is a typeahead over account names (reuses the app's showAC,
+// not the native <datalist>). Picking one fills the account + addresses.
+function qCustomerSearch(){
+  const inp=document.getElementById('q-customer'); if(!inp) return;
+  const q=(inp.value||'').trim();
+  onQuoteCustomerInput(inp.value);            // keep match / quick-create logic live as they type
+  let accounts=[]; try{ accounts=getAccounts().accounts||[]; }catch(_){}
+  if(!accounts.length || q.length<1){ closeAC(); return; }
+  const names=[...new Set(accounts.map(a=>a.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  showAC(inp, names, name=>{ inp.value=name; onQuoteCustomerInput(name); }, false);
 }
 function onQuoteCustomerInput(name){
   const hid=document.getElementById('q-customer-org');
