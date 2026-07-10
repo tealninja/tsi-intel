@@ -1589,6 +1589,11 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   outline:none; font-family:var(--font-ui);
 }
 .acct-search:focus { border-bottom-color:var(--tsi-teal); }
+.acct-cust-filter { display:flex; gap:4px; padding:6px 8px; border-bottom:1px solid var(--color-border); }
+.accf-chip { flex:1; font-size:10.5px; font-weight:600; padding:3px 4px; border-radius:12px; cursor:pointer;
+  border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); white-space:nowrap; }
+.accf-chip:hover { border-color:var(--tsi-teal); }
+.accf-chip.active { background:var(--tsi-teal); border-color:var(--tsi-teal); color:#fff; }
 .acct-group {
   border-bottom:0.5px solid var(--color-border);
 }
@@ -3287,7 +3292,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#99 · 2026-07-10';
+const APP_BUILD = '#100 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -8311,6 +8316,19 @@ let _acctDotScale = 1;   // accounts-map marker-size multiplier (slider)
 function setAcctDotScale(v){ _acctDotScale = parseFloat(v) || 1; renderAcctMap(); }
 let _acctSelectedSite  = null;
 let _acctMapGroups     = new Set();  // legend multi-select filter (parent-group ids)
+let _acctCustFilter    = '';         // '' | 'current' | 'potential' — customer-status filter
+function setAcctCustFilter(v){
+  _acctCustFilter = v || '';
+  document.querySelectorAll('#acct-cust-filter .accf-chip').forEach(b => b.classList.toggle('active', (b.dataset.cs||'')===_acctCustFilter));
+  renderAcctSidebar();
+  if (_acctMapShowing) renderAcctMap();
+}
+// A group passes the customer filter if it, or any of its sites, matches.
+function _acctMatchesCust(a, sitesByGroup){
+  if (!_acctCustFilter) return true;
+  if ((a.customerStatus||'')===_acctCustFilter) return true;
+  return (sitesByGroup[a.id]||[]).some(s => (s.customerStatus||'')===_acctCustFilter);
+}
 
 function renderAcctSidebar() {
   const q    = (document.getElementById('acct-search')?.value || '').toLowerCase();
@@ -8326,6 +8344,7 @@ function renderAcctSidebar() {
   });
 
   const groups = data.groups
+    .filter(g => _acctMatchesCust(g, sitesByGroup))
     .filter(g => {
       if (!q) return true;
       if (g.name.toLowerCase().includes(q)) return true;
@@ -8334,7 +8353,11 @@ function renderAcctSidebar() {
     .sort((a,b) => a.name.localeCompare(b.name));
 
   el.innerHTML = groups.map(g => {
+    // When a customer filter is active and the GROUP itself doesn't match,
+    // narrow its site list to the matching sites; if the group matches, show all.
+    const custOk = s => !_acctCustFilter || (g.customerStatus||'')===_acctCustFilter || (s.customerStatus||'')===_acctCustFilter;
     const sites = (sitesByGroup[g.id]||[])
+      .filter(custOk)
       .filter(s => !q || s.name.toLowerCase().includes(q) || g.name.toLowerCase().includes(q))
       .sort((a,b) => a.name.localeCompare(b.name));
     const isOpen = _acctSelectedGroup === g.id || q;
@@ -11874,6 +11897,7 @@ function openSiteDrawer(accountId, opts) {
   const fields = ['s-name','s-acctmatch','s-loc-search','s-city','s-state','s-country','s-lat','s-lon','s-notes'];
   fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const _ltDef=document.getElementById('s-loctype'); if(_ltDef) _ltDef.value='production';
+  const _csDef=document.getElementById('s-custstatus'); if(_csDef) _csDef.value='';
   const _npDef=document.getElementById('s-nameplate'); if(_npDef) _npDef.value='';
   const _npuDef=document.getElementById('s-nameplate-unit'); if(_npuDef) _npuDef.value='MTPY';
   const _portDef=document.getElementById('s-port'); if(_portDef) _portDef.value='';
@@ -11896,6 +11920,7 @@ function openSiteDrawer(accountId, opts) {
     document.getElementById('s-acctmatch').value = existing.acctMatch || '';
     document.getElementById('s-industry').value  = existing.industry || '';
     const _lt=document.getElementById('s-loctype'); if(_lt) _lt.value = existing.locType || (existing.parentId?'production':'corporate');
+    const _cs=document.getElementById('s-custstatus'); if(_cs) _cs.value = existing.customerStatus || '';
     const _np=document.getElementById('s-nameplate'); if(_np) _np.value = (existing.nameplate!=null?existing.nameplate:'');
     const _npu=document.getElementById('s-nameplate-unit'); if(_npu) _npu.value = existing.nameplateUnit || 'MTPY';
     const _port=document.getElementById('s-port'); if(_port) _port.value = existing.shippingPort || '';
@@ -12028,6 +12053,7 @@ function saveSiteDrawer() {
     name:       name,
     industry:   document.getElementById('s-industry')?.value.trim() || '',
     locType:    document.getElementById('s-loctype')?.value || 'production',
+    customerStatus: document.getElementById('s-custstatus')?.value || '',
     plantTags:  [..._sitePlantTags],
     plantType:  _sitePlantTags.join(' / '),   // legacy string kept in sync for older readers
     nameplate:  (()=>{ const v=parseFloat(document.getElementById('s-nameplate')?.value); return isNaN(v)?null:v; })(),
@@ -13121,6 +13147,15 @@ startAdminPoll();
           </select>
         </div>
         <div class="drow">
+          <label>Customer status <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— for the customer filter</span></label>
+          <select class="dselect" id="s-custstatus">
+            <option value="">— not set</option>
+            <option value="current">✅ Current customer</option>
+            <option value="potential">🎯 Potential customer</option>
+          </select>
+        </div>
+      </div>
+      <div class="drow">
           <label>Product Types <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— tag one or more (a mill can make OSB &amp; Siding)</span></label>
           <div class="drawer-tag-editor" id="s-plant-wrap" onclick="const _pi=document.getElementById('s-plant-input');if(_pi)_pi.focus()">
             <input class="drawer-tag-input" id="s-plant-input" list="plant-type-options" placeholder="Type & Enter — OSB, Siding, Pellets…" autocomplete="off"
@@ -13131,7 +13166,6 @@ startAdminPoll();
             <option value="MDF"><option value="Particle Board"><option value="Plywood">
             <option value="Pellets"><option value="Torrefaction"><option value="Biomass"><option value="Forestry">
           </datalist>
-        </div>
       </div>
       <div class="drow-2">
         <div class="drow">
@@ -13649,6 +13683,11 @@ startAdminPoll();
         <button class="btn-acct-add" onclick="openNewSiteModal()">+ Site</button>
       </div>
       <input class="acct-search" id="acct-search" placeholder="Search accounts…" oninput="renderAcctSidebar()">
+      <div class="acct-cust-filter" id="acct-cust-filter">
+        <button class="accf-chip active" data-cs="" onclick="setAcctCustFilter('')">All</button>
+        <button class="accf-chip" data-cs="current" onclick="setAcctCustFilter('current')">✅ Current</button>
+        <button class="accf-chip" data-cs="potential" onclick="setAcctCustFilter('potential')">🎯 Potential</button>
+      </div>
       <div id="acct-group-list"></div>
     </div>
 
