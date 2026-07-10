@@ -178,6 +178,15 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **KML mill import + customer-status flag/filter** (builds #100–#101) — accounts gained a
+  **Customer status** field (Current / Potential / not set) in the editor plus an **All / ✅
+  Current / 🎯 Potential** filter row in the sidebar (a group shows if it or any site matches).
+  New **📍 KML** button imports a Google Earth `.kml`: each Placemark becomes a top-level account
+  (name + coordinates), with customer status inferred from its ancestor folder ("Current
+  Customers" → current, "Potential Customers" → potential). Existing names are skipped and a
+  confirm dialog shows the breakdown before writing. Verified against the real 192-placemark
+  file: 158 new mills (34 current · 90 potential), 34 skipped, coords + status set, filter works.
+  Follow-up: mills import as top-level accounts — re-parenting under company groups is manual.
 - [x] **Accounts — "☁ Push" to cloud button** (build #98) — an explicit force-push of the whole
   accounts+contacts blob to D1 with a confirmation toast ("✓ Pushed N accounts · M contacts").
   Edits already auto-sync via saveAccounts(); this is a manual belt-and-suspenders control for

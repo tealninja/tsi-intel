@@ -3292,7 +3292,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#100 · 2026-07-10';
+const APP_BUILD = '#101 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -8286,6 +8286,74 @@ async function syncAccountsFromServer(){
       s.put({ id:'main', data: loadAccounts() });   // server empty → seed it (migrated)
     }
   }catch(e){ console.warn('accounts sync failed:', e.message); }
+}
+
+// ── KML IMPORT — add mills/customers from a Google Earth .kml ──────────────
+// Each <Placemark> becomes a top-level account (name + coordinates). Its
+// customer status is inferred from the ancestor Folder ("Current Customers" →
+// current, "Potential Customers" → potential). Existing names are skipped.
+function _kmlFolderStatus(pm){
+  let n = pm.parentNode;
+  while (n && n.tagName){
+    if (n.tagName === 'Folder'){
+      const nm = [...n.children].find(c => c.tagName === 'name');
+      const t = (nm && nm.textContent || '').toLowerCase();
+      if (/current\s*customer/.test(t)) return 'current';
+      if (/potential\s*customer|prospect/.test(t)) return 'potential';
+    }
+    n = n.parentNode;
+  }
+  return '';
+}
+function importKML(file){
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let doc;
+    try { doc = new DOMParser().parseFromString(String(e.target.result), 'application/xml'); }
+    catch { showToast('Could not read KML file', 'var(--tsi-coral)'); return; }
+    if (doc.getElementsByTagName('parsererror').length){ showToast('Invalid KML/XML', 'var(--tsi-coral)'); return; }
+    const pms = [...doc.getElementsByTagName('Placemark')];
+    const data = getAccounts();
+    const existing = new Set(data.accounts.map(a => (a.name||'').trim().toLowerCase()));
+    const seen = new Set();
+    const recs = [];
+    let dupes = 0, noPoint = 0;
+    pms.forEach(pm => {
+      const nm = [...pm.children].find(c => c.tagName === 'name');
+      const name = (nm && nm.textContent || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (existing.has(key) || seen.has(key)){ dupes++; return; }
+      const cEl = pm.getElementsByTagName('coordinates')[0];
+      let lat = null, lon = null;
+      if (cEl){ const parts = cEl.textContent.trim().split(/\s+/)[0].split(','); lon = parseFloat(parts[0]); lat = parseFloat(parts[1]); }
+      if (lat == null || isNaN(lat) || lon == null || isNaN(lon)){ noPoint++; }
+      seen.add(key);
+      recs.push({ name, lat: isNaN(lat)?null:lat, lon: isNaN(lon)?null:lon, customerStatus: _kmlFolderStatus(pm) });
+    });
+    if (!recs.length){ showToast(`No new mills to import (${dupes} already exist)`, 'var(--tsi-amber)'); return; }
+    const nCur = recs.filter(r => r.customerStatus==='current').length;
+    const nPot = recs.filter(r => r.customerStatus==='potential').length;
+    const msg = `${recs.length} new mills — ✅ ${nCur} current · 🎯 ${nPot} potential · ${recs.length-nCur-nPot} unclassified`
+      + `\n${dupes} skipped (already exist)${noPoint?` · ${noPoint} without coordinates`:''}`
+      + `\n\nThey'll be added as top-level accounts (you can re-parent them later).`;
+    showConfirm('Import '+recs.length+' mills from KML?', msg, () => {
+      const now = new Date().toISOString(), by = getUserInitials();
+      recs.forEach((r,i) => {
+        const id = 'KML-'+r.name.replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase()+'-'+Date.now().toString(36).slice(-3).toUpperCase()+i;
+        data.accounts.push({ id, parentId:null, name:r.name, industry:'', locType:'production',
+          plantTags:[], plantType:'', acctMatch:r.name, customerStatus:r.customerStatus,
+          loc:'', city:'', state:'', country:'', lat:r.lat, lon:r.lon,
+          source:'KML', createdAt:now, createdBy:by, updatedAt:now, updatedBy:by });
+      });
+      saveAccounts(data);
+      renderAcctSidebar();
+      if (_acctMapShowing) renderAcctMap();
+      showToast(`✓ Imported ${recs.length} mills · pushing to cloud…`, 'var(--tsi-succ-green)');
+    });
+  };
+  reader.readAsText(file);
 }
 
 // getAccounts() returns the unified data, plus computed groups/sites views
@@ -13680,6 +13748,8 @@ startAdminPoll();
         <span class="acct-sidebar-title">Account Groups</span>
         <button class="btn-acct-add" onclick="toggleAcctMap()" id="acct-map-toggle-btn" title="Show all sites on map">🗺</button>
         <button class="btn-acct-add" id="acct-push-btn" onclick="pushAccountsToCloud()" title="Push all accounts + contacts to the cloud database now">☁ Push</button>
+        <button class="btn-acct-add" onclick="document.getElementById('kml-file').click()" title="Import mills/customers from a Google Earth .kml file">📍 KML</button>
+        <input type="file" id="kml-file" accept=".kml,.xml" style="display:none" onchange="importKML(this.files&&this.files[0]); this.value='';">
         <button class="btn-acct-add" onclick="openNewSiteModal()">+ Site</button>
       </div>
       <input class="acct-search" id="acct-search" placeholder="Search accounts…" oninput="renderAcctSidebar()">
