@@ -843,6 +843,12 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .q-terms-box > summary:hover { color:var(--tsi-teal); }
 .q-terms-box[open] > summary { margin-bottom:8px; }
 .q-terms-box .q-rte { font-size:11px; }
+.q-def-ctl { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:2px 0 5px; font-size:11px; }
+.q-def-ctl label { display:flex; align-items:center; gap:4px; color:var(--color-text-secondary); cursor:pointer; text-transform:none; letter-spacing:0; font-weight:400; }
+.q-def-ctl input[type=radio] { accent-color:var(--tsi-teal); }
+.qdc-link { color:var(--tsi-teal); cursor:pointer; font-weight:600; }
+.qdc-link:hover { text-decoration:underline; }
+.q-rte-locked { background:var(--color-bg-subtle,#f4f5f6); opacity:.9; }
 .drow-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
 .drow-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
 
@@ -3296,7 +3302,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#104 · 2026-07-10';
+const APP_BUILD = '#105 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14576,6 +14582,21 @@ startAdminPoll();
   </div>
 </div>
 
+<!-- ══ EDIT DEFAULT TEXT (assumptions / payment / delivery / T&C) ══ -->
+<div class="ship-est-overlay" id="qdef-edit-overlay" onclick="if(event.target===this)qEditDefaultClose()">
+  <div class="ship-est" style="max-width:700px">
+    <div class="ship-est-h"><b id="qdef-edit-title">Edit default</b><span class="ship-est-sub">saved globally — applies to every quote set to “Use default”</span>
+      <button class="ship-est-x" onclick="qEditDefaultClose()">✕</button></div>
+    <div class="ship-est-body">
+      <div class="dtextarea q-rte" id="qdef-edit-rte" contenteditable="true" style="max-height:440px;min-height:220px;overflow:auto"></div>
+      <div class="ship-est-actions" style="margin-top:12px">
+        <button class="btn-add-opp" onclick="qEditDefaultSave()">Save default</button>
+        <button class="btn" style="background:var(--color-bg-subtle)" onclick="qEditDefaultClose()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ LEADS INBOX DRAWER ══ -->
 <style>
 .leads-badge{display:inline-block;margin-left:5px;background:var(--tsi-coral);color:#fff;border-radius:9px;font-size:10px;font-weight:700;padding:0 6px;min-width:16px;text-align:center;line-height:16px}
@@ -16035,9 +16056,57 @@ function blankQuote(){
     seller_id:(defaultCompany()&&defaultCompany().id)||'biocarbon',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
     prepared_by:(getUserInitials()||''),
-    description:'', scope:'', assumptions:Q_DEFAULT_ASSUMPTIONS, payment_terms:Q_DEFAULT_PAYMENT, delivery_terms:Q_DEFAULT_DELIVERY, notes:'', terms:Q_TERMS_FULL,
+    description:'', scope:'', assumptions:'', payment_terms:'', delivery_terms:'', notes:'', terms:'',
+    assumptions_mode:'default', payment_mode:'default', delivery_mode:'default', terms_mode:'default',
     discount:0, discount_mode:'pct', freight:0, shipping_carrier:'', shipping_service:'', tax_pct:0, subtotal:0, total:0, lines:[] };
 }
+// ── Quote default text (assumptions / payment / delivery / T&C) ──────────────
+// Each field can be "default" (tracks the editable global default, so one edit
+// updates every default-mode quote) or "custom". Defaults persist in the D1
+// 'quote_defaults' collection ({id:'main', ...}) seeded from the consts.
+const QDEF_FIELDS = {
+  assumptions:{ el:'q-assumptions', prop:'assumptions',     mode:'assumptions_mode', label:'Assumptions & Clarifications' },
+  payment:    { el:'q-payment',     prop:'payment_terms',   mode:'payment_mode',     label:'Payment Terms' },
+  delivery:   { el:'q-delivery',    prop:'delivery_terms',  mode:'delivery_mode',    label:'Delivery Terms' },
+  terms:      { el:'q-terms',       prop:'terms',           mode:'terms_mode',       label:'Terms & Conditions' },
+};
+const QUOTE_DEFAULTS_SEED = { assumptions:Q_DEFAULT_ASSUMPTIONS, payment:Q_DEFAULT_PAYMENT, delivery:Q_DEFAULT_DELIVERY, terms:Q_TERMS_FULL };
+let _qDefaultsStore = (typeof Store==='function') ? Store('quote_defaults') : null;
+let _qEditDefaultField = null;
+function getQuoteDefaults(){ let rec=null; try{ rec=((_qDefaultsStore&&_qDefaultsStore.all())||[]).find(x=>x.id==='main'); }catch(_){} return Object.assign({id:'main'}, QUOTE_DEFAULTS_SEED, rec||{}); }
+function getQuoteDefault(field){ return getQuoteDefaults()[field] || QUOTE_DEFAULTS_SEED[field] || ''; }
+function saveQuoteDefaults(obj){ const next=Object.assign(getQuoteDefaults(), obj, {id:'main'}); if(_qDefaultsStore){ try{ _qDefaultsStore.put(next); }catch(_){} } }
+// Value used at export: the live default when in default-mode, else the custom text.
+function qFieldValue(q, field){ const f=QDEF_FIELDS[field]; const isDef=(q[f.mode]||'')==='default';
+  return isDef ? getQuoteDefault(field) : (q[f.prop]!=null?q[f.prop]:''); }
+function qInitDefaultControls(){
+  Object.keys(QDEF_FIELDS).forEach(field=>{
+    const f=QDEF_FIELDS[field]; const el=document.getElementById(f.el); if(!el || document.getElementById('qdc-'+field)) return;
+    const ctl=document.createElement('div'); ctl.className='q-def-ctl'; ctl.id='qdc-'+field;
+    ctl.innerHTML=`<label><input type="radio" name="qmode-${field}" value="default" onchange="qFieldMode('${field}','default')"> Use default</label>
+      <label><input type="radio" name="qmode-${field}" value="custom" onchange="qFieldMode('${field}','custom')"> Custom</label>
+      <a class="qdc-link qdc-import" onclick="qImportDefault('${field}')">⤵ import default</a>
+      <a class="qdc-link" onclick="qEditDefault('${field}')">✎ edit default</a>`;
+    el.parentNode.insertBefore(ctl, el);
+  });
+}
+function qFieldMode(field, mode){
+  const f=QDEF_FIELDS[field]; const el=document.getElementById(f.el); if(!el) return;
+  const ctl=document.getElementById('qdc-'+field);
+  if(ctl){ ctl.querySelectorAll('input[type=radio]').forEach(r=>r.checked=(r.value===mode)); const imp=ctl.querySelector('.qdc-import'); if(imp) imp.style.display=(mode==='custom')?'':'none'; }
+  if(mode==='default'){ el.innerHTML=rteFromValue(getQuoteDefault(field)); el.setAttribute('contenteditable','false'); el.classList.add('q-rte-locked'); }
+  else { el.setAttribute('contenteditable','true'); el.classList.remove('q-rte-locked'); }
+}
+function qImportDefault(field){ const el=document.getElementById(QDEF_FIELDS[field].el); if(el && el.getAttribute('contenteditable')!=='false'){ el.innerHTML=rteFromValue(getQuoteDefault(field)); } }
+function qEditDefault(field){ _qEditDefaultField=field; const box=document.getElementById('qdef-edit-rte'); if(box) box.innerHTML=rteFromValue(getQuoteDefault(field));
+  const ti=document.getElementById('qdef-edit-title'); if(ti) ti.textContent='Edit default — '+QDEF_FIELDS[field].label;
+  const o=document.getElementById('qdef-edit-overlay'); if(o) o.classList.add('open'); }
+function qEditDefaultSave(){ const field=_qEditDefaultField; if(!field) return; const box=document.getElementById('qdef-edit-rte'); const val=rteToValue(box.innerHTML);
+  saveQuoteDefaults({[field]:val}); qEditDefaultClose(); showToast('✓ Default saved','var(--tsi-succ-green)');
+  const el=document.getElementById(QDEF_FIELDS[field].el); if(el && el.getAttribute('contenteditable')==='false') el.innerHTML=rteFromValue(val); }
+function qEditDefaultClose(){ const o=document.getElementById('qdef-edit-overlay'); if(o) o.classList.remove('open'); }
+if(_qDefaultsStore){ try{ _qDefaultsStore.pull().catch(()=>{}); }catch(_){} }   // adopt edited defaults from D1
+
 // ── Rich-text (contenteditable) helpers for the quote prose fields ──
 function rteCmd(e, cmd){ e.preventDefault(); try{ document.execCommand(cmd, false, null); }catch(_){} }
 function rteSanitize(html){
@@ -16107,6 +16176,13 @@ function fillQuoteForm(){
   qShowChosenShip(q.shipping_carrier||'', q.shipping_service||'');
   S('q-description',q.description); S('q-scope',q.scope); S('q-schedule',q.schedule); S('q-assumptions',q.assumptions); S('q-payment',q.payment_terms); S('q-delivery',q.delivery_terms); S('q-notes',q.notes);
   S('q-terms', q.terms!=null && q.terms!=='' ? q.terms : Q_TERMS_FULL);
+  // Default/custom controls for assumptions/payment/delivery/terms. Infer the
+  // mode for legacy quotes: explicit mode wins; else custom if it has text.
+  qInitDefaultControls();
+  Object.keys(QDEF_FIELDS).forEach(field=>{ const f=QDEF_FIELDS[field];
+    let mode=q[f.mode]; if(mode!=='default' && mode!=='custom') mode=(q[f.prop]&&String(q[f.prop]).trim())?'custom':'default';
+    q[f.mode]=mode; qFieldMode(field, mode);
+  });
 }
 function onQuoteCurrencyChange(){ if(_qWorking){ _qWorking.currency=document.getElementById('q-currency').value; renderQuoteLines(); recalcQuoteTotals(); } }
 function addQuoteLine(seedId){
@@ -16235,9 +16311,14 @@ function readQuoteForm(){
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
   q.seller_id=V('q-seller')||q.seller_id||((defaultCompany()&&defaultCompany().id)||'');
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
-  q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.assumptions=V('q-assumptions').trim();
-  q.payment_terms=V('q-payment').trim(); q.delivery_terms=V('q-delivery').trim(); q.notes=V('q-notes').trim();
-  q.terms=V('q-terms').trim();
+  q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.notes=V('q-notes').trim();
+  // Default/custom fields: store the mode; keep custom text, blank when default.
+  Object.keys(QDEF_FIELDS).forEach(field=>{ const f=QDEF_FIELDS[field];
+    const checked=document.querySelector('input[name="qmode-'+field+'"]:checked');
+    const mode=checked?checked.value:(q[f.mode]||'default');
+    q[f.mode]=mode;
+    q[f.prop]=(mode==='default')?'':V(f.el).trim();
+  });
   recalcQuoteTotals();
 }
 async function persistQuote(q, isNew){
@@ -16286,6 +16367,7 @@ function exportQuotePrint(){ if(_qWorking){ readQuoteForm(); printQuote(_qWorkin
 async function printQuoteById(id){ const q=await loadOneQuote(id); if(q) printQuote(q); }
 function printQuote(q){
   const cur=q.currency||'USD'; const t=qTotals(q); const seller=quoteSeller(q);
+  const vAssum=qFieldValue(q,'assumptions'), vPay=qFieldValue(q,'payment'), vDel=qFieldValue(q,'delivery'), vTerms=qFieldValue(q,'terms')||Q_TERMS_FULL;
   const lines=(q.lines||[]).map((l,i)=>`<tr>
     <td class="c">${i+1}</td><td class="pn">${qesc(qLinePN(l))}</td><td>${qesc(l.description||'')}</td>
     <td class="c">${qesc(l.unit||'')}</td><td class="r">${qmoney(l.unit_price,cur)}</td>
@@ -16347,11 +16429,11 @@ function printQuote(q){
     <table class="items"><thead><tr><th class="c">#</th><th>PN</th><th>Product</th><th class="c">Unit</th><th class="r">Price</th><th class="r">Qty</th><th class="r">Extended</th></tr></thead>
       <tbody>${lines}</tbody><tfoot>${foot.join('')}</tfoot></table>
     ${q.schedule?`<h3>Schedule</h3><div class="prose">${blk(q.schedule)}</div>`:''}
-    ${q.assumptions?`<h3>Assumptions &amp; Clarifications</h3><div class="prose">${blk(q.assumptions)}</div>`:''}
-    ${q.delivery_terms?`<h3>Delivery Terms</h3><div class="prose">${blk(q.delivery_terms)}</div>`:''}
-    ${q.payment_terms?`<h3>Payment Terms</h3><div class="prose">${blk(q.payment_terms)}</div>`:''}
+    ${vAssum?`<h3>Assumptions &amp; Clarifications</h3><div class="prose">${blk(vAssum)}</div>`:''}
+    ${vDel?`<h3>Delivery Terms</h3><div class="prose">${blk(vDel)}</div>`:''}
+    ${vPay?`<h3>Payment Terms</h3><div class="prose">${blk(vPay)}</div>`:''}
     ${q.notes?`<h3>Notes</h3><div class="prose">${blk(q.notes)}</div>`:''}
-    <h3>Terms &amp; Conditions</h3><div class="terms">${blk(q.terms||Q_TERMS_FULL)}</div>
+    <h3>Terms &amp; Conditions</h3><div class="terms">${blk(vTerms)}</div>
     <div class="accept">
       <h3>Acceptance</h3>
       <div style="font-size:11.5px;color:#333;margin:2px 0 26px">Accepted and agreed by ${qesc(q.customer_name||'the Buyer')}, including the Terms &amp; Conditions above:</div>
@@ -16375,6 +16457,7 @@ function exportQuoteWordCurrent(){ if(_qWorking){ readQuoteForm(); exportQuoteWo
 async function exportQuoteWordById(id){ const q=await loadOneQuote(id); if(q) exportQuoteWord(q); }
 function exportQuoteWord(q){
   const cur=q.currency||'USD'; const t=qTotals(q); const seller=quoteSeller(q);
+  const vAssum=qFieldValue(q,'assumptions'), vPay=qFieldValue(q,'payment'), vDel=qFieldValue(q,'delivery'), vTerms=qFieldValue(q,'terms')||Q_TERMS_FULL;
   const blk=s=>{ s=String(s==null?'':s); return /<[a-z/][^>]*>/i.test(s) ? rteSanitize(s) : qesc(s).replace(/\n/g,'<br>'); };
   const cellTd='style="padding:6px 7px;border-bottom:1px solid #eee;font-size:10.5pt;vertical-align:top"';
   const rows=(q.lines||[]).map((l,i)=>`<tr>
@@ -16416,11 +16499,11 @@ function exportQuoteWord(q){
       <thead><tr>${['#','PN','Product','Unit','Price','Qty','Extended'].map((h,ix)=>`<th align="${ix===0||ix===3?'center':(ix>=4?'right':'left')}" bgcolor="#19446C" style="font-size:9pt;text-transform:uppercase;color:#ffffff;padding:6px 7px">${h}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody><tfoot>${foot.join('')}</tfoot></table>
     ${q.schedule?`<h3 ${h3}>Schedule</h3><div ${prose}>${blk(q.schedule)}</div>`:''}
-    ${q.assumptions?`<h3 ${h3}>Assumptions &amp; Clarifications</h3><div ${prose}>${blk(q.assumptions)}</div>`:''}
-    ${q.delivery_terms?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(q.delivery_terms)}</div>`:''}
-    ${q.payment_terms?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(q.payment_terms)}</div>`:''}
+    ${vAssum?`<h3 ${h3}>Assumptions &amp; Clarifications</h3><div ${prose}>${blk(vAssum)}</div>`:''}
+    ${vDel?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(vDel)}</div>`:''}
+    ${vPay?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(vPay)}</div>`:''}
     ${q.notes?`<h3 ${h3}>Notes</h3><div ${prose}>${blk(q.notes)}</div>`:''}
-    <h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(q.terms||Q_TERMS_FULL)}</div>
+    <h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(vTerms)}</div>
     <div style="page-break-inside:avoid">
       <h3 ${h3}>Acceptance</h3>
       <div style="font-size:10pt;color:#333;margin:2pt 0 22pt">Accepted and agreed by ${qesc(q.customer_name||'the Buyer')}, including the Terms &amp; Conditions above:</div>

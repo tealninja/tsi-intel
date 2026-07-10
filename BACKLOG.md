@@ -178,6 +178,25 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Quote builder overhaul** (builds #103–#105) — eight tweaks:
+  1. **My Companies** page/modal: manage seller entities (TSI + Biocarbon seeded — name,
+     address, EIN, uploadable logo, default flag; persisted to D1 `companies`), with an
+     **"Issued by (seller)"** selector on the quote. Exports use the chosen company's
+     details + **logo**.
+  2. **PO contact** — "Issue PO to" name + email, shown on exports.
+  3. **Schedule** section (rich text) printed right after the pricing summary.
+  4. **Default / custom** toggle on Assumptions, Payment, Delivery, T&C: "Use default"
+     (locked, tracks an editable global default) vs "Custom" (with ⤵ import-default);
+     **✎ edit default** opens a modal saving the global default (D1 `quote_defaults`), so
+     one edit updates every default-mode quote.
+  5. **Word export**: 1in margins, **Aptos** font (not Calibri), Section with repeating footer.
+  6. **Accounting number format** (negatives in parentheses) for all quote money.
+  7. **Acceptance/signature** section at the end of the quote (separate from T&C) with a
+     large signature / printed-name / title / date block.
+  8. **Footer** on both PDF + Word: quote# + rev (left), CONFIDENTIAL (center), page x of y
+     (right — Word field codes; CSS page counters for print).
+  Verified via Playwright (seller wiring, exports contain seller/logo/footer/acceptance,
+  accounting format, PO + schedule round-trip, default/custom modes + editable defaults).
 - [x] **Account bill/ship address source → radios + account finder** (build #102) — replaced the
   bill-to / ship-to source `<select>` in the account editor with radio buttons: **This account's
   own address** (shows the editable + geocode-verified fields) vs **Use another account's address**
