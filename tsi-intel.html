@@ -321,7 +321,7 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 /* autocomplete dropdown */
 .ac-wrap { position:relative; width:100%; }
 .ac-dropdown {
-  position:fixed; z-index:9999;
+  position:fixed; z-index:13000;
   background:var(--color-surface); border:1px solid var(--color-border-mid);
   border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,.12);
   max-height:200px; overflow-y:auto; min-width:160px;
@@ -384,7 +384,7 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 
 /* autocomplete */
 .ac-dropdown {
-  position:fixed; z-index:9999;
+  position:fixed; z-index:13000;
   background:var(--color-surface); border:1px solid var(--color-border-mid);
   border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,.12);
   max-height:200px; overflow-y:auto; min-width:160px;
@@ -3302,7 +3302,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#105 · 2026-07-10';
+const APP_BUILD = '#106 · 2026-07-10';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14385,7 +14385,7 @@ startAdminPoll();
       </div>
       <div class="drow-2">
         <div><label>Project / Title</label><input class="dinput" id="q-project" placeholder="e.g. EFB Pilot Study — TAP"></div>
-        <div><label>Reference</label><input class="dinput" id="q-rev" placeholder="R0" value="R0"></div>
+        <div><label>Revision <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— starts at R0, auto-increments on publish</span></label><input class="dinput" id="q-rev" value="R0" readonly title="Auto-managed: increments each time you publish" style="background:var(--color-bg-subtle);cursor:not-allowed"></div>
       </div>
       <div class="drow">
         <label>Issued by (seller) <a onclick="openCompanies()" style="cursor:pointer;color:var(--tsi-teal);font-weight:600;text-transform:none;letter-spacing:0">— manage companies</a></label>
@@ -14394,8 +14394,9 @@ startAdminPoll();
       <div class="drow-3">
         <div><label>Quote Date</label><input class="dinput" id="q-date" type="date"></div>
         <div><label>Valid Until</label><input class="dinput" id="q-valid" type="date"></div>
-        <div><label>Prepared By</label><input class="dinput" id="q-preparer" placeholder="Initials" maxlength="4"></div>
+        <div><label>Prepared by (name)</label><input class="dinput" id="q-preparer" placeholder="Full name"></div>
       </div>
+      <div class="drow"><label>Seller contact email <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— shown on the quote as the preparer's contact</span></label><input class="dinput" id="q-preparer-email" type="email" placeholder="you@company.com"></div>
       <div class="drow-3">
         <div><label>Status</label>
           <select class="dselect" id="q-status">
@@ -14584,11 +14585,21 @@ startAdminPoll();
 
 <!-- ══ EDIT DEFAULT TEXT (assumptions / payment / delivery / T&C) ══ -->
 <div class="ship-est-overlay" id="qdef-edit-overlay" onclick="if(event.target===this)qEditDefaultClose()">
-  <div class="ship-est" style="max-width:700px">
+  <div class="ship-est" style="max-width:900px;width:94vw">
     <div class="ship-est-h"><b id="qdef-edit-title">Edit default</b><span class="ship-est-sub">saved globally — applies to every quote set to “Use default”</span>
       <button class="ship-est-x" onclick="qEditDefaultClose()">✕</button></div>
     <div class="ship-est-body">
-      <div class="dtextarea q-rte" id="qdef-edit-rte" contenteditable="true" style="max-height:440px;min-height:220px;overflow:auto"></div>
+      <div class="q-rte-tb qdef-tb">
+        <button type="button" class="q-rte-b" onmousedown="rteCmd(event,'bold')" title="Bold">B</button>
+        <button type="button" class="q-rte-b" style="font-style:italic" onmousedown="rteCmd(event,'italic')" title="Italic">I</button>
+        <button type="button" class="q-rte-b" style="text-decoration:underline" onmousedown="rteCmd(event,'underline')" title="Underline">U</button>
+        <button type="button" class="q-rte-b" onmousedown="rteCmd2(event,'formatBlock','H3')" title="Heading">H</button>
+        <button type="button" class="q-rte-b" onmousedown="rteCmd2(event,'formatBlock','P')" title="Normal paragraph">¶</button>
+        <button type="button" class="q-rte-b bul" onmousedown="rteCmd(event,'insertUnorderedList')" title="Bulleted list">• List</button>
+        <button type="button" class="q-rte-b bul" onmousedown="rteCmd(event,'insertOrderedList')" title="Numbered list">1. List</button>
+        <button type="button" class="q-rte-b" onmousedown="rteCmd(event,'removeFormat')" title="Clear formatting">⌫ Clear</button>
+      </div>
+      <div class="dtextarea q-rte" id="qdef-edit-rte" contenteditable="true" style="max-height:62vh;min-height:340px;overflow:auto;font-size:12.5px;line-height:1.55"></div>
       <div class="ship-est-actions" style="margin-top:12px">
         <button class="btn-add-opp" onclick="qEditDefaultSave()">Save default</button>
         <button class="btn" style="background:var(--color-bg-subtle)" onclick="qEditDefaultClose()">Cancel</button>
@@ -15931,12 +15942,13 @@ function qAddrSrcChange(which){
   const text=document.getElementById('q-'+which+'-text');
   if(which==='shipto' && src==='__bill'){
     const bt=document.getElementById('q-billto-text'); if(bt&&text) text.value=bt.value;
-    qSetHidden('shipto', _qBillAddr); if(text) text.setAttribute('readonly','readonly'); return;
+    qSetHidden('shipto', _qBillAddr); if(text) text.removeAttribute('readonly'); return;
   }
   if(src==='__manual'){ if(text) text.removeAttribute('readonly'); return; }
   const kind = which==='billto'?'bill':'ship';
   const a = resolveAddr(src, kind) || resolveAddr(src, 'bill');
-  if(text){ text.value=fmtAddr(a); text.setAttribute('readonly','readonly'); }
+  // Autofill from the account, but leave it editable so it can be tweaked.
+  if(text){ text.value=fmtAddr(a); text.removeAttribute('readonly'); }
   qSetHidden(which, a);
   if(which==='billto'){ _qBillAddr=a; const s=document.getElementById('q-shipto-src'); if(s&&s.value==='__bill') qAddrSrcChange('shipto'); }
 }
@@ -16055,7 +16067,7 @@ function blankQuote(){
     po_contact_name:'', po_contact_email:'', schedule:'',
     seller_id:(defaultCompany()&&defaultCompany().id)||'biocarbon',
     status:'Draft', currency:'USD', quote_date:qToday(), valid_until:qPlusDays(30),
-    prepared_by:(getUserInitials()||''),
+    prepared_by:(getUserName()||getUserInitials()||''), prepared_by_email:(getUserEmail()||''),
     description:'', scope:'', assumptions:'', payment_terms:'', delivery_terms:'', notes:'', terms:'',
     assumptions_mode:'default', payment_mode:'default', delivery_mode:'default', terms_mode:'default',
     discount:0, discount_mode:'pct', freight:0, shipping_carrier:'', shipping_service:'', tax_pct:0, subtotal:0, total:0, lines:[] };
@@ -16109,6 +16121,7 @@ if(_qDefaultsStore){ try{ _qDefaultsStore.pull().catch(()=>{}); }catch(_){} }   
 
 // ── Rich-text (contenteditable) helpers for the quote prose fields ──
 function rteCmd(e, cmd){ e.preventDefault(); try{ document.execCommand(cmd, false, null); }catch(_){} }
+function rteCmd2(e, cmd, val){ e.preventDefault(); try{ document.execCommand(cmd, false, val||null); }catch(_){} }
 function rteSanitize(html){
   let s = String(html==null?'':html);
   s = s.replace(/<\s*(script|style|iframe|object|embed|link|meta)\b[^>]*>[\s\S]*?<\/\s*\1\s*>/gi,'');
@@ -16168,8 +16181,8 @@ function fillQuoteForm(){
   S('q-shipto-src', q.ship_to_src || '__bill'); S('q-shipto-text', q.ship_to || '');
   S('q-shipto-zip', q.ship_to_zip); S('q-shipto-country', q.ship_to_country);
   _qBillAddr = { zip:q.bill_to_zip||'', country:q.bill_to_country||'' };
-  ['billto','shipto'].forEach(w=>{ const src=(document.getElementById('q-'+w+'-src')||{}).value; const t=document.getElementById('q-'+w+'-text'); if(t){ (src==='__manual')?t.removeAttribute('readonly'):t.setAttribute('readonly','readonly'); } });
-  S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by);
+  ['billto','shipto'].forEach(w=>{ const t=document.getElementById('q-'+w+'-text'); if(t) t.removeAttribute('readonly'); });   // autofilled but editable
+  S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by); S('q-preparer-email',q.prepared_by_email);
   qPopulateSellers(); S('q-seller', q.seller_id || (defaultCompany()&&defaultCompany().id) || '');
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
@@ -16310,7 +16323,7 @@ function readQuoteForm(){
   q.po_contact_name=V('q-po-name').trim(); q.po_contact_email=V('q-po-email').trim(); q.schedule=V('q-schedule').trim();
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
   q.seller_id=V('q-seller')||q.seller_id||((defaultCompany()&&defaultCompany().id)||'');
-  q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim().toUpperCase();
+  q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim(); q.prepared_by_email=V('q-preparer-email').trim();
   q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.notes=V('q-notes').trim();
   // Default/custom fields: store the mode; keep custom text, blank when default.
   Object.keys(QDEF_FIELDS).forEach(field=>{ const f=QDEF_FIELDS[field];
@@ -16405,11 +16418,21 @@ function printQuote(q){
     table.sig td.gap{width:8%}
     table.sig td.cap{font-size:9.5px;color:#777;padding-top:4px}
     table.sig td.sp{height:34px}
-    .pfoot{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#999;padding:6px 40px;border-top:1px solid #eee}
-    .pfoot .pc{letter-spacing:.06em}
-    .pfoot .pg::after{content:counter(page) " of " counter(pages)}
-    @page{margin:0.7in}
-    @media print{body{padding:40px 40px 60px}}
+    /* Force background colors (table header, total bar) to render in the PDF. */
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    /* Footer = a 3-cell table (quote# left · CONFIDENTIAL center · page x of y right).
+       Hidden on screen; only meaningful when printed, where page counters resolve. */
+    .pfoot{display:none}
+    .pfoot table{width:100%;border-collapse:collapse;border-top:1px solid #ddd}
+    .pfoot td{font-size:9px;color:#999;padding-top:5px;width:34%}
+    .pfoot td.pc{text-align:center;letter-spacing:.06em;width:32%}
+    .pfoot td.pr{text-align:right}
+    .pfoot .pgn::after{content:counter(page) " of " counter(pages)}
+    @page{margin:0.7in 0.7in 0.9in 0.7in}
+    @media print{
+      body{padding:0}
+      .pfoot{display:block;position:fixed;left:0.7in;right:0.7in;bottom:0.32in}
+    }
   </style></head><body>
     <div class="head">
       <div class="co">${seller.logo?`<img src="${seller.logo}" style="max-height:46px;max-width:230px;margin-bottom:7px;display:block">`:''}${qesc(seller.name)}<small>${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</small></div>
@@ -16420,7 +16443,7 @@ function printQuote(q){
       <div><b>Issued to:</b> ${qesc(q.customer_name||'—')}</div><div><b>Quote Date:</b> ${qesc(q.quote_date||'—')}</div>
       <div><b>Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
       ${(q.ship_to && q.ship_to!==(q.bill_to||q.customer_address))?`<div><b>Ship To:</b> ${qesc(q.ship_to).replace(/\n/g,'<br>')}</div><div></div>`:''}
-      <div><b>Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</div><div><b>Prepared By:</b> ${qesc(q.prepared_by||'—')}</div>
+      <div><b>Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</div><div><b>Prepared By:</b> ${qesc(q.prepared_by||'—')}${q.prepared_by_email?' · '+qesc(q.prepared_by_email):''}</div>
       ${(q.po_contact_name||q.po_contact_email)?`<div><b>Issue PO to:</b> ${qesc(q.po_contact_name||'')}${q.po_contact_email?' · '+qesc(q.po_contact_email):''}</div><div></div>`:''}
     </div>
     ${q.description?`<h3>Description</h3><div class="prose">${blk(q.description)}</div>`:''}
@@ -16443,7 +16466,7 @@ function printQuote(q){
         <tr><td class="line">&nbsp;</td><td class="gap"></td><td class="line">&nbsp;</td></tr>
         <tr><td class="cap">Printed Name</td><td></td><td class="cap">Title</td></tr></table>
     </div>
-    <div class="pfoot"><span class="pl">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</span><span class="pc">CONFIDENTIAL</span><span class="pr">Page <span class="pg"></span></span></div>
+    <div class="pfoot"><table><tr><td class="pl">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</td><td class="pc">CONFIDENTIAL</td><td class="pr">Page <span class="pgn"></span></td></tr></table></div>
     <script>window.onload=function(){setTimeout(function(){window.print();},450);};<\/script>
   </body></html>`;
   const w=window.open('','_blank'); if(!w){ showToast('Pop-up blocked — allow pop-ups to print','var(--tsi-coral)'); return; }
@@ -16489,7 +16512,7 @@ function exportQuoteWord(q){
       <tr><td ${metaTd}><b style="color:#19446C">Issued to:</b> ${qesc(q.customer_name||'—')}</td><td ${metaTd}><b style="color:#19446C">Quote Date:</b> ${qesc(q.quote_date||'—')}</td></tr>
       <tr><td ${metaTd}><b style="color:#19446C">Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</td><td ${metaTd}><b style="color:#19446C">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
       ${(q.ship_to && q.ship_to!==(q.bill_to||q.customer_address))?`<tr><td ${metaTd}><b style="color:#19446C">Ship To:</b> ${qesc(q.ship_to).replace(/\n/g,'<br>')}</td><td ${metaTd}></td></tr>`:''}
-      <tr><td ${metaTd}><b style="color:#19446C">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#19446C">Prepared By:</b> ${qesc(q.prepared_by||'—')}</td></tr>
+      <tr><td ${metaTd}><b style="color:#19446C">Contact:</b> ${qesc(q.contact_name||'—')}${q.contact_email?' · '+qesc(q.contact_email):''}</td><td ${metaTd}><b style="color:#19446C">Prepared By:</b> ${qesc(q.prepared_by||'—')}${q.prepared_by_email?' · '+qesc(q.prepared_by_email):''}</td></tr>
       ${(q.po_contact_name||q.po_contact_email)?`<tr><td ${metaTd}><b style="color:#19446C">Issue PO to:</b> ${qesc(q.po_contact_name||'')}${q.po_contact_email?' · '+qesc(q.po_contact_email):''}</td><td ${metaTd}></td></tr>`:''}
     </table>
     ${q.description?`<h3 ${h3}>Description</h3><div ${prose}>${blk(q.description)}</div>`:''}
