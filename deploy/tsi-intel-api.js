@@ -405,6 +405,28 @@ export default {
       const createdBy = existing ? existing.created_by : user;
       const version   = existing ? (existing.version || 1) + 1 : 1;
 
+      // D1 ENFORCES foreign keys. quotes.customer_org_seed_id → organizations and
+      // quote_lines.product_seed_id → products are hard constraints, but the app's
+      // accounts live in the KV/collections store (seed accounts, KML-imported
+      // mills, quick-created customers), so their ids are NOT rows in `organizations`.
+      // A dangling reference would abort the whole save with a FOREIGN KEY error,
+      // which — with no CORS headers on the 500 — reached the browser only as an
+      // opaque "Failed to fetch". Coerce any reference that doesn't resolve to a
+      // real row down to NULL so the quote always saves; valid refs are preserved.
+      let orgRef = q.customer_org_seed_id || null;
+      if (orgRef) {
+        const o = await env.DB.prepare(`SELECT seed_id FROM organizations WHERE seed_id=?`).bind(String(orgRef)).first();
+        if (!o) orgRef = null;
+      }
+      let validSeeds = new Set();
+      const seedIds = [...new Set(lines.map(l => l.product_seed_id).filter(Boolean).map(String))];
+      if (seedIds.length) {
+        const ph = seedIds.map(() => '?').join(',');
+        const { results } = await env.DB.prepare(`SELECT seed_id FROM products WHERE seed_id IN (${ph})`).bind(...seedIds).all();
+        validSeeds = new Set(results.map(r => r.seed_id));
+      }
+      const lineSeed = l => (l.product_seed_id && validSeeds.has(String(l.product_seed_id))) ? l.product_seed_id : null;
+
       const upsertQuote = env.DB.prepare(
         `INSERT OR REPLACE INTO quotes
           (id, rev, seq, customer_org_seed_id, customer_name, customer_address,
@@ -415,7 +437,7 @@ export default {
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).bind(
         id, q.rev || 'R0', q.seq == null ? null : Number(q.seq),
-        q.customer_org_seed_id || null, q.customer_name, q.customer_address || null,
+        orgRef, q.customer_name, q.customer_address || null,
         q.contact_name || null, q.contact_email || null, q.contact_phone || null,
         q.project || null, q.description || null, q.status || 'Draft', q.currency || 'USD',
         q.quote_date || null, q.valid_until || null, q.prepared_by || null,
@@ -433,7 +455,7 @@ export default {
            VALUES (?,?,?,?,?,?,?,?,?,?)`
         ).bind(
           l.id || (id + '-L' + (i+1)), id, i+1,
-          l.product_seed_id || null, l.code || null, l.description || '',
+          lineSeed(l), l.code || null, l.description || '',
           qty, l.unit || 'ea', up, qty*up
         ));
       });

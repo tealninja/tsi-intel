@@ -3302,7 +3302,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#111 · 2026-07-10';
+const APP_BUILD = '#112 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -15487,7 +15487,12 @@ async function qApi(method, path, body){
     const opt={ method, headers: workerHeaders() };
     if(body!=null) opt.body=JSON.stringify(body);
     const res=await fetch(API_WORKER_URL+path, opt);
-    if(!res.ok) return { ok:false, status:res.status };
+    if(!res.ok){
+      // Pull the worker's error message out of the body when present so callers
+      // can surface the real reason (e.g. a D1 constraint) instead of a bare code.
+      let emsg=''; try{ const ed=await res.json(); emsg=ed && (ed.error||ed.message) || ''; }catch(_){}
+      return { ok:false, status:res.status, error:emsg };
+    }
     const data=await res.json().catch(()=>({}));
     return { ok:true, data };
   }catch(e){ return { ok:false, error:e.message }; }
