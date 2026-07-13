@@ -3306,7 +3306,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#113 · 2026-07-11';
+const APP_BUILD = '#114 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14388,7 +14388,7 @@ startAdminPoll();
       </div>
       <div class="drow-2">
         <div><label>Project / Title</label><input class="dinput" id="q-project" placeholder="e.g. EFB Pilot Study — TAP"></div>
-        <div><label>Revision <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— starts at R0, auto-increments on publish</span></label><input class="dinput" id="q-rev" value="R0" readonly title="Auto-managed: increments each time you publish" style="background:var(--color-bg-subtle);cursor:not-allowed"></div>
+        <div><label>Revision <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— R0, R1… freeze on publish; letters (R0A, R0B) while editing</span></label><input class="dinput" id="q-rev" value="R0" readonly title="Auto-managed. Publishing freezes a numbered version (R0, R1…). Editing a published quote rolls a working draft by letter (R0A, R0B…); publishing it freezes the next number." style="background:var(--color-bg-subtle);cursor:not-allowed"></div>
       </div>
       <div class="drow">
         <label>Issued by (seller) <a onclick="openCompanies()" style="cursor:pointer;color:var(--tsi-teal);font-weight:600;text-transform:none;letter-spacing:0">— manage companies</a></label>
@@ -16186,6 +16186,10 @@ async function openQuoteBuilder(id){
   if(id){ const q=await loadOneQuote(id); if(!q){ showToast('Quote not found','var(--tsi-coral)'); return; }
     _qWorking=JSON.parse(JSON.stringify(q)); _qWorking.lines=_qWorking.lines||[]; _qExisting=true;
     _qWorking._loadedStatus=q.status;   // remember published-state for rev bumping
+    // Editing a quote that's been published starts a new working draft: roll the
+    // revision to the next letter (R0 → R0A → R0B …) and drop it back to Draft.
+    // The roll only sticks if you save; a look-only open re-derives the same letter.
+    if(_qWorking.revisions && _qWorking.revisions.length){ _qWorking.rev=workingRev(_qWorking.rev); _qWorking.status='Draft'; }
     document.getElementById('quote-drawer-title').textContent='Edit Quote';
   } else { _qWorking=blankQuote(); _qExisting=false; document.getElementById('quote-drawer-title').textContent='New Quote'; }
   fillQuoteForm(); renderQuoteLines(); recalcQuoteTotals();
@@ -16380,16 +16384,26 @@ async function persistQuote(q, isNew){
   }
   const qs=localQuotes().filter(x=>x.id!==q.id); qs.unshift(q); saveLocalQuotes(qs); return 'local';
 }
-function bumpRev(rev){ const m=/R(\d+)/.exec(rev||'R0'); return 'R'+((m?+m[1]:0)+1); }
-function saveDraft(){ if(!_qWorking) return; const s=document.getElementById('q-status'); if(s && s.value!=='Draft' && !(_qWorking._loadedStatus && _qWorking._loadedStatus!=='Draft')) s.value='Draft'; saveQuote({verb:'Saved draft '+_qWorking.id}); }
+// ── Revision model ──
+//   Integers  = published, frozen versions:  R0, R1, R2 …
+//   Letters   = an unpublished working draft on top of the last published
+//               integer:  R0 → R0A → R0B → R0C …
+//   Publishing drops the letter and (after the first publish) bumps the integer.
+function parseRev(r){ const m=/^R(\d+)([A-Z]*)$/i.exec(String(r||'R0')); return { n:m?parseInt(m[1],10):0, letter:(m&&m[2]?m[2].toUpperCase():'') }; }
+function nextLetter(letter){ if(!letter) return 'A'; const c=letter.split(''); let i=c.length-1; while(i>=0){ if(c[i]!=='Z'){ c[i]=String.fromCharCode(c[i].charCodeAt(0)+1); return c.join(''); } c[i]='A'; i--; } return 'A'+c.join(''); }
+function workingRev(rev){ const p=parseRev(rev); return 'R'+p.n+nextLetter(p.letter); }          // R0→R0A, R0A→R0B
+function publishedRev(rev, firstPublish){ const p=parseRev(rev); return 'R'+(firstPublish?p.n:p.n+1); } // drop letter, maybe +1
+function bumpRev(rev){ return publishedRev(rev,false); }   // back-compat alias
+function saveDraft(){ if(!_qWorking) return; const s=document.getElementById('q-status'); if(s) s.value='Draft'; saveQuote({verb:'Saved draft '+_qWorking.id}); }
 function publishQuote(){
   if(!_qWorking) return; readQuoteForm(); const q=_qWorking;
   if(!q.customer_name){ const c=document.getElementById('q-customer'); c.focus(); c.style.borderColor='var(--tsi-coral)'; setTimeout(()=>c.style.borderColor='',1500); showToast('Add a customer name','var(--tsi-coral)'); return; }
   if(!q.lines.length){ showToast('Add at least one line item','var(--tsi-coral)'); return; }
   const now=new Date().toISOString();
-  // Re-publishing an already-published quote (status was not Draft when loaded) → new revision.
-  const wasPublished = q._loadedStatus && q._loadedStatus!=='Draft';
-  const newRev = wasPublished ? bumpRev(q.rev||'R0') : (q.rev||'R0');
+  // First publish of a brand-new quote keeps R0; any later publish freezes the
+  // working draft (Rn / RnX) to the next integer (Rn+1), dropping the letter.
+  const firstPublish = !(q.revisions && q.revisions.length>0);
+  const newRev = publishedRev(q.rev||'R0', firstPublish);
   const rf=document.getElementById('q-rev'); if(rf) rf.value=newRev;
   const sf=document.getElementById('q-status'); if(sf) sf.value='Sent';
   q.published_at=now;
