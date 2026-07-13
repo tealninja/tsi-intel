@@ -5,6 +5,19 @@ TSI-Intel app directly — read and edit the sales **pipeline (opportunities)** 
 the live `tsi-intel-api` Worker, and search the **accounts / contacts /
 products** reference data.
 
+## Two ways to run it
+
+Both expose the **same 12 tools** (defined once in `src/tools.js`):
+
+| Where you use Claude | Run this | How to connect |
+| --- | --- | --- |
+| **Claude Desktop / Claude Code** (local) | this package — stdio server (`src/index.js`) | see [Setup](#setup) below |
+| **claude.ai (web console)** | the Cloudflare Worker in [`worker/`](worker/README.md) — remote server | add its URL as a Custom Connector |
+
+The web console can only talk to a **remote** MCP server (a public HTTPS
+endpoint), so a local stdio process won't do — deploy the Worker for that. See
+[`worker/README.md`](worker/README.md).
+
 ## What it can and can't touch
 
 | Data | Where it lives | This server |

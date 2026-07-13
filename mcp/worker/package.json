@@ -1,0 +1,19 @@
+{
+  "name": "tsi-intel-mcp-worker",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Remote MCP server for TSI-Intel, deployed as a Cloudflare Worker (Streamable HTTP transport) for use as a claude.ai Custom Connector.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node test/mcp-http.test.mjs"
+  },
+  "dependencies": {
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.23.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
