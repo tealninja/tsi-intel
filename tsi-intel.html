@@ -2701,7 +2701,11 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   border:1px solid var(--tsi-amber); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text-primary); }
 .q-mode-retry:hover { background:var(--tsi-amber); color:white; }
 .q-drawer-mode-warn { padding:8px 18px; background:var(--tsi-coral); color:white; font-size:12px; font-weight:500; text-align:center; }
-#q-save-btn.local-save { background:var(--tsi-coral); }
+/* Save draft is a real action, not a ghost button — give it a teal outline so
+   it doesn't read as disabled next to the filled Publish button. */
+#q-save-btn { border-color:var(--tsi-teal); color:var(--tsi-teal); font-weight:500; }
+#q-save-btn:hover { background:rgba(0,146,159,0.09); }
+#q-save-btn.local-save { background:var(--tsi-coral); border-color:var(--tsi-coral); color:#fff; }
 #q-save-btn.local-save:hover { background:rgb(168,66,40); }
 
 .prod-pn, .q-cell-pn, .pb-code { font-family:var(--font-mono); font-size:11px; color:var(--color-text-secondary); }
@@ -3302,7 +3306,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#112 · 2026-07-11';
+const APP_BUILD = '#113 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
