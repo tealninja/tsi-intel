@@ -2758,7 +2758,18 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 .quotes-empty { text-align:center; padding:48px 20px; background:var(--color-surface); border:0.5px solid var(--color-border); border-radius:var(--radius-lg); }
 .q-status-pill { display:inline-block; font-size:10px; font-weight:600; padding:2px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.04em; }
 .q-rev-badge { font-family:var(--font-mono); font-size:9px; color:var(--color-text-secondary); background:var(--color-border); border-radius:99px; padding:1px 6px; cursor:help; white-space:nowrap; }
+.qrev-card { border:0.5px solid var(--color-border); border-radius:var(--radius-md); padding:11px 13px; margin-bottom:9px; background:var(--color-surface); }
+.qrev-top { display:flex; justify-content:space-between; align-items:center; }
+.qrev-rev { font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--tsi-deep-blue,#19446C); }
+.qrev-total { font-family:var(--font-mono); font-weight:600; font-size:14px; }
+.qrev-meta { font-size:11px; color:var(--color-text-muted); margin-top:3px; }
+.qrev-actions { display:flex; gap:6px; margin-top:8px; }
+.qrev-lines { margin-top:9px; overflow-x:auto; }
+.qrev-lines table { width:100%; border-collapse:collapse; font-size:11.5px; }
+.qrev-lines th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--color-text-muted); border-bottom:1px solid var(--color-border); padding:4px 6px; }
+.qrev-lines td { padding:4px 6px; border-bottom:0.5px solid var(--color-border); }
 .q-status-Draft { background:rgba(100,100,100,0.15); color:var(--color-text-secondary); }
+.q-status-Published { background:rgba(0,146,159,0.16); color:var(--tsi-teal); }
 .q-status-Sent { background:rgba(196,162,48,0.18); color:var(--tsi-amber); }
 .q-status-Accepted { background:rgba(110,140,52,0.2); color:var(--tsi-succ-green); }
 .q-status-Declined { background:rgba(139,26,10,0.15); color:var(--tsi-crit-red); }
@@ -3306,7 +3317,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#114 · 2026-07-11';
+const APP_BUILD = '#115 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -14403,7 +14414,7 @@ startAdminPoll();
       <div class="drow-3">
         <div><label>Status</label>
           <select class="dselect" id="q-status">
-            <option value="Draft">Draft</option><option value="Sent">Sent</option>
+            <option value="Draft">Draft</option><option value="Published">Published</option><option value="Sent">Sent (mark manually)</option>
             <option value="Accepted">Accepted</option><option value="Declined">Declined</option><option value="Expired">Expired</option>
           </select>
         </div>
@@ -14490,8 +14501,8 @@ startAdminPoll();
     <button class="btn-cancel-drawer" onclick="closeQuoteBuilder()">Cancel</button>
     <button class="btn-cancel-drawer" onclick="exportQuotePrint()" title="Printable quote (PDF)">🖨 Print / PDF</button>
     <button class="btn-cancel-drawer" onclick="exportQuoteWordCurrent()" title="Download an editable Word (.doc) quote">📄 Word</button>
-    <button class="btn-cancel-drawer" id="q-save-btn" onclick="saveDraft()" title="Save without publishing">Save draft</button>
-    <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Mark Sent; bumps the revision on re-publish">Publish ▸</button>
+    <button class="btn-cancel-drawer" id="q-save-btn" onclick="saveDraft()" title="Save with the selected status (Draft rolls a working revision; pick Sent to mark it sent). Does not freeze a version.">Save</button>
+    <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Freeze a numbered version and set status Published (bumps the revision on re-publish)">Publish ▸</button>
   </div>
 </div><!-- /quote-drawer -->
 
@@ -14583,6 +14594,15 @@ startAdminPoll();
     <div class="ship-est-h"><b>🏢 My Companies</b><span class="ship-est-sub">sellers that can issue a quote — name, address, EIN &amp; logo</span>
       <button class="ship-est-x" onclick="closeCompanies()">✕</button></div>
     <div class="ship-est-body" id="companies-body"></div>
+  </div>
+</div>
+
+<!-- ══ REVISION HISTORY ══ -->
+<div class="ship-est-overlay" id="qrev-overlay" onclick="if(event.target===this)closeRevHistory()">
+  <div class="ship-est" style="max-width:720px;width:94vw">
+    <div class="ship-est-h"><b id="qrev-title">Revision history</b><span class="ship-est-sub">every publish freezes a numbered version</span>
+      <button class="ship-est-x" onclick="closeRevHistory()">✕</button></div>
+    <div class="ship-est-body" id="qrev-body"></div>
   </div>
 </div>
 
@@ -15687,8 +15707,8 @@ async function renderQuotesList(){
   empty.style.display='none'; wrap.style.display='';
   document.getElementById('quotes-body').innerHTML = rows.map(q=>{
     const revs=q.revisions||[]; const nRev=revs.length;
-    const revTitle = nRev ? revs.map(r=>`${r.rev} · ${(r.published_at||'').slice(0,10)} · ${qmoney(r.total,r.currency||q.currency)}`).join('\n') : 'Not yet published';
-    const revBadge = `<span class="q-rev-badge" title="${qattr(revTitle)}">${qesc(q.rev||'R0')}${nRev>1?' · '+nRev:''}</span>`;
+    const revTitle = (nRev ? nRev+' published version'+(nRev>1?'s':'') : 'Not yet published')+' — click for history';
+    const revBadge = `<span class="q-rev-badge" style="cursor:pointer" title="${qattr(revTitle)}" onclick="openRevHistory('${qattr(q.id)}')">${qesc(q.rev||'R0')}${nRev?' · '+nRev+'🕓':''}</span>`;
     return `
     <tr>
       <td><span class="prod-pn">${qesc(q.id)}</span> ${revBadge}</td>
@@ -15700,6 +15720,7 @@ async function renderQuotesList(){
       <td style="font-size:11px;color:var(--color-text-muted)">${qesc(q.quote_date||'')}</td>
       <td style="white-space:nowrap">
         <button class="q-row-action" onclick="openQuoteBuilder('${qattr(q.id)}')" title="Edit">✎</button>
+        <button class="q-row-action" onclick="openRevHistory('${qattr(q.id)}')" title="Revision history">🕓</button>
         <button class="q-row-action" onclick="duplicateQuote('${qattr(q.id)}')" title="Duplicate">⧉</button>
         <button class="q-row-action" onclick="printQuoteById('${qattr(q.id)}')" title="Print / PDF">🖨</button>
         <button class="q-row-action" onclick="exportQuoteWordById('${qattr(q.id)}')" title="Download Word (.doc)">📄</button>
@@ -16186,10 +16207,6 @@ async function openQuoteBuilder(id){
   if(id){ const q=await loadOneQuote(id); if(!q){ showToast('Quote not found','var(--tsi-coral)'); return; }
     _qWorking=JSON.parse(JSON.stringify(q)); _qWorking.lines=_qWorking.lines||[]; _qExisting=true;
     _qWorking._loadedStatus=q.status;   // remember published-state for rev bumping
-    // Editing a quote that's been published starts a new working draft: roll the
-    // revision to the next letter (R0 → R0A → R0B …) and drop it back to Draft.
-    // The roll only sticks if you save; a look-only open re-derives the same letter.
-    if(_qWorking.revisions && _qWorking.revisions.length){ _qWorking.rev=workingRev(_qWorking.rev); _qWorking.status='Draft'; }
     document.getElementById('quote-drawer-title').textContent='Edit Quote';
   } else { _qWorking=blankQuote(); _qExisting=false; document.getElementById('quote-drawer-title').textContent='New Quote'; }
   fillQuoteForm(); renderQuoteLines(); recalcQuoteTotals();
@@ -16394,7 +16411,23 @@ function nextLetter(letter){ if(!letter) return 'A'; const c=letter.split(''); l
 function workingRev(rev){ const p=parseRev(rev); return 'R'+p.n+nextLetter(p.letter); }          // R0→R0A, R0A→R0B
 function publishedRev(rev, firstPublish){ const p=parseRev(rev); return 'R'+(firstPublish?p.n:p.n+1); } // drop letter, maybe +1
 function bumpRev(rev){ return publishedRev(rev,false); }   // back-compat alias
-function saveDraft(){ if(!_qWorking) return; const s=document.getElementById('q-status'); if(s) s.value='Draft'; saveQuote({verb:'Saved draft '+_qWorking.id}); }
+// "Save" persists whatever status is selected (Draft / Sent / Accepted / …).
+// It never keeps "Published" — that's what the Publish button is for — so
+// editing a published quote and hitting Save turns it back into a working draft.
+// Saving a draft of an already-published quote rolls the working letter
+// (R0 → R0A → R0B …); a never-published quote stays R0.
+function saveDraft(){
+  if(!_qWorking) return;
+  const s=document.getElementById('q-status');
+  let st = s ? s.value : 'Draft';
+  if(st==='Published') st='Draft';
+  if(st==='Draft' && _qWorking.revisions && _qWorking.revisions.length){
+    const rolled=workingRev(document.getElementById('q-rev')?.value || _qWorking.rev || 'R0');
+    _qWorking.rev=rolled; const rf=document.getElementById('q-rev'); if(rf) rf.value=rolled;
+  }
+  if(s) s.value=st;
+  saveQuote({verb:(st==='Draft'?'Saved draft ':'Saved ('+st+') ')+_qWorking.id});
+}
 function publishQuote(){
   if(!_qWorking) return; readQuoteForm(); const q=_qWorking;
   if(!q.customer_name){ const c=document.getElementById('q-customer'); c.focus(); c.style.borderColor='var(--tsi-coral)'; setTimeout(()=>c.style.borderColor='',1500); showToast('Add a customer name','var(--tsi-coral)'); return; }
@@ -16405,13 +16438,67 @@ function publishQuote(){
   const firstPublish = !(q.revisions && q.revisions.length>0);
   const newRev = publishedRev(q.rev||'R0', firstPublish);
   const rf=document.getElementById('q-rev'); if(rf) rf.value=newRev;
-  const sf=document.getElementById('q-status'); if(sf) sf.value='Sent';
+  const sf=document.getElementById('q-status'); if(sf) sf.value='Published';
   q.published_at=now;
   q.revisions = q.revisions||[];
-  q.revisions.push({ rev:newRev, published_at:now, by:currentUserId(), total:q._total,
-    currency:q.currency, n_lines:q.lines.length, lines:JSON.parse(JSON.stringify(q.lines)) });
+  const snap = JSON.parse(JSON.stringify(q)); delete snap.revisions;   // full frozen copy for reprint
+  q.revisions.push({ rev:newRev, published_at:now, by:currentUserId(), status:'Published',
+    total:q._total, currency:q.currency, n_lines:q.lines.length, quote_date:q.quote_date,
+    lines:JSON.parse(JSON.stringify(q.lines)), quote:snap });
+  // Mirror the revision history to its own D1-backed collection so it survives
+  // across devices (the quotes table itself has no revisions column).
+  try{ qRevStore().put({ id:q.id, revisions:q.revisions }); }catch(_){}
   saveQuote({verb:'Published '+q.id+' '+newRev});
 }
+let _qRevStore=null;
+function qRevStore(){ return _qRevStore || (_qRevStore = Store('quote_revisions')); }
+async function quoteRevisions(id){
+  // Prefer the D1-backed store (cross-device); fall back to whatever's on the quote.
+  let recs=[];
+  try{ await qRevStore().pull(); }catch(_){}
+  try{ const r=(qRevStore().all()||[]).find(x=>x.id===id); if(r&&Array.isArray(r.revisions)) recs=r.revisions; }catch(_){}
+  if(!recs.length){ const q=(window._quotesCache||[]).find(x=>x.id===id)||localQuotes().find(x=>x.id===id); if(q&&Array.isArray(q.revisions)) recs=q.revisions; }
+  return recs;
+}
+// ── Revision history viewer ──
+let _qRevViewId='', _qRevCache=[];
+async function openRevHistory(id){
+  const o=document.getElementById('qrev-overlay'), body=document.getElementById('qrev-body'), title=document.getElementById('qrev-title');
+  if(!o||!body) return;
+  if(title) title.textContent='Revision history · '+id;
+  body.innerHTML='<div style="padding:22px;color:var(--color-text-muted)">Loading…</div>';
+  o.classList.add('open');
+  _qRevViewId=id; _qRevCache=await quoteRevisions(id);
+  renderRevHistory(id,_qRevCache);
+}
+function closeRevHistory(){ const o=document.getElementById('qrev-overlay'); if(o) o.classList.remove('open'); }
+function renderRevHistory(id, revs){
+  const body=document.getElementById('qrev-body'); if(!body) return;
+  if(!revs || !revs.length){ body.innerHTML='<div style="padding:26px;text-align:center;color:var(--color-text-muted)">No published versions yet.<br><span style="font-size:12px">Hit <b>Publish</b> on a quote to freeze its first version (R0).</span></div>'; return; }
+  body.innerHTML = revs.map((r,idx)=>r).reverse().map((r)=>{ const idx=revs.indexOf(r);
+    const lines=(r.lines||[]).map(l=>`<tr><td style="font-family:var(--font-mono);font-size:10px">${qesc(qLinePN(l))}</td><td>${qesc(l.description||'')}</td><td style="text-align:right">${qesc(String(l.qty||0))}</td><td style="text-align:right">${qmoney(l.unit_price,r.currency)}</td><td style="text-align:right">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),r.currency)}</td></tr>`).join('');
+    return `<div class="qrev-card">
+      <div class="qrev-top">
+        <div><span class="qrev-rev">${qesc(r.rev)}</span> <span class="q-status-pill q-status-${qattr(r.status||'Published')}">${qesc(r.status||'Published')}</span></div>
+        <div class="qrev-total">${qmoney(r.total,r.currency)}</div>
+      </div>
+      <div class="qrev-meta">${qesc((r.published_at||'').slice(0,16).replace('T',' '))} · ${qesc(r.by||'—')} · ${r.n_lines!=null?r.n_lines:(r.lines||[]).length} line${((r.n_lines!=null?r.n_lines:(r.lines||[]).length)===1)?'':'s'}</div>
+      <div class="qrev-actions">
+        <button class="q-row-action" onclick="toggleRevLines(${idx})" title="Show line items">▤ Lines</button>
+        <button class="q-row-action" onclick="printRevision('${qattr(id)}',${idx})" title="Print this version">🖨 Print</button>
+        <button class="q-row-action" onclick="wordRevision('${qattr(id)}',${idx})" title="Word (.doc)">📄 Word</button>
+      </div>
+      <div id="qrev-lines-${idx}" class="qrev-lines" style="display:none"><table><thead><tr><th>PN</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Ext</th></tr></thead><tbody>${lines}</tbody></table></div>
+    </div>`; }).join('');
+}
+function toggleRevLines(idx){ const el=document.getElementById('qrev-lines-'+idx); if(el) el.style.display = el.style.display==='none'?'':'none'; }
+function _revQuote(id, r){
+  if(r && r.quote) return r.quote;
+  const base=(window._quotesCache||[]).find(x=>x.id===id)||localQuotes().find(x=>x.id===id)||{id};
+  return Object.assign(JSON.parse(JSON.stringify(base)), { rev:r.rev, lines:r.lines||[], total:r.total, currency:r.currency||base.currency, status:r.status||'Published' });
+}
+function printRevision(id, idx){ const r=(_qRevCache||[])[idx]; if(r) printQuote(_revQuote(id,r)); }
+function wordRevision(id, idx){ const r=(_qRevCache||[])[idx]; if(r) exportQuoteWord(_revQuote(id,r)); }
 async function saveQuote(opts){
   if(!_qWorking) return; readQuoteForm(); const q=_qWorking;
   if(!q.customer_name){ const c=document.getElementById('q-customer'); c.focus(); c.style.borderColor='var(--tsi-coral)'; setTimeout(()=>c.style.borderColor='',1500); showToast('Add a customer name','var(--tsi-coral)'); return; }
