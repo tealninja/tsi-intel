@@ -3317,7 +3317,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#115 · 2026-07-11';
+const APP_BUILD = '#116 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -16533,11 +16533,12 @@ function printQuote(q){
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"><style>
-    *{box-sizing:border-box} body{font-family:'Inter','Segoe UI',Arial,sans-serif;color:#2b2b2b;margin:0;padding:40px;font-size:12.5px;line-height:1.55}
-    .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #00929F;padding-bottom:14px;margin-bottom:18px}
-    .co{font-family:'DM Serif Display',Georgia,serif;font-size:23px;font-weight:400;color:#19446C} .co small{display:block;font-family:'Inter',sans-serif;font-size:10.5px;font-weight:400;color:#777;margin-top:4px}
-    .qt{text-align:right} .qt .qn{font-size:18px;font-weight:700;color:#00929F;font-family:'Courier New',monospace}
-    .qt .qs{display:inline-block;margin-top:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:99px;background:rgba(0,146,159,.1);color:#19446C}
+    *{box-sizing:border-box} html,body{height:100%} body{font-family:'Inter','Segoe UI',Arial,sans-serif;color:#2b2b2b;margin:0;padding:0;font-size:12.5px;line-height:1.55}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #00929F;padding-bottom:12px;margin-bottom:16px}
+    .co{font-family:'DM Serif Display',Georgia,serif;font-size:23px;font-weight:400;color:#19446C;padding-top:1px} .co small{display:block;font-family:'Inter',sans-serif;font-size:10.5px;font-weight:400;color:#777;margin-top:4px}
+    .qt{text-align:right} .qt .qn{font-size:17px;font-weight:700;color:#00929F;font-family:'Courier New',monospace;white-space:nowrap}
+    .qt .qrev{display:inline-block;margin-left:7px;font-family:'Courier New',monospace;font-size:12px;font-weight:700;color:#fff;background:#00929F;border-radius:99px;padding:2px 11px;vertical-align:2px}
+    .qt .qs{display:inline-block;margin-top:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:99px;background:rgba(0,146,159,.1);color:#19446C}
     h3{font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#19446C;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:18px 0 8px}
     .title{font-family:'DM Serif Display',Georgia,serif;font-size:20px;color:#19446C;margin:6px 0 12px}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px} .grid2 b{color:#19446C}
@@ -16562,21 +16563,24 @@ function printQuote(q){
        every printed page, so document text can never run underneath it. Chrome
        doesn't implement @page margin boxes, so per-page "Page X of Y" isn't
        possible here — the Word export carries real page-number field codes. */
-    table.pagewrap{width:100%;border-collapse:collapse}
+    /* Full-height wrapper table so the repeating <tfoot> footer is pushed to the
+       BOTTOM of the page (not left floating just under the last line), while still
+       reserving its own space per page so document text never overlaps it. */
+    table.pagewrap{width:100%;height:100%;border-collapse:collapse}
     table.pagewrap>tfoot{display:table-footer-group}
-    table.pagewrap>tbody>tr>td.pgbody{padding:0;vertical-align:top}
+    table.pagewrap>tbody>tr>td.pgbody{padding:0;vertical-align:top;height:100%}
     .pfoot table{width:100%;border-collapse:collapse;border-top:1px solid #ddd;margin-top:8px}
     .pfoot td{font-size:9px;color:#999;padding-top:5px;width:34%}
     .pfoot td.pc{text-align:center;letter-spacing:.06em;width:32%}
     .pfoot td.pr{text-align:right}
-    @page{margin:0.7in}
+    @page{margin:0.6in}
   </style></head><body>
     <table class="pagewrap"><tfoot><tr><td>
       <div class="pfoot"><table><tr><td class="pl">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</td><td class="pc">CONFIDENTIAL</td><td class="pr">${qesc(q.quote_date||'')}</td></tr></table></div>
     </td></tr></tfoot><tbody><tr><td class="pgbody">
     <div class="head">
       <div class="co">${seller.logo?`<img src="${seller.logo}" style="max-height:46px;max-width:230px;margin-bottom:7px;display:block">`:''}${qesc(seller.name)}<small>${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</small></div>
-      <div class="qt"><div class="qn">${qesc(q.id)}</div><div style="font-size:10px;color:#999;font-family:'Courier New',monospace">Rev ${qesc(q.rev||'R0')}</div><div class="qs">${qesc(q.status||'Draft')}</div></div>
+      <div class="qt"><div class="qn">${qesc(q.id)}<span class="qrev">${qesc(q.rev||'R0')}</span></div><div class="qs">${qesc(q.status||'Draft')}</div></div>
     </div>
     <div class="title">Quote${q.project?' — '+qesc(q.project):''}</div>
     <div class="grid2">
@@ -16642,10 +16646,10 @@ function exportQuoteWord(q){
   const metaTd='style="padding:2px 0;font-size:10.5pt;width:50%"';
   const body=`
     <table style="width:100%;border-collapse:collapse;border-bottom:3px solid #00929F"><tr>
-      <td style="padding-bottom:10px">${seller.logo?`<img src="${seller.logo}" style="max-height:54px;max-width:250px;display:block;margin-bottom:6px">`:''}<div style="font-size:20pt;font-weight:700;color:#19446C">${qesc(seller.name)}</div>
+      <td valign="top" style="padding-bottom:10px">${seller.logo?`<img src="${seller.logo}" style="max-height:54px;max-width:250px;display:block;margin-bottom:6px">`:''}<div style="font-size:20pt;font-weight:700;color:#19446C">${qesc(seller.name)}</div>
         <div style="font-size:9pt;color:#777">${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</div></td>
-      <td align="right" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#00929F;font-family:Consolas,monospace">${qesc(q.id)}</div>
-        <div style="font-size:9pt;color:#999">Rev ${qesc(q.rev||'R0')} · ${qesc(q.status||'Draft')}</div></td>
+      <td align="right" valign="top" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#00929F;font-family:Consolas,monospace">${qesc(q.id)} <span style="font-size:12pt;background:#00929F;color:#ffffff;padding:2pt 8pt;font-weight:700">${qesc(q.rev||'R0')}</span></div>
+        <div style="font-size:9pt;color:#999;margin-top:3pt">${qesc(q.status||'Draft')}</div></td>
     </tr></table>
     <div style="font-size:16pt;font-weight:700;color:#19446C;margin:8pt 0 6pt">Quote${q.project?' — '+qesc(q.project):''}</div>
     <table style="width:100%;border-collapse:collapse">
