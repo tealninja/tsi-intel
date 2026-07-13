@@ -50,8 +50,8 @@ export function makeApi(env = {}) {
       if (!opp || !opp.id) throw new Error('putOpportunity requires an id');
       return request('PUT', '/api/pipeline/' + encodeURIComponent(opp.id), opp);
     },
-    deleteOpportunity(id) {
-      return request('DELETE', '/api/pipeline/' + encodeURIComponent(id));
+    savePipeline(records) {
+      return request('POST', '/api/pipeline', { schema_version: 2, records });
     },
     async listBugs() {
       const data = await request('GET', '/api/bugs');

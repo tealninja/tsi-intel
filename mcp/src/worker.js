@@ -71,9 +71,9 @@ export function putOpportunity(opp) {
   return request('PUT', '/api/pipeline/' + encodeURIComponent(opp.id), opp);
 }
 
-/** DELETE /api/pipeline/:id. */
-export function deleteOpportunity(id) {
-  return request('DELETE', '/api/pipeline/' + encodeURIComponent(id));
+/** Replace the whole pipeline (POST /api/pipeline). Used for deletes. */
+export function savePipeline(records) {
+  return request('POST', '/api/pipeline', { schema_version: 2, records });
 }
 
 // ── Bugs ──────────────────────────────────────────────────────────────────

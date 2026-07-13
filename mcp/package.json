@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node test/smoke.mjs"
+    "test": "node test/smoke.mjs && node test/pipeline-worker.test.mjs"
   },
   "engines": {
     "node": ">=18"

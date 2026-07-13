@@ -30,20 +30,20 @@ npx wrangler deploy
 ```
 
 `wrangler deploy` prints the URL, e.g.
-`https://tsi-intel-mcp.<your-subdomain>.workers.dev`. Your MCP endpoint is that
+`https://tsi-intel-mcp.teal-john.workers.dev`. Your MCP endpoint is that
 URL **+ `/mcp`**.
 
 Sanity check it's up (no token needed for health):
 
 ```bash
-curl https://tsi-intel-mcp.<your-subdomain>.workers.dev/health
+curl https://tsi-intel-mcp.teal-john.workers.dev/health
 ```
 
 ## Connect it in claude.ai (web)
 
 1. In claude.ai: **Settings → Connectors → Add custom connector**
    (Team/Enterprise: **Organization settings → Connectors**).
-2. **URL:** `https://tsi-intel-mcp.<your-subdomain>.workers.dev/mcp`
+2. **URL:** `https://tsi-intel-mcp.teal-john.workers.dev/mcp`
 3. Open **Advanced settings → Request headers** and add one header:
    - Name: `Authorization`
    - Value: `Bearer <the MCP_AUTH_TOKEN you set>`

@@ -150,23 +150,30 @@ export function buildTools({ api, ref, user = 'JT', now = () => new Date().toISO
         const current = all.find((r) => r.id === id);
         if (!current) throw new Error(`No opportunity with id "${id}".`);
         const clean = stripUndefined(changes);
-        const merged = { ...current, ...clean, id, version: (Number(current.version) || 0) + 1, updatedAt: now(), updatedBy: user };
-        await api.putOpportunity(merged);
-        return { updated: true, id, changed: Object.keys(clean), opportunity: merged };
+        // Send the BASE version we read (not +1): the Worker rejects with 409
+        // when incoming.version < stored.version and bumps the version itself.
+        // Pre-incrementing would defeat that conflict check.
+        const base = Number(current.version) || 0;
+        const merged = { ...current, ...clean, id, version: base };
+        const res = await api.putOpportunity(merged);
+        return { updated: true, id, changed: Object.keys(clean), newVersion: base + 1, opportunity: { ...merged, version: base + 1 }, server: res };
       },
     },
     {
       name: 'delete_opportunity',
       title: 'Delete opportunity',
       description:
-        'Permanently delete an opportunity from the live Worker. Requires confirm=true. ' +
-        'Consider setting status to "L" (lost) with update_opportunity instead.',
+        'Delete an opportunity. The backend has no per-record delete, so this ' +
+        'rewrites the pipeline without that record (same mechanism the app uses). ' +
+        'Requires confirm=true. Prefer setting status to "L" (lost) with ' +
+        'update_opportunity to keep history.',
       input: { id: z.string(), confirm: z.literal(true).describe('Must be true to actually delete') },
       async run({ id }) {
         const all = await api.listPipeline();
         if (!all.some((r) => r.id === id)) throw new Error(`No opportunity with id "${id}".`);
-        await api.deleteOpportunity(id);
-        return { deleted: true, id };
+        const remaining = all.filter((r) => r.id !== id);
+        await api.savePipeline(remaining);
+        return { deleted: true, id, remaining: remaining.length };
       },
     },
     {
@@ -238,9 +245,9 @@ export function buildTools({ api, ref, user = 'JT', now = () => new Date().toISO
         severity: z.enum(['low', 'medium', 'high']).optional(),
       },
       async run({ title, detail, severity }) {
-        const existing = await api.listBugs();
+        // The Worker merges by id and prepends, so post only the new bug.
         const bug = { id: `bug_${Date.now().toString(36)}`, title, detail: detail || '', severity: severity || 'medium', by: user, at: now(), status: 'open' };
-        await api.postBugs([...existing, bug]);
+        await api.postBugs([bug]);
         return { reported: true, bug };
       },
     },
