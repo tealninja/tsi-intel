@@ -807,6 +807,34 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
   border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
   font-size:13px; cursor:pointer; font-family:var(--font-ui);
 }
+/* Destructive / reassign actions in the site drawer footer */
+.btn-del-drawer {
+  padding:9px 12px; background:transparent; color:var(--tsi-coral,#e5484d);
+  border:1px solid var(--tsi-coral,#e5484d); border-radius:var(--radius-md);
+  font-size:13px; cursor:pointer; font-family:var(--font-ui);
+}
+.btn-del-drawer:hover { background:rgba(229,72,77,.08); }
+.btn-reassign-drawer {
+  padding:9px 12px; background:transparent; color:var(--color-text-secondary);
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  font-size:13px; cursor:pointer; font-family:var(--font-ui);
+}
+.btn-reassign-drawer:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+/* Gap "fix" flow (accounts + opportunities): the review list docks to the left
+   as a non-blocking panel so you can page through the drawer (right) without the
+   list greying out or needing to be dismissed — you never lose your place. */
+.ship-est-overlay.gap-fix-dock { background:transparent; align-items:stretch; justify-content:flex-start; pointer-events:none; }
+.ship-est-overlay.gap-fix-dock .ship-est {
+  pointer-events:auto; width:340px !important; max-width:340px; height:100vh;
+  max-height:100vh; border-radius:0; border-top:0; border-bottom:0; border-left:0;
+  box-shadow:2px 0 22px rgba(0,0,0,.16);
+}
+/* Lift the editing drawer above the docked review panel, and make the opp
+   drawer's own dark backdrop click-through so the list stays live (the site
+   drawer has no backdrop of its own). */
+body.gap-fix-active #site-drawer,
+body.gap-fix-active #opp-drawer { z-index:12001; }
+body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events:none; }
 
 /* drawer form sections */
 .dsec { margin-bottom:18px; }
@@ -1773,6 +1801,7 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 /* Opportunity gap-review modal rows */
 .oppgap-row { border:0.5px solid var(--color-border); border-radius:var(--radius-md); padding:9px 12px; margin-bottom:8px; cursor:pointer; background:var(--color-surface); }
 .oppgap-row:hover { background:var(--color-hover); }
+.oppgap-row-active { border-color:var(--tsi-teal); box-shadow:inset 3px 0 0 var(--tsi-teal); background:rgba(0,146,159,.06); }
 .oppgap-head { display:flex; gap:8px; align-items:baseline; }
 .oppgap-acct { font-weight:600; color:var(--color-heading); }
 .oppgap-type { font-size:11px; color:var(--color-text-muted); flex:1; }
@@ -9019,10 +9048,25 @@ function acctsNeedingReview(){
   return accounts.map(a => ({ a, miss: checks.filter(c => { try { return c.test(a, cc); } catch(_){ return false; } }) }))
                  .filter(x => x.miss.length);
 }
+// Same order the review list renders in (most-missing first), so the fix
+// step-through opens the top row and pages straight down the visible list.
+function acctsNeedingReviewSorted(){ return acctsNeedingReview().sort((x,y) => y.miss.length - x.miss.length); }
 function updateAcctGapBadge(){ const el = document.getElementById('acct-gap-badge'); if (el){ const n = acctsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
 function openAcctReview(){ renderAcctReview(); const o = document.getElementById('acctreview-overlay'); if (o) o.classList.add('open'); }
-function closeAcctReview(){ const o = document.getElementById('acctreview-overlay'); if (o) o.classList.remove('open'); }
+function closeAcctReview(){ exitAcctFixDock(); const o = document.getElementById('acctreview-overlay'); if (o) o.classList.remove('open'); }
 function toggleAcctReviewAll(v){ _acctReviewAll = !!v; renderAcctReview(); updateAcctGapBadge(); }
+// Open a flagged account in the site drawer while keeping the review list docked
+// open on the left, paging through the currently-flagged set.
+function openAcctReviewItem(id){
+  const ids = acctsNeedingReviewSorted().map(x => x.a.id);
+  openSiteDrawer(id, { navList: ids.length ? ids : [id], fixReview: true });
+}
+// "Fix all" — start the step-through at the first flagged account.
+function startAcctFixAll(){
+  const ids = acctsNeedingReviewSorted().map(x => x.a.id);
+  if (!ids.length) return;
+  openAcctReviewItem(ids[0]);
+}
 function renderAcctReview(){
   const body = document.getElementById('acctreview-body'), title = document.getElementById('acctreview-title');
   if (!body) return;
@@ -9030,15 +9074,18 @@ function renderAcctReview(){
   if (title) title.textContent = 'Account gaps · ' + rows.length;
   const controls = `<div class="oppgap-controls">
     <label class="oppgap-switch"><input type="checkbox" ${_acctReviewAll?'checked':''} onchange="toggleAcctReviewAll(this.checked)"> Include customer-status gaps</label>
+    <button class="btn-save-opp" style="flex:0 0 auto;width:auto;padding:6px 16px" onclick="startAcctFixAll()" ${rows.length?'':'disabled'}>Fix all ▸</button>
   </div>`;
   if (!rows.length){ body.innerHTML = controls + '<div style="padding:22px;text-align:center;color:var(--color-text-muted)">✓ No account gaps with the current checks.</div>'; return; }
   body.innerHTML = controls + rows.map(({a, miss}) => {
     const chips = miss.map(c => `<span class="oppgap-chip">${c.label}</span>`).join('');
     const where = a.loc || a.city || (a.parentId ? '' : (a.billTo || ''));
+    const cur = (a.id === _siteDrawerEditId && _acctFixMode) ? ' oppgap-row-active' : '';
     const fix = miss.some(c => c.key==='nosite')
       ? `<span title="Create a site for this account from its details" onclick="event.stopPropagation();createSiteFromAccount('${qattr(a.id)}')" style="cursor:pointer;color:var(--tsi-teal);font-size:12px;font-weight:600;white-space:nowrap;margin-left:8px">➕ Create site</span>` : '';
-    return `<div class="oppgap-row" onclick="openSiteDrawer('${qattr(a.id)}')">
-      <div class="oppgap-head"><span class="oppgap-acct">${qesc(a.name||'—')}</span><span class="oppgap-type">${a.parentId?'site':'account'}${where?' · '+qesc(String(where).slice(0,40)):''}</span>${fix}<span class="oppgap-n">${miss.length}</span></div>
+    const del = `<span title="Delete this account/site" onclick="event.stopPropagation();deleteAccountById('${qattr(a.id)}')" style="cursor:pointer;color:var(--tsi-coral,#e5484d);font-size:13px;white-space:nowrap;margin-left:8px">🗑</span>`;
+    return `<div class="oppgap-row${cur}" onclick="openAcctReviewItem('${qattr(a.id)}')">
+      <div class="oppgap-head"><span class="oppgap-acct">${qesc(a.name||'—')}</span><span class="oppgap-type">${a.parentId?'site':'account'}${where?' · '+qesc(String(where).slice(0,40)):''}</span>${fix}${del}<span class="oppgap-n">${miss.length}</span></div>
       <div class="oppgap-chips">${chips}</div>
     </div>`;
   }).join('');
@@ -9060,6 +9107,107 @@ function createSiteFromAccount(accountId){
   if (typeof renderAcctSidebar === 'function') renderAcctSidebar();
   renderAcctReview(); updateAcctGapBadge();
   showToast('✓ Site created for ' + (acct.name||'account'), 'var(--tsi-succ-green)');
+}
+
+// ── Delete an account / site ──────────────────────────────────────────────
+// Removes the record. If it's a top-level account, its child sites go too. Any
+// opportunity that was keyed to the deleted record (or its sites) has its acctId
+// cleared, so it resurfaces in the opportunity gap review as "No account link"
+// rather than pointing at a ghost.
+function _oppsForAccountIds(idSet){ return DATA.filter(o => o.acctId && idSet.has(o.acctId)); }
+function deleteAccountById(id){
+  const data = getAccounts();
+  const acct = data.accounts.find(a => a.id === id);
+  if (!acct) return;
+  const isParent = !acct.parentId;
+  const childSites = isParent ? data.accounts.filter(a => a.parentId === id) : [];
+  const removedIds = new Set([id, ...childSites.map(s => s.id)]);
+  const affectedOpps = _oppsForAccountIds(removedIds);
+  const bits = [];
+  if (childSites.length) bits.push(childSites.length + ' child site' + (childSites.length>1?'s':''));
+  if (affectedOpps.length) bits.push(affectedOpps.length + ' linked opportunit' + (affectedOpps.length>1?'ies':'y') + ' will be unlinked');
+  const detail = bits.length ? ' — ' + bits.join(', ') : '';
+  showConfirm(
+    'Delete ' + (acct.name || 'this record') + '?',
+    (isParent ? 'This account' : 'This site') + detail + '. This cannot be undone.',
+    () => {
+      // Unlink affected opportunities (leaves them flagged in the opp gap review).
+      affectedOpps.forEach(o => {
+        o.acctId = '';
+        o.updatedAt = new Date().toISOString();
+        o.updatedBy = (typeof getUserInitials==='function'?getUserInitials():'');
+        oppPersist(o);
+      });
+      const d2 = getAccounts();
+      d2.accounts = d2.accounts.filter(a => !removedIds.has(a.id));
+      saveAccounts(d2);
+      // If the drawer is showing one of the deleted records, close it.
+      if (removedIds.has(_siteDrawerEditId)) { const wasFix=_acctFixMode; closeSiteDrawer(); if(wasFix){ const o=document.getElementById('acctreview-overlay'); if(o)o.classList.add('open'); } }
+      if (typeof renderAcctSidebar === 'function') renderAcctSidebar();
+      if (_acctMapShowing && typeof renderAcctMap === 'function') renderAcctMap();
+      if (typeof renderPipeline === 'function') renderPipeline();
+      if (typeof updateAcctGapBadge === 'function') updateAcctGapBadge();
+      const ov = document.getElementById('acctreview-overlay');
+      if (ov && ov.classList.contains('open')) renderAcctReview();
+      showToast('✓ Deleted ' + (acct.name || 'record') + (affectedOpps.length ? ' · ' + affectedOpps.length + ' opp(s) unlinked' : ''), 'var(--tsi-succ-green)');
+    }
+  );
+}
+function deleteAccountFromDrawer(){ if (_siteDrawerEditId) deleteAccountById(_siteDrawerEditId); }
+
+// ── Reassign / merge a duplicate account into a canonical one ──────────────
+// For the "someone created an abbreviation for an existing account" case. Moves
+// the duplicate's child sites under the target account, re-points its opportunities
+// to the target, then deletes the duplicate. Only top-level accounts can be merged
+// into another top-level account.
+function reassignAccountPrompt(){
+  const id = _siteDrawerEditId;
+  const data = getAccounts();
+  const src = data.accounts.find(a => a.id === id);
+  if (!src) return;
+  if (src.parentId) { showToast('Reassign is for top-level accounts — re-parent a site with the Parent account field instead.', 'var(--tsi-amber)'); return; }
+  // Candidate targets: every other top-level account.
+  const targets = data.accounts.filter(a => !a.parentId && a.id !== id).sort((x,y)=>(x.name||'').localeCompare(y.name||''));
+  if (!targets.length) { showToast('No other accounts to merge into.', 'var(--tsi-amber)'); return; }
+  const typed = window.prompt('Merge "' + (src.name||'') + '" INTO which account?\nType the target account name (its sites & opportunities move over, then "' + (src.name||'') + '" is removed):\n\n' + targets.map(t=>'• '+t.name).join('\n'));
+  if (typed == null) return;
+  const q = typed.trim().toLowerCase();
+  if (!q) return;
+  let target = targets.find(t => (t.name||'').toLowerCase() === q)
+            || targets.find(t => (t.name||'').toLowerCase().includes(q));
+  if (!target) { showToast('⚠ No account matched "' + typed + '"', 'var(--tsi-coral)'); return; }
+  const childSites = data.accounts.filter(a => a.parentId === id);
+  const mergeIds = new Set([id, ...childSites.map(s => s.id)]);
+  const affectedOpps = _oppsForAccountIds(mergeIds);
+  showConfirm(
+    'Merge into ' + target.name + '?',
+    '"' + (src.name||'') + '" → "' + target.name + '": ' +
+      childSites.length + ' site(s) re-parented, ' + affectedOpps.length + ' opportunity(ies) re-linked, then "' + (src.name||'') + '" is removed.',
+    () => {
+      const d = getAccounts();
+      const tgt = d.accounts.find(a => a.id === target.id);
+      // Re-point opportunities: links to the account itself move to the target
+      // account; child-site links stay valid (those sites are re-parented below).
+      affectedOpps.forEach(o => {
+        if (o.acctId === id) o.acctId = target.id;
+        o.updatedAt = new Date().toISOString();
+        o.updatedBy = (typeof getUserInitials==='function'?getUserInitials():'');
+        oppPersist(o);
+      });
+      d.accounts.forEach(a => { if (a.parentId === id) a.parentId = target.id; });
+      d.accounts = d.accounts.filter(a => a.id !== id);
+      saveAccounts(d);
+      const wasFix = _acctFixMode; closeSiteDrawer();
+      if (wasFix) { const o=document.getElementById('acctreview-overlay'); if(o)o.classList.add('open'); }
+      if (typeof renderAcctSidebar === 'function') renderAcctSidebar();
+      if (_acctMapShowing && typeof renderAcctMap === 'function') renderAcctMap();
+      if (typeof renderPipeline === 'function') renderPipeline();
+      if (typeof updateAcctGapBadge === 'function') updateAcctGapBadge();
+      const ov = document.getElementById('acctreview-overlay');
+      if (ov && ov.classList.contains('open')) renderAcctReview();
+      showToast('✓ Merged into ' + (tgt?tgt.name:target.name), 'var(--tsi-succ-green)');
+    }
+  );
 }
 
 let _amSiteMap   = null;
@@ -12220,10 +12368,12 @@ function openSiteDrawer(accountId, opts) {
   _siteAssociatedContactIds = [];
   _sitePrimaryContactId     = '';
   // Build the paging list (unless navigating within it, so it stays stable as
-  // saves re-sort the sidebar).
-  if (!opts.keepNav) {
-    _siteDrawerNavList = isEdit ? siteDrawerNavIds(accountId) : [];
-  }
+  // saves re-sort the sidebar). opts.navList lets the gap-review "fix" flow page
+  // through just the flagged accounts instead of the whole sidebar.
+  if (opts.navList) { _siteDrawerNavList = opts.navList.slice(); }
+  else if (!opts.keepNav) { _siteDrawerNavList = isEdit ? siteDrawerNavIds(accountId) : []; }
+  // Enter/keep the non-blocking "fix" dock (review list stays open on the left).
+  if (opts.fixReview) enterAcctFixDock();
 
   // Look up directly in the unified accounts array — works for parent OR child records.
   const existing = isEdit ? data.accounts.find(a => a.id === accountId) : null;
@@ -12309,6 +12459,12 @@ function openSiteDrawer(accountId, opts) {
   siteAddrPopulate(existing, data, accountId);
   updateSiteDrawerNavUI();
 
+  // Delete + Reassign only make sense when editing an existing record.
+  const _delBtn = document.getElementById('site-drawer-delete');
+  const _reBtn  = document.getElementById('site-drawer-reassign');
+  if (_delBtn) _delBtn.style.display = isEdit ? '' : 'none';
+  if (_reBtn)  _reBtn.style.display  = isEdit ? '' : 'none';
+
   document.getElementById('site-drawer-overlay')?.classList.add('open');
   document.getElementById('site-drawer').classList.add('open');
   setTimeout(() => document.getElementById('s-name').focus(), 280);
@@ -12354,7 +12510,26 @@ function closeSiteDrawer() {
   document.getElementById('site-drawer-overlay')?.classList.remove('open');
   document.getElementById('site-drawer').classList.remove('open');
   _siteDrawerEditId = null;
+  // Leaving the drawer ends the "fix" dock, but the review list stays open.
+  exitAcctFixDock();
 }
+// ── Gap "fix" dock: a review list docked left, drawer live on the right ──
+// Shared by the account and opportunity gap reviews. The list stays open (never
+// greyed) so you keep your place while paging through the flagged records.
+function _enterGapDock(overlayId, rerender){
+  document.body.classList.add('gap-fix-active');
+  const ov = document.getElementById(overlayId);
+  if (ov) { ov.classList.add('open'); ov.classList.add('gap-fix-dock'); }
+  if (typeof rerender === 'function') rerender();
+}
+function _exitGapDock(overlayId){
+  document.body.classList.remove('gap-fix-active');
+  const ov = document.getElementById(overlayId);
+  if (ov) ov.classList.remove('gap-fix-dock');    // stays .open (list visible)
+}
+let _acctFixMode = false;
+function enterAcctFixDock(){ _acctFixMode = true; _enterGapDock('acctreview-overlay', renderAcctReview); }
+function exitAcctFixDock(){ if (!_acctFixMode) return; _acctFixMode = false; _exitGapDock('acctreview-overlay'); }
 
 function _resolvePrimaryContactId() {
   const typed = document.getElementById('s-primary-contact').value.trim();
@@ -12375,6 +12550,10 @@ function saveSiteDrawer() {
     setTimeout(() => inp.style.borderColor = '', 1500);
     return;
   }
+
+  // Capture the gap-fix step-through state before closeSiteDrawer() tears it down.
+  const _fixFlow   = _acctFixMode;
+  const _fixSaved  = _siteDrawerEditId;
 
   const data = getAccounts();
 
@@ -12479,6 +12658,19 @@ function saveSiteDrawer() {
 
   if (_acctMapShowing) renderAcctMap();
   showToast('✓ ' + name + ' saved', 'var(--tsi-succ-green)');
+
+  // Gap-fix step-through: after saving, advance to the next still-flagged account
+  // and keep the review list docked. If nothing's left, the list stays open.
+  if (_fixFlow && typeof acctsNeedingReview === 'function') {
+    const remaining = acctsNeedingReviewSorted().map(x => x.a.id);
+    if (remaining.length) {
+      const after = remaining.find(id => id !== _fixSaved);
+      openSiteDrawer(after || remaining[0], { navList: remaining, fixReview: true });
+    } else {
+      openAcctReview();
+      showToast('✓ All account gaps resolved', 'var(--tsi-succ-green)');
+    }
+  }
 }
 
 // ── SITE GEOCODING — mirrors drawerGeoSearch / drawerGeoFetch ──
@@ -13789,6 +13981,8 @@ startAdminPoll();
 
   <div class="drawer-footer">
     <button class="btn-cancel-drawer" onclick="closeSiteDrawer()">Cancel</button>
+    <button class="btn-reassign-drawer" id="site-drawer-reassign" style="display:none" onclick="reassignAccountPrompt()" title="Merge this account into another (moves its sites &amp; opportunities, then removes this one)">⇄ Reassign</button>
+    <button class="btn-del-drawer" id="site-drawer-delete" style="display:none" onclick="deleteAccountFromDrawer()" title="Delete this account/site">🗑 Delete</button>
     <button class="btn-save-opp" onclick="saveSiteDrawer()">Save Site</button>
   </div>
 </div>
