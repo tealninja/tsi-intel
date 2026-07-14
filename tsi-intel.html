@@ -1781,6 +1781,9 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .oppgap-controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--color-border); }
 .oppgap-switch { display:flex; align-items:center; gap:7px; font-size:12px; cursor:pointer; color:var(--color-text-primary); }
 .oppgap-switch input { accent-color:var(--tsi-teal); width:15px; height:15px; }
+/* Fix-flow: highlight an opportunity field that's flagged as missing. */
+.field-missing { border-color:var(--tsi-coral) !important; background:rgba(139,26,10,0.05) !important; box-shadow:0 0 0 3px rgba(139,26,10,0.14); }
+.field-missing + datalist, .field-missing:focus { box-shadow:0 0 0 3px rgba(139,26,10,0.2); }
 
 /* Modals for add forms */
 .acct-modal-overlay {
@@ -3340,7 +3343,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#128 · 2026-07-11';
+const APP_BUILD = '#129 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3398,6 +3401,16 @@ const OPP_REVIEW_CHECKS_EXTRA = [
   { key:'geo',   label:'Not geocoded',    test:o => !(o.lat && o.lon) },
 ];
 let _oppReviewAll = false;   // include the EXTRA (legacy) checks
+let _oppFixMode   = false;   // drawer opened from the gap-review "fix" flow → highlight missing fields
+// Which drawer field each check maps to (for highlighting during the fix flow).
+const OPP_CHECK_FIELD = { val:'d-val', prob:'d-prob', close:'d-close', stage:'d-stage', cat:'d-cat', lead:'d-lead', acct:'d-acct', geo:'d-loc-search' };
+function applyFixHighlights(){
+  Object.values(OPP_CHECK_FIELD).forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('field-missing'); });
+  if(!_oppFixMode) return;
+  const o = DATA.find(x => x.id === _drawerEditId);
+  if(!o) return;
+  oppMissingFields(o).forEach(c => { const el = document.getElementById(OPP_CHECK_FIELD[c.key]); if(el) el.classList.add('field-missing'); });
+}
 function oppReviewChecks(){ return _oppReviewAll ? OPP_REVIEW_CHECKS_CORE.concat(OPP_REVIEW_CHECKS_EXTRA) : OPP_REVIEW_CHECKS_CORE; }
 function oppMissingFields(o){ return oppReviewChecks().filter(c => { try { return c.test(o); } catch(_){ return false; } }); }
 function toggleOppReviewAll(v){ _oppReviewAll = !!v; renderOppReview(); updateOppGapBadge(); }
@@ -3407,8 +3420,8 @@ function startOppFixAll(){
   const ids = oppsNeedingReview().map(o => o.id);
   if (!ids.length){ showToast('✓ Nothing to fix', 'var(--tsi-succ-green)'); return; }
   closeOppReview();
-  openOppDrawer(ids[0], { navList: ids });
-  showToast(ids.length + ' to review — edit, Save, then ▸ for the next', 'var(--tsi-teal)');
+  openOppDrawer(ids[0], { navList: ids, fixMode: true });
+  showToast(ids.length + ' to review — the missing fields are highlighted; edit, then ▸ for the next', 'var(--tsi-teal)');
 }
 function oppsNeedingReview(){ return DATA.filter(o => o.status === 'O' && oppMissingFields(o).length); }
 function updateOppGapBadge(){ const el = document.getElementById('opp-gap-badge'); if (el){ const n = oppsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
@@ -3435,7 +3448,7 @@ function renderOppReview(){
 }
 // Open the drawer to fix an opp; keep the review modal underneath so you can
 // work through the list. On drawer save, renderPipeline re-renders the review.
-function openOppReviewItem(id){ openOppDrawer(id); }
+function openOppReviewItem(id){ openOppDrawer(id, { fixMode: true }); }
 
 // Load pipeline on startup: pull the D1 collection; on first run, import the
 // legacy KV pipeline (so nothing edited there is lost) or the embedded seed.
@@ -5546,13 +5559,18 @@ function oppDrawerNav(dir) {
 
 function openOppDrawer(editId, opts) {
   opts = opts || {};
+  // Fix-flow highlighting: on a fresh open (row/+New) exit fix mode; keep it while
+  // paging (keepNav) so ▸ stays in the fix flow.
+  if (opts.fixMode) _oppFixMode = true;
+  else if (!opts.keepNav) _oppFixMode = false;
   // Mark the drawer dirty on any real user edit (programmatic .value sets don't
-  // fire these), so paging knows whether to save. Wired once.
+  // fire these), so paging knows whether to save. Also clear a field's "missing"
+  // highlight as the user fills it. Wired once.
   if (!window._drawerDirtyWired) {
     window._drawerDirtyWired = true;
     const dd = document.getElementById('opp-drawer');
-    if (dd) { dd.addEventListener('input', () => { _drawerDirty = true; });
-              dd.addEventListener('change', () => { _drawerDirty = true; }); }
+    const mark = e => { _drawerDirty = true; if (e && e.target && e.target.classList) e.target.classList.remove('field-missing'); };
+    if (dd) { dd.addEventListener('input', mark); dd.addEventListener('change', mark); }
   }
   populateOppAccountOptions();
   mountRteToolbars('#opp-drawer');
@@ -5655,6 +5673,7 @@ function openOppDrawer(editId, opts) {
   // Open
   document.getElementById('opp-drawer-overlay').classList.add('open');
   document.getElementById('opp-drawer').classList.add('open');
+  applyFixHighlights();   // highlight missing fields when opened from the gap-review fix flow
   const _db = document.querySelector('#opp-drawer .drawer-body'); if(_db) _db.scrollTop = 0;  // reset scroll when paging
   if(editId) {
     trackOppView(editId); usageLog('opp_view', editId);
