@@ -1778,6 +1778,9 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .oppgap-n { font-size:10px; font-weight:700; color:var(--tsi-coral); background:rgba(139,26,10,0.1); border-radius:99px; padding:1px 7px; }
 .oppgap-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
 .oppgap-chip { font-size:10px; background:rgba(139,26,10,0.12); color:var(--tsi-coral); border-radius:99px; padding:2px 8px; white-space:nowrap; }
+.oppgap-controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--color-border); }
+.oppgap-switch { display:flex; align-items:center; gap:7px; font-size:12px; cursor:pointer; color:var(--color-text-primary); }
+.oppgap-switch input { accent-color:var(--tsi-teal); width:15px; height:15px; }
 
 /* Modals for add forms */
 .acct-modal-overlay {
@@ -3337,7 +3340,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#127 · 2026-07-11';
+const APP_BUILD = '#128 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3378,10 +3381,11 @@ function oppPersist(rec){
 function oppRemove(id){ try { oppStore().remove(id); } catch(_){} }
 
 // ── Opportunity data-quality review — flag open opps missing key fields ──
-// Sales-critical fields by default. (Account-link and geocoding are intentionally
-// NOT here — nearly every legacy opp lacks them, which would flag everything and
-// bury the real gaps; both have dedicated workflows. Easy to add back if wanted.)
-const OPP_REVIEW_CHECKS = [
+// Sales-critical fields (default). Account-link + geocoding are in the EXTRA set,
+// off by default — nearly every legacy opp lacks them, so they'd flag everything;
+// the "Include legacy gaps" switch in the review adds them when you want to clean
+// those up too.
+const OPP_REVIEW_CHECKS_CORE = [
   { key:'val',   label:'No value',        test:o => o.val == null || o.val === '' },
   { key:'prob',  label:'No probability',  test:o => o.prob == null },
   { key:'close', label:'No close date',   test:o => !o.close || o.close === 'TBD' },
@@ -3389,7 +3393,23 @@ const OPP_REVIEW_CHECKS = [
   { key:'cat',   label:'No category',     test:o => !o.cat },
   { key:'lead',  label:'No lead',         test:o => !o.lead },
 ];
-function oppMissingFields(o){ return OPP_REVIEW_CHECKS.filter(c => { try { return c.test(o); } catch(_){ return false; } }); }
+const OPP_REVIEW_CHECKS_EXTRA = [
+  { key:'acct',  label:'No account link', test:o => !o.acctId },
+  { key:'geo',   label:'Not geocoded',    test:o => !(o.lat && o.lon) },
+];
+let _oppReviewAll = false;   // include the EXTRA (legacy) checks
+function oppReviewChecks(){ return _oppReviewAll ? OPP_REVIEW_CHECKS_CORE.concat(OPP_REVIEW_CHECKS_EXTRA) : OPP_REVIEW_CHECKS_CORE; }
+function oppMissingFields(o){ return oppReviewChecks().filter(c => { try { return c.test(o); } catch(_){ return false; } }); }
+function toggleOppReviewAll(v){ _oppReviewAll = !!v; renderOppReview(); updateOppGapBadge(); }
+// Step-through: open every flagged opp as the drawer's prev/next paging list, so
+// you fix one, Save (auto-saves on page), and ▸ to the next — grab-em-all.
+function startOppFixAll(){
+  const ids = oppsNeedingReview().map(o => o.id);
+  if (!ids.length){ showToast('✓ Nothing to fix', 'var(--tsi-succ-green)'); return; }
+  closeOppReview();
+  openOppDrawer(ids[0], { navList: ids });
+  showToast(ids.length + ' to review — edit, Save, then ▸ for the next', 'var(--tsi-teal)');
+}
 function oppsNeedingReview(){ return DATA.filter(o => o.status === 'O' && oppMissingFields(o).length); }
 function updateOppGapBadge(){ const el = document.getElementById('opp-gap-badge'); if (el){ const n = oppsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
 function openOppReview(){ renderOppReview(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.add('open'); }
@@ -3399,8 +3419,12 @@ function renderOppReview(){
   if (!body) return;
   const rows = oppsNeedingReview().sort((a,b) => oppMissingFields(b).length - oppMissingFields(a).length);
   if (title) title.textContent = 'Review gaps · ' + rows.length + ' opportunit' + (rows.length===1?'y':'ies');
-  if (!rows.length){ body.innerHTML = '<div style="padding:26px;text-align:center;color:var(--color-text-muted)">✓ Every open opportunity has the key fields filled in.</div>'; return; }
-  body.innerHTML = rows.map(o => {
+  const controls = `<div class="oppgap-controls">
+    <label class="oppgap-switch"><input type="checkbox" ${_oppReviewAll?'checked':''} onchange="toggleOppReviewAll(this.checked)"> Include legacy gaps <span style="color:var(--color-text-muted)">(account link &amp; location)</span></label>
+    <button class="btn-save-opp" style="flex:0 0 auto;width:auto;padding:6px 16px" onclick="startOppFixAll()" ${rows.length?'':'disabled'}>Fix all ▸</button>
+  </div>`;
+  if (!rows.length){ body.innerHTML = controls + '<div style="padding:22px;text-align:center;color:var(--color-text-muted)">✓ No gaps with the current checks.</div>'; return; }
+  body.innerHTML = controls + rows.map(o => {
     const miss = oppMissingFields(o).map(c => `<span class="oppgap-chip">${c.label}</span>`).join('');
     const val = (o.val!=null) ? ' · '+fmt(o.val) : '';
     return `<div class="oppgap-row" onclick="openOppReviewItem('${qattr(o.id)}')">
@@ -5537,7 +5561,9 @@ function openOppDrawer(editId, opts) {
   // Build the prev/next paging list from the current filtered pipeline order,
   // unless we're navigating within it (keepNav) — so paging stays stable even
   // as saves re-sort the underlying table.
-  if (!opts.keepNav) {
+  if (opts.navList) {
+    _drawerNavList = opts.navList;               // e.g. the "Fix all gaps" queue
+  } else if (!opts.keepNav) {
     const ids = (typeof currentFilteredRows==='function' ? currentFilteredRows() : []).map(o => o.id);
     _drawerNavList = (isEdit && ids.includes(editId)) ? ids : (isEdit ? [editId] : []);
   }
