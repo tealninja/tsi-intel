@@ -172,7 +172,8 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .sync-alert{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:22px;background:var(--tsi-amber,#f5a623);color:#3a2a00;font-size:12.5px;font-weight:600;box-shadow:0 6px 22px rgba(0,0,0,.28);cursor:pointer;white-space:nowrap;animation:syncAlertIn .25s ease}
 .sync-alert:hover{filter:brightness(1.05)}
 .sync-alert-dot{font-size:14px}
-.sync-alert-cta{text-decoration:underline;font-weight:800}
+.sync-alert-cta{text-decoration:underline;font-weight:800;background:rgba(58,42,0,.14);border:1px solid rgba(58,42,0,.35);color:inherit;font:inherit;font-weight:800;cursor:pointer;padding:2px 9px;border-radius:99px}
+.sync-alert-cta:hover{background:rgba(58,42,0,.24)}
 @keyframes syncAlertIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 /* welcome / session-status card (top-center, on login) */
 .tsi-welcome{position:fixed;top:-120px;left:50%;transform:translateX(-50%);z-index:2147483000;width:min(340px,calc(100vw - 28px));box-sizing:border-box;padding:14px 16px 13px;border-radius:16px;background:var(--color-surface,#fff);border:1px solid var(--color-border,#e3e3e3);box-shadow:0 14px 38px rgba(0,0,0,.22);opacity:0;transition:top .4s cubic-bezier(.2,.9,.3,1.2),opacity .4s}
@@ -1428,6 +1429,30 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   max-width:120px;
 }
+
+/* Header profile button + popover — click to sign in as yourself */
+.user-profile-btn{display:flex;align-items:center;gap:7px;cursor:pointer;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:99px;padding:3px 10px 3px 4px;font-family:var(--font-ui);transition:background .15s}
+.user-profile-btn:hover{background:rgba(255,255,255,0.18)}
+.user-profile-btn .up-avatar{width:24px;height:24px;border-radius:50%;background:var(--tsi-teal);color:#fff;font-size:10.5px;font-weight:700;font-family:var(--font-mono);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.user-profile-btn.unknown .up-avatar{background:var(--tsi-amber,#f5a623);color:#3a2a00}
+.user-profile-btn .up-name{font-size:11px;font-weight:600;color:rgba(255,255,255,0.88);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.user-profile-btn .up-caret{font-size:7px;color:rgba(255,255,255,0.5)}
+.user-profile-menu{position:fixed;z-index:13050;width:290px;background:var(--color-surface);border:1px solid var(--color-border-mid);border-radius:var(--radius-md);box-shadow:0 14px 44px rgba(0,0,0,.3);padding:14px;display:none;font-family:var(--font-ui)}
+.user-profile-menu.open{display:block}
+.upm-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.upm-h .up-avatar-lg{width:38px;height:38px;border-radius:50%;background:var(--tsi-teal);color:#fff;font-size:14px;font-weight:700;font-family:var(--font-mono);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.upm-h .upm-who{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-muted)}
+.upm-h .upm-cur{font-size:13px;font-weight:600;color:var(--color-heading)}
+.upm-label{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-muted);margin:9px 0 3px;display:block}
+.upm-input{width:100%;box-sizing:border-box;padding:7px 9px;font-size:12.5px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-text-primary);font-family:var(--font-ui);outline:none}
+.upm-input:focus{border-color:var(--tsi-teal)}
+.upm-actions{display:flex;gap:8px;margin-top:14px}
+.upm-save{flex:1;padding:8px;background:var(--tsi-teal);color:#fff;border:none;border-radius:var(--radius-md);font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--font-ui)}
+.upm-save:hover{background:rgb(0,116,125)}
+.upm-signout{padding:8px 12px;background:transparent;color:var(--color-text-secondary);border:1px solid var(--color-border-mid);border-radius:var(--radius-md);font-size:12.5px;cursor:pointer;font-family:var(--font-ui)}
+.upm-signout:hover{border-color:var(--tsi-coral);color:var(--tsi-coral)}
+.upm-quick{font-size:11px;color:var(--tsi-teal);cursor:pointer;margin-top:11px;display:inline-block}
+.upm-quick:hover{text-decoration:underline}
 
 
 /* ── COLLAPSIBLE DRAWER SECTIONS ────────────────────── */
@@ -2959,6 +2984,11 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <div class="dm-pill"><div class="dm-dot"></div></div>
       <span class="dm-icon">◗</span>
     </div>
+    <button class="user-profile-btn unknown" id="user-profile-btn" onclick="toggleProfileMenu(event)" title="Your profile — click to sign in as yourself">
+      <span class="up-avatar" id="up-avatar">?</span>
+      <span class="up-name" id="up-name">Sign in</span>
+      <span class="up-caret">▼</span>
+    </button>
   </div>
   </div><!-- /header-top -->
   <div class="tab-bar" id="tab-bar">
@@ -3064,6 +3094,25 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <button class="import-btn" id="sync-btn" onclick="manualSync()" style="display:none">☁ Sync</button>
   <button class="view-toggle-btn" id="compact-btn" onclick="toggleCompact()" title="Toggle compact view">⊟ Compact</button>
   <input type="file" id="opp-upload-input" accept=".json" onchange="importOppsFromFile(event)">
+</div>
+
+<!-- ── PROFILE POPOVER (header profile button) ── -->
+<div class="user-profile-menu" id="user-profile-menu">
+  <div class="upm-h">
+    <div class="up-avatar-lg" id="upm-avatar-lg">?</div>
+    <div><div class="upm-who">Signed in as</div><div class="upm-cur" id="upm-cur">Not signed in</div></div>
+  </div>
+  <label class="upm-label">Full name</label>
+  <input class="upm-input" id="upm-name" placeholder="e.g. Jane Smith" autocomplete="off" oninput="upmSyncInitials()">
+  <label class="upm-label">Email</label>
+  <input class="upm-input" id="upm-email" placeholder="you@tsi-inc.net" autocomplete="off">
+  <label class="upm-label">Initials <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted)">— shown on records you edit</span></label>
+  <input class="upm-input" id="upm-initials" maxlength="4" placeholder="JS" style="max-width:90px" oninput="this.value=this.value.toUpperCase()">
+  <div class="upm-actions">
+    <button class="upm-save" onclick="saveProfile()">Save</button>
+    <button class="upm-signout" onclick="signOutProfile()" title="Clear this identity on this browser">Sign out</button>
+  </div>
+  <span class="upm-quick" id="upm-john-quick" onclick="imJohnTeal()">I'm John Teal</span>
 </div>
 
 <!-- ══ CHARTS SECTION ══ -->
@@ -3373,7 +3422,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#132 · 2026-07-14';
+const APP_BUILD = '#133 · 2026-07-14';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3575,7 +3624,7 @@ function updateSyncAlert(){
   const bits = [];
   if (upd)  bits.push(`${upd} updated`);
   if (news) bits.push(`${news} new`);
-  pill.innerHTML = `<span class="sync-alert-dot">⚠</span> ${bits.join(' · ')} by others · <span class="sync-alert-cta">Refresh all</span>`;
+  pill.innerHTML = `<span class="sync-alert-dot">⚠</span> ${bits.join(' · ')} by others · <button type="button" class="sync-alert-cta" onclick="event.stopPropagation();refreshAllStale()">Refresh all</button>`;
   pill.style.display = '';
 }
 
@@ -6629,6 +6678,7 @@ function completeOnboarding(skip=false) {
   }
   localStorage.setItem(ONBOARD_KEY, '1');
   const _oo2=document.getElementById('onboard-overlay'); if(_oo2) _oo2.style.display='none';
+  if (typeof updateProfileButton === 'function') updateProfileButton();
   showWelcomeToast();
 }
 
@@ -7232,15 +7282,15 @@ async function initUserIdentity() {
     return;
   }
   // Identity can't be determined (no SharePoint, no remembered user) → ASK on
-  // open. Pre-fill the best guess for this context so John one-clicks through,
-  // but a coworker can type their own — nobody is silently claimed as John:
+  // open, and NEVER silently claim anyone. The shared web app (bodhistoys /
+  // workers.dev) is used by the whole team now, so it must NOT pre-fill John —
+  // each person signs in as themselves via the profile button. Only a locally
+  // opened desktop copy (John's own machine) pre-fills John's MS identity:
   //   • local/desktop file  → John's MS identity (jteal@tsi-inc.net)
-  //   • bodhistoys/workers   → John's Gmail (his personal web landing)
-  //   • any other host       → blank (truly unknown)
-  const prefill = isLocalFile() ? JTEAL_MS_USER
-                : isCloudflareHost() ? JTEAL_USER
-                : null;
+  //   • shared web / other   → blank (each person identifies themselves)
+  const prefill = isLocalFile() ? JTEAL_MS_USER : null;
   checkOnboarding(prefill);
+  updateProfileButton();
 }
 
 function applyUserToUI(user) {
@@ -7267,6 +7317,105 @@ function applyUserToUI(user) {
       }
     }
   }
+  updateProfileButton();
+}
+
+// ── HEADER PROFILE BUTTON / "sign in as yourself" popover ──
+// Reflects the current identity in the header, and lets anyone set or switch who
+// they are — the app attributes edits (updatedBy/locks/usage) to this identity.
+function updateProfileButton(){
+  const btn = document.getElementById('user-profile-btn');
+  if (!btn) return;
+  const ini = getUserInitials(), nm = getUserName(), em = getUserEmail();
+  // getUserName() falls back to initials when no real name is stored; treat that as "no name".
+  const realName = (nm && nm !== ini) ? nm : '';
+  const known = !!(ini || realName || em);
+  btn.classList.toggle('unknown', !known);
+  const av = document.getElementById('up-avatar');
+  const nmEl = document.getElementById('up-name');
+  if (av)   av.textContent   = known ? (ini || deriveInitials(realName) || (em ? em[0].toUpperCase() : '?')) : '?';
+  if (nmEl) nmEl.textContent = known ? (realName || ini || em) : 'Sign in';
+  btn.title = known
+    ? ('Signed in as ' + (realName || ini) + (em ? ' · ' + em : '') + ' — click to switch')
+    : 'Click to sign in as yourself';
+}
+// Derive initials from the name field as the user types (only if they haven't set initials).
+function upmSyncInitials(){
+  const initEl = document.getElementById('upm-initials');
+  if (initEl && !initEl.value.trim()) initEl.placeholder = deriveInitials(document.getElementById('upm-name').value) || 'JS';
+}
+function toggleProfileMenu(e){
+  if (e) e.stopPropagation();
+  const m = document.getElementById('user-profile-menu');
+  if (!m) return;
+  if (m.classList.contains('open')) { closeProfileMenu(); return; }
+  const ini = getUserInitials(), nm = getUserName(), em = getUserEmail();
+  const realName = (nm && nm !== ini) ? nm : '';
+  const known = !!(ini || realName || em);
+  document.getElementById('upm-name').value     = realName;
+  document.getElementById('upm-email').value    = em || '';
+  document.getElementById('upm-initials').value = ini || '';
+  document.getElementById('upm-avatar-lg').textContent = known ? (ini || deriveInitials(realName) || '?') : '?';
+  document.getElementById('upm-cur').textContent = known ? (realName || ini || em) : 'Not signed in';
+  // Position under the profile button, right-aligned.
+  const btn = document.getElementById('user-profile-btn');
+  const r = btn.getBoundingClientRect();
+  m.style.top   = (r.bottom + 6) + 'px';
+  m.style.right = Math.max(8, (window.innerWidth - r.right)) + 'px';
+  m.classList.add('open');
+  setTimeout(() => document.getElementById('upm-name').focus(), 50);
+  setTimeout(() => document.addEventListener('click', _profileOutside), 0);
+}
+function _profileOutside(e){
+  const m = document.getElementById('user-profile-menu');
+  const btn = document.getElementById('user-profile-btn');
+  if (m && !m.contains(e.target) && btn && !btn.contains(e.target)) closeProfileMenu();
+}
+function closeProfileMenu(){
+  const m = document.getElementById('user-profile-menu');
+  if (m) m.classList.remove('open');
+  document.removeEventListener('click', _profileOutside);
+}
+function saveProfile(){
+  const name  = (document.getElementById('upm-name').value  || '').trim();
+  const email = (document.getElementById('upm-email').value || '').trim();
+  let   ini   = (document.getElementById('upm-initials').value || '').trim().toUpperCase();
+  if (!ini && name) ini = deriveInitials(name);
+  if (!ini && !name && !email) { showToast('Enter your name or initials', 'var(--tsi-amber)'); return; }
+  _currentUser = { name: name || ini, email, initials: ini, source: 'manual' };
+  localStorage.setItem(USER_KEY, ini);
+  localStorage.setItem('tsi_user_name_v1',  name  || '');
+  localStorage.setItem('tsi_user_email_v1', email || '');
+  localStorage.setItem(ONBOARD_KEY, '1');
+  const uInp = document.getElementById('user-initials'); if (uInp) uInp.value = ini;
+  updateProfileButton();
+  if (typeof refreshAiClassUI === 'function') refreshAiClassUI();
+  closeProfileMenu();
+  showToast('✓ Signed in as ' + (name || ini), 'var(--tsi-succ-green)');
+}
+function signOutProfile(){
+  _currentUser = { name:'', email:'', initials:'', source:'manual' };
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('tsi_user_name_v1');
+  localStorage.removeItem('tsi_user_email_v1');
+  localStorage.removeItem(ONBOARD_KEY);
+  const uInp = document.getElementById('user-initials'); if (uInp) uInp.value = '';
+  updateProfileButton();
+  if (typeof refreshAiClassUI === 'function') refreshAiClassUI();
+  // Clear the fields and keep the popover open so they can re-identify immediately.
+  document.getElementById('upm-name').value = '';
+  document.getElementById('upm-email').value = '';
+  document.getElementById('upm-initials').value = '';
+  document.getElementById('upm-avatar-lg').textContent = '?';
+  document.getElementById('upm-cur').textContent = 'Not signed in';
+  showToast('Signed out — enter who you are', 'var(--tsi-amber)');
+}
+// Quick preset for the deployment owner.
+function imJohnTeal(){
+  document.getElementById('upm-name').value     = 'John Teal';
+  document.getElementById('upm-email').value    = isLocalFile() ? 'jteal@tsi-inc.net' : 'teal.john@gmail.com';
+  document.getElementById('upm-initials').value = 'JT';
+  saveProfile();
 }
 
 // Override getUserInitials to use _currentUser
