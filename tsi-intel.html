@@ -3324,7 +3324,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#120 · 2026-07-11';
+const APP_BUILD = '#121 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -12181,22 +12181,42 @@ function saveSiteDrawer() {
 
   // Write directly into the unified accounts array — never through the
   // compat groups/sites getters, which are read-only computed views.
+  let autoSite = null;
   if (_siteDrawerEditId) {
     const idx = data.accounts.findIndex(a => a.id === _siteDrawerEditId);
     if (idx >= 0) data.accounts[idx] = { ...data.accounts[idx], ...accountRecord };
   } else {
     data.accounts.push(accountRecord);
+    // A brand-new top-level account (parent blank) should still get a site, so it
+    // shows on the map and has a detail panel — a single-location customer is an
+    // account AND a site. Only groups/sites (parentId-bearing records) are
+    // plotted, so mirror the entered details into one child site. (Adding more
+    // sites later, or editing the account, won't duplicate this — guarded by the
+    // edit id; use "add a site" for multi-site parents.)
+    if (isNewTopLevel) {
+      autoSite = { ...accountRecord,
+        id: 'S-' + name.replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase(),
+        parentId: accountRecord.id,
+        plantTags: [...(accountRecord.plantTags || [])],
+        associatedContactIds: [...(accountRecord.associatedContactIds || [])],
+      };
+      data.accounts.push(autoSite);
+    }
   }
 
   saveAccounts(data);
   closeSiteDrawer();
 
-  if (accountRecord.parentId) {
+  if (autoSite) {
+    // New standalone account — open its freshly-created site
+    renderAcctSidebar();
+    selectAcctSite(autoSite.id);
+  } else if (accountRecord.parentId) {
     // Saved a child site — open its detail panel
     renderAcctSidebar();
     selectAcctSite(accountRecord.id);
   } else {
-    // Saved a top-level account — just expand it in the sidebar, no detail to open
+    // Edited an existing top-level account — expand it in the sidebar
     _acctSelectedGroup = accountRecord.id;
     _acctSelectedSite  = null;
     renderAcctSidebar();
