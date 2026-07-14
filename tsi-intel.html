@@ -3327,7 +3327,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#122 · 2026-07-11';
+const APP_BUILD = '#123 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -4864,8 +4864,12 @@ function updateMap(rows) {
 
   let mapCount = 0;
   Object.entries(grouped).forEach(([loc, opps]) => {
-    let coords = LOC_COORDS[loc];
-    if (!coords) {
+    // Prefer the opportunity's own geocoded coords (saved by the drawer) so any
+    // new location plots — not just ones in the static LOC_COORDS dictionary.
+    // Fall back to LOC_COORDS (+ fuzzy) for legacy opps that have no lat/lon.
+    const geo = opps.find(o => o.lat && o.lon);
+    let coords = geo ? [geo.lat, geo.lon] : LOC_COORDS[loc];
+    if (!coords && loc) {
       // Try fuzzy match
       const key = Object.keys(LOC_COORDS).find(k => loc.toLowerCase().includes(k.toLowerCase().split(',')[0]) || k.toLowerCase().includes(loc.toLowerCase().split(',')[0]));
       if (key) coords = LOC_COORDS[key];
