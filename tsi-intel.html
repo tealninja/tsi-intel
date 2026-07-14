@@ -3373,7 +3373,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#131 · 2026-07-14';
+const APP_BUILD = '#132 · 2026-07-14';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3444,19 +3444,26 @@ function applyFixHighlights(){
 function oppReviewChecks(){ return _oppReviewAll ? OPP_REVIEW_CHECKS_CORE.concat(OPP_REVIEW_CHECKS_EXTRA) : OPP_REVIEW_CHECKS_CORE; }
 function oppMissingFields(o){ return oppReviewChecks().filter(c => { try { return c.test(o); } catch(_){ return false; } }); }
 function toggleOppReviewAll(v){ _oppReviewAll = !!v; renderOppReview(); updateOppGapBadge(); }
+// Opp gap "fix" dock — keep the review list open on the left while editing, so
+// you never lose your place in the flagged opportunities.
+let _oppFixDock = false;
+function enterOppFixDock(){ _oppFixDock = true; _enterGapDock('oppreview-overlay', renderOppReview); }
+function exitOppFixDock(){ if (!_oppFixDock) return; _oppFixDock = false; _exitGapDock('oppreview-overlay'); }
 // Step-through: open every flagged opp as the drawer's prev/next paging list, so
-// you fix one, Save (auto-saves on page), and ▸ to the next — grab-em-all.
+// you fix one, Save, and it advances to the next — with the list docked open.
 function startOppFixAll(){
-  const ids = oppsNeedingReview().map(o => o.id);
+  const ids = oppsNeedingReviewSorted().map(o => o.id);
   if (!ids.length){ showToast('✓ Nothing to fix', 'var(--tsi-succ-green)'); return; }
-  closeOppReview();
-  openOppDrawer(ids[0], { navList: ids, fixMode: true });
-  showToast(ids.length + ' to review — the missing fields are highlighted; edit, then ▸ for the next', 'var(--tsi-teal)');
+  openOppDrawer(ids[0], { navList: ids, fixMode: true, fixReview: true });
+  showToast(ids.length + ' to review — missing fields are highlighted; edit, Save, and it moves to the next', 'var(--tsi-teal)');
 }
 function oppsNeedingReview(){ return DATA.filter(o => o.status === 'O' && oppMissingFields(o).length); }
+// Same order the review list renders in (most-missing first), so the fix
+// step-through opens the top row and pages straight down the visible list.
+function oppsNeedingReviewSorted(){ return oppsNeedingReview().sort((a,b) => oppMissingFields(b).length - oppMissingFields(a).length); }
 function updateOppGapBadge(){ const el = document.getElementById('opp-gap-badge'); if (el){ const n = oppsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
 function openOppReview(){ renderOppReview(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.add('open'); }
-function closeOppReview(){ const o = document.getElementById('oppreview-overlay'); if (o) o.classList.remove('open'); }
+function closeOppReview(){ exitOppFixDock(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.remove('open'); }
 function renderOppReview(){
   const body = document.getElementById('oppreview-body'), title = document.getElementById('oppreview-title');
   if (!body) return;
@@ -3470,15 +3477,19 @@ function renderOppReview(){
   body.innerHTML = controls + rows.map(o => {
     const miss = oppMissingFields(o).map(c => `<span class="oppgap-chip">${c.label}</span>`).join('');
     const val = (o.val!=null) ? ' · '+fmt(o.val) : '';
-    return `<div class="oppgap-row" onclick="openOppReviewItem('${qattr(o.id)}')">
+    const cur = (o.id === _drawerEditId && _oppFixDock) ? ' oppgap-row-active' : '';
+    return `<div class="oppgap-row${cur}" onclick="openOppReviewItem('${qattr(o.id)}')">
       <div class="oppgap-head"><span class="oppgap-acct">${qesc(o.acct||'—')}</span><span class="oppgap-type">${qesc(o.type||'')}${val}</span><span class="oppgap-n">${oppMissingFields(o).length}</span></div>
       <div class="oppgap-chips">${miss}</div>
     </div>`;
   }).join('');
 }
-// Open the drawer to fix an opp; keep the review modal underneath so you can
-// work through the list. On drawer save, renderPipeline re-renders the review.
-function openOppReviewItem(id){ openOppDrawer(id, { fixMode: true }); }
+// Open the drawer to fix an opp, keeping the review list docked open on the left
+// and paging through the currently-flagged set so you don't lose your place.
+function openOppReviewItem(id){
+  const ids = oppsNeedingReviewSorted().map(o => o.id);
+  openOppDrawer(id, { fixMode: true, fixReview: true, navList: ids.length ? ids : [id] });
+}
 
 // Load pipeline on startup: pull the D1 collection; on first run, import the
 // legacy KV pipeline (so nothing edited there is lost) or the embedded seed.
@@ -5605,6 +5616,7 @@ function openOppDrawer(editId, opts) {
   populateOppAccountOptions();
   mountRteToolbars('#opp-drawer');
   _drawerEditId = editId || null;
+  if (opts.fixReview) enterOppFixDock();   // dock the review list open (after editId is set, so the active row highlights)
   const isEdit  = !!editId;
   // Build the prev/next paging list from the current filtered pipeline order,
   // unless we're navigating within it (keepNav) — so paging stays stable even
@@ -5726,6 +5738,7 @@ function openOppDrawer(editId, opts) {
 function closeOppDrawer() {
   document.getElementById('opp-drawer-overlay').classList.remove('open');
   document.getElementById('opp-drawer').classList.remove('open');
+  exitOppFixDock();   // leaving the drawer ends the dock; the review list stays open
   if (_drawerClima) { _drawerClima.destroy(); _drawerClima = null; }
   destroyDrawerMap();
   // Release lock
@@ -6230,6 +6243,9 @@ function saveOppDrawer() {
     const _da=document.getElementById('d-acct'); if(_da){_da.style.borderColor='var(--tsi-coral)'; setTimeout(()=>{_da.style.borderColor=''},1500);}
     return;
   }
+  // Capture the gap-fix step-through state before closeOppDrawer() tears it down.
+  const _fixFlow  = _oppFixDock;
+  const _fixSaved = _drawerEditId;
   const city    = document.getElementById('d-city').value.trim();
   const state   = document.getElementById('d-state').value.trim();
   const country = document.getElementById('d-country').value.trim();
@@ -6330,6 +6346,19 @@ function saveOppDrawer() {
     btn.textContent = '✓ Saved!';
     btn.style.background = 'var(--tsi-succ-green)';
     setTimeout(() => { btn.textContent = 'Save Opportunity'; btn.style.background = ''; }, 1500);
+  }
+
+  // Gap-fix step-through: after saving, advance to the next still-flagged opp and
+  // keep the review list docked open. If nothing's left, the list stays visible.
+  if (_fixFlow && typeof oppsNeedingReview === 'function') {
+    const remaining = oppsNeedingReviewSorted().map(o => o.id);
+    if (remaining.length) {
+      const next = remaining.find(id => id !== _fixSaved) || remaining[0];
+      openOppDrawer(next, { navList: remaining, fixMode: true, fixReview: true });
+    } else {
+      openOppReview();
+      showToast('✓ All opportunity gaps resolved', 'var(--tsi-succ-green)');
+    }
   }
 }
 
