@@ -906,6 +906,9 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 }
 .drawer-tag-item .dtag-x { opacity:.7; font-size:10px; cursor:pointer; }
 .drawer-tag-item .dtag-x:hover { opacity:1; }
+.dprod-qty { width:30px; border:none; background:rgba(255,255,255,.22); color:#fff;
+  border-radius:4px; font-size:11px; padding:1px 2px; text-align:center; -moz-appearance:textfield; }
+.dprod-qty::-webkit-inner-spin-button, .dprod-qty::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
 .drawer-link-item {
   display:inline-flex; align-items:center; gap:4px;
   padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:600;
@@ -3324,7 +3327,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#121 · 2026-07-11';
+const APP_BUILD = '#122 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -5429,6 +5432,7 @@ function renderBugs() {
 let _drawerEditId = null;   // null = new, string = editing
 let _drawerClima  = null;   // Chart.js instance for climatogram
 let _drawerTags   = [];     // current tag keys in drawer
+let _drawerProducts = [];   // [{seedId, code, name, qty}] products/equipment on this opp
 let _drawerLinks  = [];     // ids of related opportunities (program phases) in drawer
 let _drawerNavList = [];    // ordered opp ids the drawer pages through (prev/next arrows)
 let _drawerDirty   = false; // has the user edited any field since the drawer opened?
@@ -5527,6 +5531,7 @@ function openOppDrawer(editId, opts) {
     _drawerLat = o.lat || null;
     _drawerLon = o.lon || null;
     _drawerTags = [...(o.tags || [])];
+    _drawerProducts = (o.products || []).map(x => ({ ...x }));
     setDrawerField('d-phase', o.phase || '');
     setDrawerField('d-lob', o.lob || '');
     _drawerLinks = relatedOppIds(o.id);   // union of both directions (self-heals legacy one-sided links)
@@ -5552,6 +5557,7 @@ function openOppDrawer(editId, opts) {
     setDrawerField('d-phase', '');
     setDrawerField('d-lob', '');
     _drawerTags = [];
+    _drawerProducts = [];
     _drawerLinks = [];
     _drawerLat = null; _drawerLon = null;
     const _ws2 = document.getElementById('d-weather-section');
@@ -5561,6 +5567,7 @@ function openOppDrawer(editId, opts) {
   }
 
   rebuildDrawerTags();
+  rebuildDrawerProducts();
   rebuildDrawerLinks();
   _drawerDirty = false;      // fresh load — no unsaved edits yet
   window._drawerLocMeta = null;
@@ -5672,6 +5679,32 @@ function removeDrawerTag(key) {
   rebuildDrawerTags();
 }
 
+// ── Products / equipment on an opportunity (catalog line or free-form, + qty) ──
+function rebuildDrawerProducts() {
+  const wrap = document.getElementById('d-prod-wrap');
+  const inp  = document.getElementById('d-prod-input');
+  if (!wrap || !inp) return;
+  wrap.querySelectorAll('.drawer-tag-item').forEach(el => el.remove());
+  _drawerProducts.forEach((p, i) => {
+    const sp = document.createElement('span');
+    sp.className = 'drawer-tag-item';
+    sp.style.background = p.seedId ? '#0e7490' : '#5b6b7a';   // teal = price-list, slate = free-form
+    sp.title = p.seedId ? ((p.code ? p.code + ' — ' : '') + 'price-list item') : 'free-form equipment';
+    sp.innerHTML = `<input class="dprod-qty" type="number" min="1" step="1" value="${p.qty || 1}" `
+      + `onclick="event.stopPropagation()" onchange="setDrawerProductQty(${i}, this.value)"> `
+      + `${qesc(p.name)}`
+      + ` <span class="dtag-x" onclick="event.stopPropagation();removeDrawerProduct(${i})">×</span>`;
+    wrap.insertBefore(sp, inp);
+  });
+}
+function setDrawerProductQty(i, v) {
+  const n = Math.max(1, Math.round(parseFloat(v) || 1));
+  if (_drawerProducts[i]) { _drawerProducts[i].qty = n; _drawerDirty = true; }
+}
+function removeDrawerProduct(i) {
+  _drawerProducts.splice(i, 1); _drawerDirty = true; rebuildDrawerProducts();
+}
+
 // ── Related opportunities (program phases: FEED → EPC → fab/install …) ──────
 // A short, human label for an opp used in link pickers/chips.
 function oppLinkLabel(o){
@@ -5751,27 +5784,45 @@ function syncOppLinks(oppId, links){
   });
 }
 
-// Wire tag input autocomplete
+// Wire tag input autocomplete — allowCreate so a scope tag that isn't predefined
+// can still be added (typed text becomes a custom tag; chips + the pipeline render
+// unknown keys as a grey pill via TAG_DEFS[t]||[t,'888888']).
 document.addEventListener('DOMContentLoaded', () => {
   const inp = document.getElementById('d-tag-input');
   if (!inp) return;
-  const tagLabels = TAG_KEYS.map(k => TAG_DEFS[k][0]);
-  inp.addEventListener('input', () => {
-    showAC(inp, tagLabels, label => {
-      const key = TAG_KEYS.find(k => TAG_DEFS[k][0] === label);
-      if (key && !_drawerTags.includes(key)) { _drawerTags.push(key); rebuildDrawerTags(); }
-      inp.value = '';
-    });
-  });
-  inp.addEventListener('focus', () => {
-    const tagLabels2 = TAG_KEYS.map(k => TAG_DEFS[k][0]);
-    showAC(inp, tagLabels2, label => {
-      const key = TAG_KEYS.find(k => TAG_DEFS[k][0] === label);
-      if (key && !_drawerTags.includes(key)) { _drawerTags.push(key); rebuildDrawerTags(); }
-      inp.value = '';
-    });
-  });
+  const onPick = txt => {
+    let key = TAG_KEYS.find(k => TAG_DEFS[k][0] === txt);   // a predefined tag's label
+    if (!key) key = String(txt).trim();                     // else a custom/new tag
+    if (key && !_drawerTags.includes(key)) { _drawerTags.push(key); _drawerDirty = true; rebuildDrawerTags(); }
+    inp.value = '';
+  };
+  const openTagAC = () => showAC(inp, TAG_KEYS.map(k => TAG_DEFS[k][0]), onPick, true);
+  inp.addEventListener('input', openTagAC);
+  inp.addEventListener('focus', openTagAC);
   inp.addEventListener('blur', () => setTimeout(closeAC, 150));
+});
+
+// Wire the opportunity product/equipment input: autocomplete over the price list,
+// with allowCreate so a name that isn't in the catalog is added as free-form
+// equipment (capital projects). Selecting a catalog entry links its seed id.
+document.addEventListener('DOMContentLoaded', () => {
+  const pinp = document.getElementById('d-prod-input');
+  if (!pinp) return;
+  const prodLabel = p => (p.code ? p.code + ' — ' : '') + p.name;
+  const addFromInput = val => {
+    const list = (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
+    const prod = list.find(p => prodLabel(p) === val);
+    if (prod) _drawerProducts.push({ seedId: prod.seedId, code: prod.code || '', name: prod.name, qty: 1 });
+    else      _drawerProducts.push({ seedId: null, code: '', name: String(val).trim(), qty: 1 });
+    pinp.value = ''; _drawerDirty = true; rebuildDrawerProducts();
+  };
+  const openProdAC = () => {
+    const labels = ((typeof PRODUCTS !== 'undefined') ? PRODUCTS : []).map(prodLabel);
+    showAC(pinp, labels, addFromInput, true);
+  };
+  pinp.addEventListener('input', openProdAC);
+  pinp.addEventListener('focus', openProdAC);
+  pinp.addEventListener('blur', () => setTimeout(closeAC, 150));
 });
 
 // ── GEOCODE / WEATHER ─────────────────────────────────────────
@@ -6085,6 +6136,7 @@ function saveOppDrawer() {
     source:     document.getElementById('d-source').value.trim(),
     status:     'O',
     tags:       [..._drawerTags],
+    products:   _drawerProducts.map(x => ({ ...x })),
     lob:        document.getElementById('d-lob')?.value || '',
     phase:      document.getElementById('d-phase')?.value.trim() || '',
     linkedIds:  [..._drawerLinks],
@@ -13042,6 +13094,24 @@ startAdminPoll();
       <div class="drow" style="margin-top:12px">
         <label>Details <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— rich-text scope narrative, shown in the presentation</span></label>
         <div class="dtextarea q-rte" id="d-details" contenteditable="true" data-ph="Scope narrative, technical context, background, key stakeholders, decision drivers…" style="min-height:120px"></div>
+      </div>
+      </div><!-- /dsec-body -->
+    </div>
+
+    <!-- PRODUCTS / EQUIPMENT -->
+    <div class="dsec" id="dsec-products">
+      <div class="dsec-title" onclick="toggleDsec('products')">
+        <span>Products &amp; Equipment <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— price-list items or free-form equipment, with quantity</span></span>
+        <span class="dsec-chevron">▾</span>
+      </div>
+      <div class="dsec-body">
+      <div class="drow">
+        <div class="drawer-tag-editor" id="d-prod-wrap" onclick="const _pi=document.getElementById('d-prod-input');if(_pi)_pi.focus()">
+          <input class="drawer-tag-input" id="d-prod-input" placeholder="Search the price list, or type equipment…" autocomplete="off">
+        </div>
+        <div style="font-size:10px;color:var(--color-text-muted);margin-top:6px">
+          Torrefaction samples: pick from the price list. Capital projects: type a name and “+ Add”. Set quantity on each chip.
+        </div>
       </div>
       </div><!-- /dsec-body -->
     </div>
