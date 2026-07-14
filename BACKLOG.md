@@ -178,6 +178,20 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Gap-review "fix" flow + account cleanup** (builds #131–#132):
+  - **Accounts sidebar header** no longer overflows — the map/push/KML/site/gaps
+    buttons wrap onto their own row under the title.
+  - **Opportunity Account field** — removed the duplicate autocomplete (native
+    datalist **and** custom popup were both showing); now one styled autocomplete
+    over ALL accounts that resolves the real account FK on select.
+  - **Dockable "fix" flow** (accounts **and** opportunities): "Fix all"/row-click
+    keeps the review list docked open on the left while the drawer edits on the
+    right — no greying, no losing your place. Save auto-advances to the next
+    flagged record; prev/next pages the flagged set (sorted to match the list).
+  - **Delete account/site** — drawer button + 🗑 on each review row; cascades child
+    sites and unlinks affected opps (they resurface in the opp gap review). Confirm.
+  - **Reassign/merge** a duplicate (abbreviation) account into a canonical one —
+    re-parents its sites, re-links its opps, then removes the duplicate.
 - [x] **Quote builder overhaul** (builds #103–#105) — eight tweaks:
   1. **My Companies** page/modal: manage seller entities (TSI + Biocarbon seeded — name,
      address, EIN, uploadable logo, default flag; persisted to D1 `companies`), with an
