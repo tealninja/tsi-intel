@@ -1769,6 +1769,15 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .acct-opp-row:hover { background:var(--color-hover); margin:0 -8px; padding:6px 8px; }
 .acct-opp-id { font-family:var(--font-mono); font-size:10px;
   color:var(--tsi-teal); min-width:60px; }
+/* Opportunity gap-review modal rows */
+.oppgap-row { border:0.5px solid var(--color-border); border-radius:var(--radius-md); padding:9px 12px; margin-bottom:8px; cursor:pointer; background:var(--color-surface); }
+.oppgap-row:hover { background:var(--color-hover); }
+.oppgap-head { display:flex; gap:8px; align-items:baseline; }
+.oppgap-acct { font-weight:600; color:var(--color-heading); }
+.oppgap-type { font-size:11px; color:var(--color-text-muted); flex:1; }
+.oppgap-n { font-size:10px; font-weight:700; color:var(--tsi-coral); background:rgba(139,26,10,0.1); border-radius:99px; padding:1px 7px; }
+.oppgap-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+.oppgap-chip { font-size:10px; background:rgba(139,26,10,0.12); color:var(--tsi-coral); border-radius:99px; padding:2px 8px; white-space:nowrap; }
 
 /* Modals for add forms */
 .acct-modal-overlay {
@@ -3102,6 +3111,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <button class="pvt-btn" data-v="stages" onclick="setPipView('stages')" title="Stage board (kanban)">▦ Stages</button>
     </div>
     <span class="toolbar-count" id="pip-count"></span>
+    <button class="select views-btn" onclick="openOppReview()" title="Open opportunities missing key fields — value, close date, account link, location, stage…">⚠ Review gaps <span id="opp-gap-badge" style="color:var(--tsi-coral);font-weight:700"></span></button>
     <button class="btn-add-opp" onclick="addNewOpp()">+ New Opportunity</button>
     <button class="btn-discard" id="clear-col-filters-btn" onclick="clearAllPipelineFilters()" title="Clear every filter — search, dropdowns, tags, chips & column filters">✕ Clear filters</button>
     <button class="btn-xlsx" onclick="exportXLSX()">⬇ Export XLSX</button>
@@ -3327,7 +3337,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#126 · 2026-07-11';
+const APP_BUILD = '#127 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3366,6 +3376,42 @@ function oppPersist(rec){
       { method:'PUT', headers:workerHeaders(), body:JSON.stringify(rec) }).catch(()=>{});
 }
 function oppRemove(id){ try { oppStore().remove(id); } catch(_){} }
+
+// ── Opportunity data-quality review — flag open opps missing key fields ──
+// Sales-critical fields by default. (Account-link and geocoding are intentionally
+// NOT here — nearly every legacy opp lacks them, which would flag everything and
+// bury the real gaps; both have dedicated workflows. Easy to add back if wanted.)
+const OPP_REVIEW_CHECKS = [
+  { key:'val',   label:'No value',        test:o => o.val == null || o.val === '' },
+  { key:'prob',  label:'No probability',  test:o => o.prob == null },
+  { key:'close', label:'No close date',   test:o => !o.close || o.close === 'TBD' },
+  { key:'stage', label:'No stage',        test:o => !o.stage },
+  { key:'cat',   label:'No category',     test:o => !o.cat },
+  { key:'lead',  label:'No lead',         test:o => !o.lead },
+];
+function oppMissingFields(o){ return OPP_REVIEW_CHECKS.filter(c => { try { return c.test(o); } catch(_){ return false; } }); }
+function oppsNeedingReview(){ return DATA.filter(o => o.status === 'O' && oppMissingFields(o).length); }
+function updateOppGapBadge(){ const el = document.getElementById('opp-gap-badge'); if (el){ const n = oppsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
+function openOppReview(){ renderOppReview(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.add('open'); }
+function closeOppReview(){ const o = document.getElementById('oppreview-overlay'); if (o) o.classList.remove('open'); }
+function renderOppReview(){
+  const body = document.getElementById('oppreview-body'), title = document.getElementById('oppreview-title');
+  if (!body) return;
+  const rows = oppsNeedingReview().sort((a,b) => oppMissingFields(b).length - oppMissingFields(a).length);
+  if (title) title.textContent = 'Review gaps · ' + rows.length + ' opportunit' + (rows.length===1?'y':'ies');
+  if (!rows.length){ body.innerHTML = '<div style="padding:26px;text-align:center;color:var(--color-text-muted)">✓ Every open opportunity has the key fields filled in.</div>'; return; }
+  body.innerHTML = rows.map(o => {
+    const miss = oppMissingFields(o).map(c => `<span class="oppgap-chip">${c.label}</span>`).join('');
+    const val = (o.val!=null) ? ' · '+fmt(o.val) : '';
+    return `<div class="oppgap-row" onclick="openOppReviewItem('${qattr(o.id)}')">
+      <div class="oppgap-head"><span class="oppgap-acct">${qesc(o.acct||'—')}</span><span class="oppgap-type">${qesc(o.type||'')}${val}</span><span class="oppgap-n">${oppMissingFields(o).length}</span></div>
+      <div class="oppgap-chips">${miss}</div>
+    </div>`;
+  }).join('');
+}
+// Open the drawer to fix an opp; keep the review modal underneath so you can
+// work through the list. On drawer save, renderPipeline re-renders the review.
+function openOppReviewItem(id){ openOppDrawer(id); }
 
 // Load pipeline on startup: pull the D1 collection; on first run, import the
 // legacy KV pipeline (so nothing edited there is lost) or the embedded seed.
@@ -4189,6 +4235,9 @@ function renderPipeline() {
   updateCharts(f);
   updateMap(f);
   renderHotCards();
+  updateOppGapBadge();
+  const _rv = document.getElementById('oppreview-overlay');
+  if (_rv && _rv.classList.contains('open')) renderOppReview();   // keep the review list live after an edit
 }
 
 // ── RENDER: IMMINENT ─────────────────────────────────────────
@@ -14660,6 +14709,15 @@ startAdminPoll();
     <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Freeze a numbered version and set status Published (bumps the revision on re-publish)">Publish ▸</button>
   </div>
 </div><!-- /quote-drawer -->
+
+<!-- ══ OPPORTUNITY GAP REVIEW ══ -->
+<div class="ship-est-overlay" id="oppreview-overlay" onclick="if(event.target===this)closeOppReview()">
+  <div class="ship-est" style="max-width:720px;width:94vw">
+    <div class="ship-est-h"><b id="oppreview-title">Review gaps</b><span class="ship-est-sub">open opportunities missing key fields — click one to fix, then it drops off the list</span>
+      <button class="ship-est-x" onclick="closeOppReview()">✕</button></div>
+    <div class="ship-est-body" id="oppreview-body"></div>
+  </div>
+</div>
 
 <!-- ══ SHIPPING ESTIMATE (parcel rates for sample quotes) ══ -->
 <div class="ship-est-overlay" id="ship-est-overlay" onclick="if(event.target===this)closeShipEst()">
