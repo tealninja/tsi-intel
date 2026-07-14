@@ -3321,7 +3321,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#118 · 2026-07-11';
+const APP_BUILD = '#119 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -16741,11 +16741,10 @@ function exportQuoteWord(q){
         <tr><td style="font-size:8.5pt;color:#777;padding-top:3pt">Printed Name</td><td></td><td style="font-size:8.5pt;color:#777;padding-top:3pt">Title</td></tr>
       </table>
     </div>`;
-  const footer=`<div style='mso-element:footer' id='f1'><table class="footer-tbl" style="width:100%;border-collapse:collapse"><tr>
-      <td style="text-align:left;width:34%">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</td>
-      <td style="text-align:center;width:32%;letter-spacing:.5pt">CONFIDENTIAL</td>
-      <td style="text-align:right;width:34%">Page <span style='mso-field-code:PAGE'></span> of <span style='mso-field-code:NUMPAGES'></span></td>
-    </tr></table></div>`;
+  // Canonical Word page footer: a single MsoFooter paragraph with center/right
+  // tab stops (a <table> in the footer can render inline in some Word versions;
+  // one MsoFooter paragraph is what Word reliably extracts to the page foot).
+  const footer=`<div style='mso-element:footer' id='f1'><p class=MsoFooter>${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}<span style='mso-tab-count:1'></span>CONFIDENTIAL<span style='mso-tab-count:1'></span>Page <span style='mso-field-code:PAGE'></span> of <span style='mso-field-code:NUMPAGES'></span></p></div>`;
   const doc=`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head><meta charset='utf-8'><title>${qesc(q.id)} — ${qesc(q.customer_name||'Quote')}</title>
     <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
@@ -16754,8 +16753,7 @@ function exportQuoteWord(q){
         mso-footer:f1; }
       div.Section1 { page:Section1; }
       body{font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#333;font-size:11pt}
-      p.MsoFooter, li.MsoFooter, div.MsoFooter { margin:0; font-family:Aptos,'Segoe UI',Arial,sans-serif; font-size:8pt; color:#888; }
-      .footer-tbl td { font-size:8pt; color:#888; border-top:1px solid #ddd; padding-top:4px; }
+      p.MsoFooter, li.MsoFooter, div.MsoFooter { margin:0; font-family:Aptos,'Segoe UI',Arial,sans-serif; font-size:8pt; color:#888; border-top:1px solid #ddd; padding-top:4pt; tab-stops:center 3.25in right 6.5in; }
     </style>
     </head><body><div class="Section1">${body}${footer}</div></body></html>`;
   const fname=(q.id||'quote')+(q.rev&&q.rev!=='R0'?'-'+q.rev:'')+'.doc';
