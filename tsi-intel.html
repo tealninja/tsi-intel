@@ -1591,9 +1591,10 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 }
 .acct-sidebar-header {
   padding:12px 14px 8px; border-bottom:1px solid var(--color-border);
-  display:flex; align-items:center; justify-content:space-between;
+  display:flex; flex-direction:column; align-items:stretch; gap:8px;
   position:sticky; top:0; background:var(--color-surface); z-index:2;
 }
+.acct-hdr-btns { display:flex; flex-wrap:wrap; gap:5px; }
 .acct-sidebar-title {
   font-size:11px; font-weight:500; text-transform:uppercase;
   letter-spacing:.06em; color:var(--color-text-muted);
@@ -3343,7 +3344,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#130 · 2026-07-11';
+const APP_BUILD = '#131 · 2026-07-14';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -6427,13 +6428,20 @@ function getDataList(field) {
 
 
 function wireDrawerAutocompletes() {
-  // Account
+  // Account — one styled autocomplete over ALL accounts (not just those that
+  // already have opps). Selecting resolves the real FK (d-acct-id) via
+  // onOppAcctInput, then prefills lead/location. The native datalist was removed
+  // from the input so only this dropdown shows.
   const acctInp = document.getElementById('d-acct');
   if (acctInp && !acctInp._acWired) {
     acctInp._acWired = true;
-    const accts = getDataList('acct');
-    acctInp.addEventListener('input',  () => showAC(acctInp, accts, v => { acctInp.value = v; closeAC(); prefillFromAccount(v); }, true));
-    acctInp.addEventListener('focus',  () => showAC(acctInp, accts, v => { acctInp.value = v; closeAC(); prefillFromAccount(v); }, true));
+    const acctNames = () => {
+      try { return [...new Set(getAccounts().accounts.map(a => a.name).filter(Boolean))].sort(); }
+      catch(_) { return getDataList('acct'); }
+    };
+    const pick = v => { acctInp.value = v; closeAC(); onOppAcctInput(v); prefillFromAccount(v); };
+    acctInp.addEventListener('input',  () => showAC(acctInp, acctNames(), pick, true));
+    acctInp.addEventListener('focus',  () => showAC(acctInp, acctNames(), pick, true));
     acctInp.addEventListener('blur',   () => setTimeout(closeAC, 150));
   }
   // Location search
@@ -13207,9 +13215,13 @@ startAdminPoll();
       <div class="drow-2">
         <div class="drow">
           <label>Account *</label>
-          <input class="dinput" id="d-acct" list="opp-account-options" placeholder="Search accounts…" autocomplete="off"
+          <input class="dinput" id="d-acct" placeholder="Search accounts…" autocomplete="off"
                  oninput="onOppAcctInput(this.value)">
           <input type="hidden" id="d-acct-id">
+          <!-- opp-account-options datalist kept (built by populateOppAccountOptions,
+               feeds _oppAcctNameToRecord for FK resolution); the visible picker is the
+               styled showAC wired in wireDrawerAutocompletes — no native `list=` here,
+               so only one dropdown shows. -->
           <datalist id="opp-account-options"></datalist>
         </div>
         <div class="drow">
@@ -14117,12 +14129,14 @@ startAdminPoll();
     <div class="acct-sidebar">
       <div class="acct-sidebar-header">
         <span class="acct-sidebar-title">Account Groups</span>
-        <button class="btn-acct-add" onclick="toggleAcctMap()" id="acct-map-toggle-btn" title="Show all sites on map">🗺</button>
-        <button class="btn-acct-add" id="acct-push-btn" onclick="pushAccountsToCloud()" title="Push all accounts + contacts to the cloud database now">☁ Push</button>
-        <button class="btn-acct-add" onclick="document.getElementById('kml-file').click()" title="Import mills/customers from a Google Earth .kml file">📍 KML</button>
-        <input type="file" id="kml-file" accept=".kml,.xml" style="display:none" onchange="importKML(this.files&&this.files[0]); this.value='';">
-        <button class="btn-acct-add" onclick="openNewSiteModal()">+ Site</button>
-        <button class="btn-acct-add" onclick="openAcctReview()" title="Accounts/sites missing info — accounts with no site, sites not geocoded">⚠ Gaps <span id="acct-gap-badge" style="color:var(--tsi-coral);font-weight:700"></span></button>
+        <div class="acct-hdr-btns">
+          <button class="btn-acct-add" onclick="toggleAcctMap()" id="acct-map-toggle-btn" title="Show all sites on map">🗺</button>
+          <button class="btn-acct-add" id="acct-push-btn" onclick="pushAccountsToCloud()" title="Push all accounts + contacts to the cloud database now">☁ Push</button>
+          <button class="btn-acct-add" onclick="document.getElementById('kml-file').click()" title="Import mills/customers from a Google Earth .kml file">📍 KML</button>
+          <input type="file" id="kml-file" accept=".kml,.xml" style="display:none" onchange="importKML(this.files&&this.files[0]); this.value='';">
+          <button class="btn-acct-add" onclick="openNewSiteModal()">+ Site</button>
+          <button class="btn-acct-add" onclick="openAcctReview()" title="Accounts/sites missing info — accounts with no site, sites not geocoded">⚠ Gaps <span id="acct-gap-badge" style="color:var(--tsi-coral);font-weight:700"></span></button>
+        </div>
       </div>
       <input class="acct-search" id="acct-search" placeholder="Search accounts…" oninput="renderAcctSidebar()">
       <div class="acct-cust-filter" id="acct-cust-filter">
