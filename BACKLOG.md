@@ -361,5 +361,15 @@ Roles (cumulative ladder):
 - [x] Loud offline / local-only save warnings.
 - [x] `tsi-intel-mcp` remote MCP server (build quotes by chatting with Claude).
 
+## 💤 Parked (not now — revisit if the need is felt)
+- **RFP / Bid tracking on opportunities** — reviewed a real RFP (Perpetual Next
+  DT70_RFP009). Candidate additions were: an RFP/Bid section (RFP #, revision,
+  issue date, questions-due, bid-due date, validity, contract form e.g. FIDIC,
+  bid/no-bid, submission status), opportunity-level customer buying team + Owner's
+  Engineer/EPC, decision milestones (Gate/FEED/FID + estimate class), deliverables
+  + compliance checklist, and competition. Deferred on 2026-07-14 to avoid making
+  the opp drawer too granular/complex; Scope narrative / Tags / Notes hold RFP
+  specifics ad-hoc for now.
+
 ## 🔗 Related (other branches)
 - Pipeline KV → D1 migration + auth hardening — `feature/db-seed-and-auth` (own TODO.md).
