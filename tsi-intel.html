@@ -787,10 +787,14 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
      the footer (Save/Cancel) pinned to the bottom of the drawer. */
 .drawer-footer {
   padding:12px 18px; border-top:1px solid var(--color-border);
-  display:flex; gap:10px; flex-wrap:wrap;
+  display:flex; gap:10px; flex-wrap:wrap; align-items:stretch;
   background:var(--color-surface);
   box-shadow:0 -2px 8px rgba(0,0,0,0.08);
+  /* Own stacking context above the scrolling body so no field/dropdown can
+     paint over (and swallow clicks on) the action buttons. */
+  position:relative; z-index:5;
 }
+.drawer-footer > button { position:relative; z-index:1; }
 .btn-save-opp {
   flex:1; padding:9px; background:var(--tsi-teal); color:white;
   border:none; border-radius:var(--radius-md); font-size:13px;
@@ -3317,7 +3321,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#116 · 2026-07-11';
+const APP_BUILD = '#117 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -12556,7 +12560,9 @@ const TableKit = {
   register(id, cfg){
     const hiddenKey = 'tk_hidden_' + id;
     let hidden = new Set();
-    try { hidden = new Set(JSON.parse(localStorage.getItem(hiddenKey) || '[]')); } catch {}
+    const _stored = localStorage.getItem(hiddenKey);
+    if (_stored != null) { try { hidden = new Set(JSON.parse(_stored)); } catch {} }
+    else if (cfg && cfg.defaultHidden) { hidden = new Set(cfg.defaultHidden); }   // first run: hide the extra columns by default
     // Preserve the pipeline's pre-TableKit hidden-columns choice on first run.
     if (id === 'pip-table' && !hidden.size) {
       try { const legacy = JSON.parse(localStorage.getItem('tsi_pip_hidden_cols_v2') || '[]'); if (legacy.length) hidden = new Set(legacy); } catch {}
@@ -14313,9 +14319,26 @@ startAdminPoll();
     <div class="tbl-wrap" id="quotes-table-wrap">
       <table class="tbl-editable" id="quote-table">
         <thead><tr>
-          <th class="sortable" data-col="id" style="width:140px">Quote #<span class="sort-icon"></span></th><th class="sortable" data-col="customer_name">Customer<span class="sort-icon"></span></th><th class="sortable" data-col="project" style="width:150px">Project<span class="sort-icon"></span></th>
-          <th class="sortable" data-col="n_lines" style="width:56px">Items<span class="sort-icon"></span></th><th class="sortable" data-col="total" style="width:120px">Total<span class="sort-icon"></span></th>
-          <th class="sortable" data-col="status" style="width:90px">Status<span class="sort-icon"></span></th><th class="sortable" data-col="quote_date" style="width:96px">Date<span class="sort-icon"></span></th><th style="width:120px"></th>
+          <th class="sortable" data-col="id" style="width:150px">Quote #<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="rev" style="width:64px">Rev<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="customer_name">Customer<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="contact_name" style="width:120px">Contact<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="project" style="width:140px">Project<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="seller" style="width:120px">Issued By<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="n_lines" style="width:56px">Items<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="total" style="width:120px">Total<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="subtotal" style="width:110px">Subtotal<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="tax_pct" style="width:66px">Tax %<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="freight" style="width:96px">Freight<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="currency" style="width:60px">Cur<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="status" style="width:100px">Status<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="quote_date" style="width:96px">Date<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="valid_until" style="width:100px">Valid Until<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="prepared_by" style="width:130px">Prepared By<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="po_contact_name" style="width:130px">PO Contact<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="contact_email" style="width:160px">Contact Email<span class="sort-icon"></span></th>
+          <th class="sortable" data-col="updated_at" style="width:110px">Updated<span class="sort-icon"></span></th>
+          <th style="width:150px"></th>
         </tr></thead>
         <tbody id="quotes-body"></tbody>
       </table>
@@ -15565,14 +15588,27 @@ TableKit.register('quote-table', {
   data: () => (window._quotesCache || []),
   render: () => renderQuotesList(),
   columns: [
-    { i:1, label:'Quote #',  col:'id',            sortable:true },
-    { i:2, label:'Customer', col:'customer_name', sortable:true },
-    { i:3, label:'Project',  col:'project',       sortable:true },
-    { i:4, label:'Items',    col:'n_lines',       sortable:true, sortVal:q=>q.n_lines!=null?Number(q.n_lines):(q.lines||[]).length },
-    { i:5, label:'Total',    col:'total',         sortable:true, sortVal:q=>Number(q.total)||0, filterVal:q=>String(q.status||'') },
-    { i:6, label:'Status',   col:'status',        sortable:true },
-    { i:7, label:'Date',     col:'quote_date',    sortable:true },
+    { i:1,  label:'Quote #',       col:'id',              sortable:true },
+    { i:2,  label:'Rev',           col:'rev',             sortable:true },
+    { i:3,  label:'Customer',      col:'customer_name',   sortable:true },
+    { i:4,  label:'Contact',       col:'contact_name',    sortable:true },
+    { i:5,  label:'Project',       col:'project',         sortable:true },
+    { i:6,  label:'Issued By',     col:'seller',          sortable:true, sortVal:q=>((typeof quoteSeller==='function'?quoteSeller(q).name:'')||'').toLowerCase() },
+    { i:7,  label:'Items',         col:'n_lines',         sortable:true, sortVal:q=>q.n_lines!=null?Number(q.n_lines):(q.lines||[]).length },
+    { i:8,  label:'Total',         col:'total',           sortable:true, sortVal:q=>Number(q.total)||0 },
+    { i:9,  label:'Subtotal',      col:'subtotal',        sortable:true, sortVal:q=>Number(q.subtotal)||0 },
+    { i:10, label:'Tax %',         col:'tax_pct',         sortable:true, sortVal:q=>Number(q.tax_pct)||0 },
+    { i:11, label:'Freight',       col:'freight',         sortable:true, sortVal:q=>Number(q.freight)||0 },
+    { i:12, label:'Currency',      col:'currency',        sortable:true },
+    { i:13, label:'Status',        col:'status',          sortable:true },
+    { i:14, label:'Date',          col:'quote_date',      sortable:true },
+    { i:15, label:'Valid Until',   col:'valid_until',     sortable:true },
+    { i:16, label:'Prepared By',   col:'prepared_by',     sortable:true },
+    { i:17, label:'PO Contact',    col:'po_contact_name', sortable:true },
+    { i:18, label:'Contact Email', col:'contact_email',   sortable:true },
+    { i:19, label:'Updated',       col:'updated_at',      sortable:true },
   ],
+  defaultHidden: [4,6,9,10,11,12,15,16,17,18,19],   // extras off by default; toggle via ▦ Columns
   capture: () => ({ search:(document.getElementById('quote-search')||{}).value||'', status:(document.getElementById('quote-fstatus')||{}).value||'' }),
   apply: (st) => { const s=document.getElementById('quote-search'); if(s) s.value=st.search||''; const f=document.getElementById('quote-fstatus'); if(f) f.value=st.status||''; renderQuotesList(); },
 });
@@ -15709,15 +15745,28 @@ async function renderQuotesList(){
     const revs=q.revisions||[]; const nRev=revs.length;
     const revTitle = (nRev ? nRev+' published version'+(nRev>1?'s':'') : 'Not yet published')+' — click for history';
     const revBadge = `<span class="q-rev-badge" style="cursor:pointer" title="${qattr(revTitle)}" onclick="openRevHistory('${qattr(q.id)}')">${qesc(q.rev||'R0')}${nRev?' · '+nRev+'🕓':''}</span>`;
+    const seller=(typeof quoteSeller==='function')?quoteSeller(q):{name:''};
     return `
     <tr>
-      <td><span class="prod-pn">${qesc(q.id)}</span> ${revBadge}</td>
-      <td>${qesc(q.customer_name||'—')}${q.contact_name?`<div style="font-size:10px;color:var(--color-text-muted)">${qesc(q.contact_name)}</div>`:''}</td>
+      <td><span class="prod-pn">${qesc(q.id)}</span></td>
+      <td>${revBadge}</td>
+      <td>${qesc(q.customer_name||'—')}</td>
+      <td style="font-size:11px">${qesc(q.contact_name||'—')}</td>
       <td style="font-size:11px">${qesc(q.project||'—')}</td>
+      <td style="font-size:11px">${qesc(seller.name||'—')}</td>
       <td style="text-align:center">${q.n_lines!=null?q.n_lines:((q.lines||[]).length)}</td>
       <td style="font-family:var(--font-mono);font-weight:500">${qmoney(q.total,q.currency)}</td>
+      <td style="font-family:var(--font-mono)">${qmoney(q.subtotal,q.currency)}</td>
+      <td style="text-align:right">${(Number(q.tax_pct)||0)?qesc(q.tax_pct)+'%':'—'}</td>
+      <td style="font-family:var(--font-mono)">${(Number(q.freight)||0)?qmoney(q.freight,q.currency):'—'}</td>
+      <td style="text-align:center;font-size:11px">${qesc(q.currency||'USD')}</td>
       <td><span class="q-status-pill q-status-${qattr(q.status||'Draft')}">${qesc(q.status||'Draft')}</span></td>
       <td style="font-size:11px;color:var(--color-text-muted)">${qesc(q.quote_date||'')}</td>
+      <td style="font-size:11px;color:var(--color-text-muted)">${qesc(q.valid_until||'—')}</td>
+      <td style="font-size:11px">${qesc(q.prepared_by||'—')}</td>
+      <td style="font-size:11px">${qesc(q.po_contact_name||'—')}</td>
+      <td style="font-size:11px">${qesc(q.contact_email||'—')}</td>
+      <td style="font-size:11px;color:var(--color-text-muted)">${qesc((q.updated_at||'').slice(0,10)||'—')}</td>
       <td style="white-space:nowrap">
         <button class="q-row-action" onclick="openQuoteBuilder('${qattr(q.id)}')" title="Edit">✎</button>
         <button class="q-row-action" onclick="openRevHistory('${qattr(q.id)}')" title="Revision history">🕓</button>
@@ -16539,7 +16588,13 @@ function printQuote(q){
     .qt{text-align:right} .qt .qn{font-size:17px;font-weight:700;color:#00929F;font-family:'Courier New',monospace;white-space:nowrap}
     .qt .qrev{display:inline-block;margin-left:7px;font-family:'Courier New',monospace;font-size:12px;font-weight:700;color:#fff;background:#00929F;border-radius:99px;padding:2px 11px;vertical-align:2px}
     .qt .qs{display:inline-block;margin-top:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:99px;background:rgba(0,146,159,.1);color:#19446C}
-    h3{font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#19446C;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:18px 0 8px}
+    h3{font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#19446C;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:18px 0 8px;break-after:avoid;page-break-after:avoid}
+    /* Orphan/widow control: never strand a section heading at the foot of a page
+       away from its content, don't split a line-item row, and keep a few lines
+       of prose together across a page break. */
+    h3 + .prose, h3 + .terms{break-before:avoid;page-break-before:avoid}
+    .prose,.terms{orphans:3;widows:3}
+    .items tbody tr,.items thead{break-inside:avoid;page-break-inside:avoid}
     .title{font-family:'DM Serif Display',Georgia,serif;font-size:20px;color:#19446C;margin:6px 0 12px}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px} .grid2 b{color:#19446C}
     table.items{width:100%;border-collapse:collapse;margin-top:6px}
