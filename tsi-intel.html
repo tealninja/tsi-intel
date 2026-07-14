@@ -3321,7 +3321,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#117 · 2026-07-11';
+const APP_BUILD = '#118 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -16618,21 +16618,25 @@ function printQuote(q){
        every printed page, so document text can never run underneath it. Chrome
        doesn't implement @page margin boxes, so per-page "Page X of Y" isn't
        possible here — the Word export carries real page-number field codes. */
-    /* Full-height wrapper table so the repeating <tfoot> footer is pushed to the
-       BOTTOM of the page (not left floating just under the last line), while still
-       reserving its own space per page so document text never overlaps it. */
-    table.pagewrap{width:100%;height:100%;border-collapse:collapse}
+    /* Footer pinned to the FOOT of every page. A position:fixed element with
+       bottom:0 renders at the bottom of each printed page in Chrome (negative
+       offsets or downward transforms wrongly jump it to the top, so bottom:0 is
+       the only stable anchor). An empty repeating <tfoot> spacer of the same
+       height reserves that band on every page, so document text stops above the
+       footer instead of overlapping it — verified against generated PDFs. */
+    @page{ margin:0.55in 0.6in 0.75in 0.6in }
+    table.pagewrap{width:100%;border-collapse:collapse}
     table.pagewrap>tfoot{display:table-footer-group}
-    table.pagewrap>tbody>tr>td.pgbody{padding:0;vertical-align:top;height:100%}
-    .pfoot table{width:100%;border-collapse:collapse;border-top:1px solid #ddd;margin-top:8px}
+    table.pagewrap td.pgbody{padding:0;vertical-align:top}
+    table.pagewrap tfoot td.foot-space{height:30px}
+    .pfoot{ position:fixed; left:0.6in; right:0.6in; bottom:0; margin:0 }
+    .pfoot>table{width:100%;border-collapse:collapse;border-top:1px solid #ddd}
     .pfoot td{font-size:9px;color:#999;padding-top:5px;width:34%}
     .pfoot td.pc{text-align:center;letter-spacing:.06em;width:32%}
     .pfoot td.pr{text-align:right}
-    @page{margin:0.6in}
   </style></head><body>
-    <table class="pagewrap"><tfoot><tr><td>
-      <div class="pfoot"><table><tr><td class="pl">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</td><td class="pc">CONFIDENTIAL</td><td class="pr">${qesc(q.quote_date||'')}</td></tr></table></div>
-    </td></tr></tfoot><tbody><tr><td class="pgbody">
+    <div class="pfoot"><table><tr><td class="pl">${qesc(q.id)} · Rev ${qesc(q.rev||'R0')}</td><td class="pc">CONFIDENTIAL</td><td class="pr">${qesc(q.quote_date||'')}</td></tr></table></div>
+    <table class="pagewrap"><tfoot><tr><td class="foot-space"></td></tr></tfoot><tbody><tr><td class="pgbody">
     <div class="head">
       <div class="co">${seller.logo?`<img src="${seller.logo}" style="max-height:46px;max-width:230px;margin-bottom:7px;display:block">`:''}${qesc(seller.name)}<small>${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</small></div>
       <div class="qt"><div class="qn">${qesc(q.id)}<span class="qrev">${qesc(q.rev||'R0')}</span></div><div class="qs">${qesc(q.status||'Draft')}</div></div>
