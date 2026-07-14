@@ -853,8 +853,11 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .qdc-link { color:var(--tsi-teal); cursor:pointer; font-weight:600; }
 .qdc-link:hover { text-decoration:underline; }
 .q-rte-locked { background:var(--color-bg-subtle,#f4f5f6); opacity:.9; }
-.drow-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
-.drow-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; }
+/* align-items:end bottom-aligns each cell so the inputs line up across a row even
+   when one label wraps to two lines (e.g. a field with a hint) — the label stays
+   attached to its own input. No-op for rows whose labels are the same height. */
+.drow-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; align-items:end; }
+.drow-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; align-items:end; }
 
 /* location geocode row */
 .dloc-wrap { position:relative; }
@@ -3321,7 +3324,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#119 · 2026-07-11';
+const APP_BUILD = '#120 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
