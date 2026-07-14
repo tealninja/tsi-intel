@@ -178,6 +178,17 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+- [x] **Accounts tabular view** (build #134) — a ▦ Table toggle in the Accounts
+  header opens a full sortable/filterable grid of every account & site, sharing
+  the TableKit engine with the pipeline/quotes tables: click-to-sort, per-column
+  value filters (▾▾), show/hide columns, drag-reorder, resize, and saved views.
+  Search + Type (account/site) + Customer-status filters; a row opens the site
+  drawer. Columns: name, type, parent, industry, location type, customer status,
+  plant types, nameplate, city/state/country, geocoded, port, opp count, primary
+  contact, last update (industry/loc-type/state/port/contact hidden by default).
+- [x] **Header profile button** (build #133) — sign in as yourself (name/email/
+  initials) from the header; the shared web app no longer defaults everyone to
+  John. Sync-alert "Refresh all" is now a real button.
 - [x] **Gap-review "fix" flow + account cleanup** (builds #131–#132):
   - **Accounts sidebar header** no longer overflows — the map/push/KML/site/gaps
     buttons wrap onto their own row under the title.

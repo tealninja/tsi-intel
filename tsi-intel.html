@@ -1886,6 +1886,18 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .acct-back-btn{display:none;align-items:center;gap:6px;margin:10px 14px 2px;padding:7px 12px;
   border:1px solid var(--color-border-mid);border-radius:var(--radius-md);background:var(--color-surface);
   color:var(--tsi-teal);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui)}
+/* Accounts tabular view (shares TableKit with the pipeline/quotes tables) */
+#acct-table-panel{padding:12px 14px;display:flex;flex-direction:column;min-height:0}
+.acct-tbl-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.acct-tbl-search{flex:0 1 220px;padding:6px 10px;font-size:12px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-text-primary);outline:none;font-family:var(--font-ui)}
+.acct-tbl-search:focus{border-color:var(--tsi-teal)}
+.acct-tbl-count{font-size:11px;color:var(--color-text-muted);white-space:nowrap}
+#acct-table td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+#acct-table tbody tr{cursor:pointer}
+.acct-tbl-typechip{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:1px 7px;border-radius:99px}
+.acct-tbl-typechip.account{background:rgba(0,146,159,.14);color:var(--tsi-teal)}
+.acct-tbl-typechip.site{background:rgba(25,68,108,.12);color:#19446c}
+.acct-tbl-geo-no{color:var(--tsi-coral,#e5484d);font-weight:600}
 /* Account detail: map + climatogram — even split on desktop, stacked on mobile */
 .am-mapclima{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 /* Account media (logo + photos) */
@@ -3422,7 +3434,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#133 · 2026-07-14';
+const APP_BUILD = '#134 · 2026-07-14';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -4517,13 +4529,21 @@ function showTab(name) {
   if (typeof closeSiteDrawer === 'function') closeSiteDrawer();
   if (name !== 'accounts') {
     const mapPanel = document.getElementById('acct-map-panel');
+    const tblPanel = document.getElementById('acct-table-panel');
     const mainPanel = document.getElementById('acct-main');
     const mapBtn = document.getElementById('acct-map-toggle-btn');
+    const tblBtn = document.getElementById('acct-table-toggle-btn');
     if (mapPanel && mapPanel.style.display !== 'none') {
       mapPanel.style.display = 'none';
       if (mainPanel) mainPanel.style.display = '';
       if (mapBtn) mapBtn.style.background = '';
       _acctMapShowing = false;
+    }
+    if (tblPanel && tblPanel.style.display !== 'none') {
+      tblPanel.style.display = 'none';
+      if (mainPanel) mainPanel.style.display = '';
+      if (tblBtn) tblBtn.style.background = '';
+      _acctTableShowing = false;
     }
   }
 
@@ -8882,6 +8902,7 @@ function toggleAcctGroup(groupId) {
   }
   acctSetDetailOpen(false);   // mobile: expanding a group returns to the list view
   if (_acctMapShowing) renderAcctMap();
+  if (_acctTableShowing && typeof renderAcctTable === 'function') renderAcctTable();
 }
 
 function selectAcctSite(siteId) {
@@ -8916,6 +8937,13 @@ function acctBackToList(){
     const btn = document.getElementById('acct-map-toggle-btn');
     if (mp) mp.style.display = 'none';
     if (btn) btn.style.background = '';
+  }
+  if (_acctTableShowing){          // also closes the table view
+    _acctTableShowing = false;
+    const tp = document.getElementById('acct-table-panel');
+    const tb = document.getElementById('acct-table-toggle-btn');
+    if (tp) tp.style.display = 'none';
+    if (tb) tb.style.background = '';
   }
   const main = document.getElementById('acct-main');
   if (main) main.style.display = '';
@@ -12124,6 +12152,102 @@ function toggleAcctMap() {
   }
 }
 
+// ── Accounts tabular view — a full sortable/filterable grid of every account &
+// site, sharing the TableKit engine (sort, per-column filters, show/hide columns,
+// drag-reorder, resize, saved views) with the pipeline/quotes tables. ──
+let _acctTableShowing = false;
+function toggleAcctTable() {
+  _acctTableShowing = !_acctTableShowing;
+  const mainPanel = document.getElementById('acct-main');
+  const mapPanel  = document.getElementById('acct-map-panel');
+  const tblPanel  = document.getElementById('acct-table-panel');
+  const btn       = document.getElementById('acct-table-toggle-btn');
+  if (_acctTableShowing) {
+    // Table takes over the main area — hide the detail and (if open) the map.
+    if (_acctMapShowing) { _acctMapShowing = false; const mb = document.getElementById('acct-map-toggle-btn'); if (mb) mb.style.background = ''; }
+    if (mapPanel)  mapPanel.style.display  = 'none';
+    if (mainPanel) mainPanel.style.display = 'none';
+    if (tblPanel)  tblPanel.style.display  = '';
+    if (btn) btn.style.background = 'rgba(0,146,159,.15)';
+    acctSetDetailOpen(true);
+    renderAcctTable();
+  } else {
+    if (tblPanel)  tblPanel.style.display  = 'none';
+    if (mainPanel) mainPanel.style.display = '';
+    if (btn) btn.style.background = '';
+    acctSetDetailOpen(false);
+  }
+}
+// Flatten each account/site into a row model with the computed fields the table
+// columns sort/filter on (type, parent name, opp count, geocoded, contact, …).
+function acctTableRows() {
+  const data = getAccounts();
+  const byId = {}; data.accounts.forEach(a => byId[a.id] = a);
+  const contactsById = {}; (data.contacts || []).forEach(c => contactsById[c.id] = c);
+  const oppCount = {};
+  (typeof DATA !== 'undefined' ? DATA : []).forEach(o => { if (o.acctId) oppCount[o.acctId] = (oppCount[o.acctId] || 0) + 1; });
+  return data.accounts.map(a => {
+    const tags = (a.plantTags && a.plantTags.length) ? a.plantTags
+      : (a.plantType ? String(a.plantType).split(/[\/,]/).map(s => s.trim()).filter(Boolean) : []);
+    return Object.assign({}, a, {
+      _type: a.parentId ? 'Site' : 'Account',
+      _parent: a.parentId ? ((byId[a.parentId] || {}).name || '—') : '—',
+      _industry: a.industry || '',
+      _loctype: a.locType || '',
+      _cust: a.customerStatus || '',
+      _plantTags: tags,
+      _plant: tags.join(', '),
+      _np: (a.nameplate != null && a.nameplate !== '') ? Number(a.nameplate) : null,
+      _npUnit: a.nameplateUnit || 'MTPY',
+      _geo: (a.lat && a.lon) ? 'Yes' : 'No',
+      _port: a.shippingPort || '',
+      _opps: oppCount[a.id] || 0,
+      _contact: (contactsById[a.primaryContactId] || {}).name || '',
+      _updated: a.updatedAt || '',
+    });
+  });
+}
+function renderAcctTable() {
+  const tbody = document.getElementById('acct-table-body'); if (!tbody) return;
+  let rows = acctTableRows();
+  const q    = (document.getElementById('acct-tbl-search')?.value || '').trim().toLowerCase();
+  const typ  = document.getElementById('acct-tbl-type')?.value || '';
+  const cust = document.getElementById('acct-tbl-cust')?.value || '';
+  if (q)    rows = rows.filter(r => [r.name, r._parent, r.city, r.state, r.country, r.loc, r._plant, r._industry, r._contact, r.acctMatch].some(v => String(v || '').toLowerCase().includes(q)));
+  if (typ)  rows = rows.filter(r => r._type === typ);
+  if (cust) rows = rows.filter(r => r._cust === cust);
+  rows = TableKit.filterRows('acct-table', rows);
+  rows = getSortedRows(rows, 'acct-table');
+  TableKit.updateFilterIndicators('acct-table');
+  const cnt = document.getElementById('acct-tbl-count'); if (cnt) cnt.textContent = rows.length + ' record' + (rows.length === 1 ? '' : 's');
+  const custLabel = { current:'✅ Current', potential:'🎯 Potential' };
+  tbody.innerHTML = rows.map(r => {
+    const npt  = r._np != null ? (Number(r._np).toLocaleString('en-US') + (r._npUnit ? (' ' + r._npUnit) : '')) : '';
+    const geo  = r._geo === 'Yes' ? 'Yes' : '<span class="acct-tbl-geo-no">No</span>';
+    const cst  = r._cust ? (custLabel[r._cust] || r._cust) : '';
+    const upd  = r._updated ? (new Date(r._updated).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'2-digit' }) + (r.updatedBy ? (' · ' + qesc(r.updatedBy)) : '')) : '';
+    return `<tr onclick="openSiteDrawer('${qattr(r.id)}')">
+      <td title="${qattr(r.name || '')}"><strong>${qesc(r.name || '—')}</strong></td>
+      <td><span class="acct-tbl-typechip ${r._type.toLowerCase()}">${r._type}</span></td>
+      <td>${qesc(r._parent)}</td>
+      <td>${qesc(r._industry)}</td>
+      <td>${qesc(r._loctype)}</td>
+      <td>${cst}</td>
+      <td title="${qattr(r._plant)}">${qesc(r._plant)}</td>
+      <td>${npt}</td>
+      <td>${qesc(r.city || '')}</td>
+      <td>${qesc(r.state || '')}</td>
+      <td>${qesc(r.country || '')}</td>
+      <td>${geo}</td>
+      <td>${qesc(r._port)}</td>
+      <td>${r._opps || ''}</td>
+      <td>${qesc(r._contact)}</td>
+      <td title="${qattr(r._updated)}">${upd}</td>
+    </tr>`;
+  }).join('');
+  initColInteractions('acct-table');
+}
+
 function renderAcctMap() {
   const mapEl = document.getElementById('acct-map');
   if (!mapEl) return;
@@ -13497,6 +13621,33 @@ TableKit.register('imm-table', {
     { i:11, label:'Action Needed' },
   ],
 });
+TableKit.register('acct-table', {
+  colsVersion: 1,
+  defaultHidden: [4, 5, 10, 13, 15],   // hide Industry, Location Type, State, Port, Primary Contact by default
+  data: () => (typeof acctTableRows === 'function' ? acctTableRows() : []),
+  render: () => renderAcctTable(),
+  columns: [
+    { i:1,  label:'Account / Site',   col:'name',      sortable:true, sortVal:r=>(r.name||'').toLowerCase() },
+    { i:2,  label:'Type',             col:'type',      sortable:true, sortVal:r=>r._type, filterVal:r=>r._type },
+    { i:3,  label:'Parent',           col:'parent',    sortable:true, sortVal:r=>(r._parent||'').toLowerCase(), filterVal:r=>r._parent||'—' },
+    { i:4,  label:'Industry',         col:'industry',  sortable:true, sortVal:r=>(r._industry||'').toLowerCase(), filterVal:r=>r._industry||'—' },
+    { i:5,  label:'Location Type',    col:'loctype',   sortable:true, sortVal:r=>(r._loctype||'').toLowerCase(), filterVal:r=>r._loctype||'—' },
+    { i:6,  label:'Customer Status',  col:'cust',      sortable:true, sortVal:r=>r._cust, filterVal:r=>({current:'✅ Current',potential:'🎯 Potential'}[r._cust]||r._cust||'—') },
+    { i:7,  label:'Plant Types',      col:'plant',     sortable:true, sortVal:r=>(r._plant||'').toLowerCase(), filterVal:r=>r._plant||'—', filterMulti:r=>(r._plantTags&&r._plantTags.length?r._plantTags:['—']) },
+    { i:8,  label:'Nameplate',        col:'nameplate', sortable:true, sortVal:r=>r._np??-1, filterVal:r=>r._np!=null?String(r._np):'—' },
+    { i:9,  label:'City',             col:'city',      sortable:true, sortVal:r=>(r.city||'').toLowerCase(), filterVal:r=>r.city||'—' },
+    { i:10, label:'State',            col:'state',     sortable:true, sortVal:r=>(r.state||'').toLowerCase(), filterVal:r=>r.state||'—' },
+    { i:11, label:'Country',          col:'country',   sortable:true, sortVal:r=>(r.country||'').toLowerCase(), filterVal:r=>r.country||'—' },
+    { i:12, label:'Geocoded',         col:'geo',       sortable:true, sortVal:r=>r._geo, filterVal:r=>r._geo },
+    { i:13, label:'Shipping Port',    col:'port',      sortable:true, sortVal:r=>(r._port||'').toLowerCase(), filterVal:r=>r._port||'—' },
+    { i:14, label:'Opps',             col:'opps',      sortable:true, sortVal:r=>r._opps, filterVal:r=>String(r._opps) },
+    { i:15, label:'Primary Contact',  col:'contact',   sortable:true, sortVal:r=>(r._contact||'').toLowerCase(), filterVal:r=>r._contact||'—' },
+    { i:16, label:'Last Update',      col:'updated',   sortable:true, sortVal:r=>r._updated||'' },
+  ],
+  capture: () => ({ search:document.getElementById('acct-tbl-search')?.value||'', type:document.getElementById('acct-tbl-type')?.value||'', cust:document.getElementById('acct-tbl-cust')?.value||'' }),
+  apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+    setv('acct-tbl-search',st.search); setv('acct-tbl-type',st.type); setv('acct-tbl-cust',st.cust); renderAcctTable(); },
+});
 viewStore.pull().then(() => { const p=_tkPopEl; if(p && p.id==='tk-views-pop') TableKit.renderViewsMenu(p.dataset.table); });
 followStore.pull().then(() => renderPipeline());
 
@@ -14502,6 +14653,7 @@ startAdminPoll();
       <div class="acct-sidebar-header">
         <span class="acct-sidebar-title">Account Groups</span>
         <div class="acct-hdr-btns">
+          <button class="btn-acct-add" onclick="toggleAcctTable()" id="acct-table-toggle-btn" title="Show all accounts &amp; sites in a sortable table">▦ Table</button>
           <button class="btn-acct-add" onclick="toggleAcctMap()" id="acct-map-toggle-btn" title="Show all sites on map">🗺</button>
           <button class="btn-acct-add" id="acct-push-btn" onclick="pushAccountsToCloud()" title="Push all accounts + contacts to the cloud database now">☁ Push</button>
           <button class="btn-acct-add" onclick="document.getElementById('kml-file').click()" title="Import mills/customers from a Google Earth .kml file">📍 KML</button>
@@ -14553,6 +14705,51 @@ startAdminPoll();
 
       <div id="acct-map" style="height:520px;max-width:900px;border-radius:var(--radius-md);background:var(--color-bg)"></div>
       <div id="acct-map-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:10px;max-width:900px"></div>
+    </div>
+
+    <!-- TABLE PANEL — full sortable/filterable grid of every account & site -->
+    <div class="acct-main" id="acct-table-panel" style="display:none">
+      <button class="acct-back-btn" onclick="acctBackToList()">← Detail view</button>
+      <div class="acct-tbl-toolbar">
+        <input class="acct-tbl-search" id="acct-tbl-search" placeholder="Search accounts &amp; sites…" oninput="renderAcctTable()">
+        <select class="filter-select" id="acct-tbl-type" onchange="renderAcctTable()">
+          <option value="">All records</option>
+          <option value="Account">Accounts only</option>
+          <option value="Site">Sites only</option>
+        </select>
+        <select class="filter-select" id="acct-tbl-cust" onchange="renderAcctTable()">
+          <option value="">All customer statuses</option>
+          <option value="current">✅ Current</option>
+          <option value="potential">🎯 Potential</option>
+        </select>
+        <div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'acct-table')" title="Your saved views">⭐ Views ▾</button></div>
+        <div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-acct-table" onclick="TableKit.toggleCols(event,'acct-table')" title="Show / hide columns">▦ Columns ▾</button></div>
+        <span style="flex:1"></span>
+        <span class="acct-tbl-count" id="acct-tbl-count"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl-editable" id="acct-table">
+          <thead><tr>
+            <th class="sortable" data-col="name"     style="width:170px">Account / Site<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="type"     style="width:80px">Type<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="parent"   style="width:150px">Parent<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="industry" style="width:120px">Industry<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="loctype"  style="width:110px">Location Type<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="cust"     style="width:120px">Customer Status<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="plant"    style="width:150px">Plant Types<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="nameplate" style="width:100px">Nameplate<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="city"     style="width:110px">City<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="state"    style="width:90px">State<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="country"  style="width:100px">Country<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="geo"      style="width:80px">Geocoded<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="port"     style="width:130px">Shipping Port<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="opps"     style="width:70px" title="Open opportunities keyed to this record">Opps<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="contact"  style="width:130px">Primary Contact<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="updated"  style="width:110px">Last Update<span class="sort-icon"></span></th>
+          </tr></thead>
+          <tbody id="acct-table-body"></tbody>
+        </table>
+      </div>
     </div>
 
   </div>
