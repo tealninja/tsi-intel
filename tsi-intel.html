@@ -3327,7 +3327,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#125 · 2026-07-11';
+const APP_BUILD = '#126 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -11688,11 +11688,13 @@ function renderAcctMap() {
 
   // ── Match open deals to each site via acctMatch ──────────────
   const openDeals = DATA.filter(o => o.status === 'O');
+  // STRICT: a deal counts for a site only if it's keyed to that site (acctId),
+  // matching the account-detail view. (Was a company-name substring match, which
+  // summed every "West Fraser" opp onto every WF site marker — e.g. $88.8M on
+  // Genk while the site had none.) Opps not keyed to a site fall through to the
+  // per-opportunity pins below, plotted at their own location.
   function dealsForSite(site) {
-    if (!site.acctMatch) return [];
-    return openDeals.filter(o => o.acct && (
-      o.acct.includes(site.acctMatch) || site.acctMatch.includes(o.acct)
-    ));
+    return openDeals.filter(o => o.acctId && o.acctId === site.id);
   }
 
   if (!_acctMap) {
@@ -12666,7 +12668,11 @@ function currentUserId(){ return (getUserEmail() || getUserInitials() || 'anon')
 
 const TableKit = {
   register(id, cfg){
-    const hiddenKey = 'tk_hidden_' + id;
+    // Include an optional colsVersion so that when a table's column SET changes
+    // (add/remove/reorder), old saved hidden-column indices — which now point at
+    // the wrong columns and can render a broken layout — are discarded and the
+    // defaultHidden config applies fresh.
+    const hiddenKey = 'tk_hidden_' + id + ((cfg && cfg.colsVersion) ? '_v' + cfg.colsVersion : '');
     let hidden = new Set();
     const _stored = localStorage.getItem(hiddenKey);
     if (_stored != null) { try { hidden = new Set(JSON.parse(_stored)); } catch {} }
@@ -15735,6 +15741,7 @@ TableKit.register('quote-table', {
     { i:19, label:'Updated',       col:'updated_at',      sortable:true },
   ],
   defaultHidden: [4,6,9,10,11,12,15,16,17,18,19],   // extras off by default; toggle via ▦ Columns
+  colsVersion: 2,   // bumped when the column set changed (7→19) — discards stale saved layouts
   capture: () => ({ search:(document.getElementById('quote-search')||{}).value||'', status:(document.getElementById('quote-fstatus')||{}).value||'' }),
   apply: (st) => { const s=document.getElementById('quote-search'); if(s) s.value=st.search||''; const f=document.getElementById('quote-fstatus'); if(f) f.value=st.status||''; renderQuotesList(); },
 });
