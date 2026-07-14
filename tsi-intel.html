@@ -3327,7 +3327,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#124 · 2026-07-11';
+const APP_BUILD = '#125 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -8695,13 +8695,18 @@ function renderAcctMain(siteId) {
   const events   = data.events.filter(e => e.siteId === siteId)
     .sort((a,b) => b.date.localeCompare(a.date));
 
-  // Linked opportunities — match by acct field
-  const linkedOpps = DATA.filter(o =>
-    o.status === 'O' &&
-    (o.acct === site.acctMatch ||
-     o.acct?.includes(site.acctMatch) ||
-     site.acctMatch?.includes(o.acct))
-  ).slice(0,10);
+  // Linked opportunities — STRICT match by account key (acctId === this site),
+  // not the old company-name substring match that attached every "West Fraser"
+  // opp to every WF site.
+  const linkedOpps = DATA.filter(o => o.status === 'O' && o.acctId && o.acctId === siteId).slice(0,25);
+  // Suggestions: opps that name-match this company but aren't keyed to a site yet
+  // (seed/legacy opps have no acctId). Offer a one-click 🔗 to key them here so you
+  // can blast through assigning them to the right site.
+  const linkedIds = new Set(linkedOpps.map(o => o.id));
+  const suggestedOpps = DATA.filter(o =>
+    o.status === 'O' && !o.acctId && !linkedIds.has(o.id) && site.acctMatch &&
+    (o.acct === site.acctMatch || o.acct?.includes(site.acctMatch) || site.acctMatch?.includes(o.acct))
+  ).slice(0,40);
 
   const today = new Date().toISOString().slice(0,10);
 
@@ -8855,7 +8860,18 @@ function renderAcctMain(siteId) {
           <span style="flex:1;color:var(--color-text-primary)">${o.type}</span>
           <span style="color:var(--tsi-teal);font-family:var(--font-mono);font-size:10px">${fmt(o.val)}</span>
           <span style="color:var(--color-text-muted);font-size:10px;margin-left:8px">${Math.round((o.prob||0)*100)}%</span>
-        </div>`).join('') : '<div style="font-size:11px;color:var(--color-text-muted);padding:4px 0">No linked open opportunities</div>'}
+        </div>`).join('') : '<div style="font-size:11px;color:var(--color-text-muted);padding:4px 0">No opportunities keyed to this site yet</div>'}
+      ${suggestedOpps.length ? `
+        <div class="acct-section-header" style="margin-top:12px">
+          <span class="acct-section-title" style="color:var(--color-text-muted)">Suggested by name (${suggestedOpps.length}) · 🔗 to key to this site</span>
+        </div>
+        ${suggestedOpps.map(o => `
+        <div class="acct-opp-row" onclick="openOppDrawer('${o.id}')" style="opacity:.92">
+          <span class="acct-opp-id">${o.id}</span>
+          <span style="flex:1;color:var(--color-text-secondary)">${qesc(o.acct||'')} — ${qesc(o.type||'')}</span>
+          <span style="color:var(--tsi-teal);font-family:var(--font-mono);font-size:10px">${fmt(o.val)}</span>
+          <span title="Key this opportunity to this site" onclick="event.stopPropagation();linkOppToSite('${qattr(o.id)}','${qattr(siteId)}')" style="cursor:pointer;font-size:14px;margin-left:10px">🔗</span>
+        </div>`).join('')}` : ''}
     </div>
   `;
 
@@ -8863,6 +8879,19 @@ function renderAcctMain(siteId) {
   if (site.lat && site.lon) {
     setTimeout(() => renderAcctSiteMapClima(site), 50);
   }
+}
+
+// One-click: key a name-suggested opportunity to a specific site (sets the real
+// FK acctId), then refresh the account view so it moves into "Open Opportunities".
+function linkOppToSite(oppId, siteId) {
+  const o = DATA.find(x => x.id === oppId);
+  if (!o) return;
+  o.acctId = siteId;
+  o.updatedAt = new Date().toISOString();
+  o.updatedBy = (typeof getUserInitials === 'function') ? getUserInitials() : '';
+  oppPersist(o);
+  if (typeof renderAcctMain === 'function') renderAcctMain(siteId);
+  showToast('✓ Keyed ' + o.id + ' to this site', 'var(--tsi-succ-green)');
 }
 
 let _amSiteMap   = null;
