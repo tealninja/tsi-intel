@@ -3343,7 +3343,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#129 · 2026-07-11';
+const APP_BUILD = '#130 · 2026-07-11';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -8639,6 +8639,9 @@ function renderAcctSidebar() {
       </div>
     </div>`;
   }).join('');
+  if (typeof updateAcctGapBadge === 'function') updateAcctGapBadge();
+  const _av = document.getElementById('acctreview-overlay');
+  if (_av && _av.classList.contains('open') && typeof renderAcctReview === 'function') renderAcctReview();
 }
 
 function toggleAcctGroup(groupId) {
@@ -8986,6 +8989,69 @@ function linkOppToSite(oppId, siteId) {
   oppPersist(o);
   if (typeof renderAcctMain === 'function') renderAcctMain(siteId);
   showToast('✓ Keyed ' + o.id + ' to this site', 'var(--tsi-succ-green)');
+}
+
+// ── Account / site data-quality review ──
+// Core: top-level accounts with no site (the "address but no site" case) and
+// sites that were never geocoded. Customer-status is an opt-in EXTRA.
+const ACCT_REVIEW_CORE = [
+  { key:'nosite', label:'No site',      test:(a,cc) => !a.parentId && !cc[a.id] },
+  { key:'geo',    label:'Not geocoded', test:(a,cc) => !!a.parentId && !(a.lat && a.lon) },
+];
+const ACCT_REVIEW_EXTRA = [
+  { key:'cust',   label:'No customer status', test:(a,cc) => !a.customerStatus },
+];
+let _acctReviewAll = false;
+function acctReviewChecks(){ return _acctReviewAll ? ACCT_REVIEW_CORE.concat(ACCT_REVIEW_EXTRA) : ACCT_REVIEW_CORE; }
+function acctsNeedingReview(){
+  const accounts = getAccounts().accounts;
+  const cc = {};
+  accounts.forEach(a => { if (a.parentId) cc[a.parentId] = (cc[a.parentId]||0) + 1; });
+  const checks = acctReviewChecks();
+  return accounts.map(a => ({ a, miss: checks.filter(c => { try { return c.test(a, cc); } catch(_){ return false; } }) }))
+                 .filter(x => x.miss.length);
+}
+function updateAcctGapBadge(){ const el = document.getElementById('acct-gap-badge'); if (el){ const n = acctsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
+function openAcctReview(){ renderAcctReview(); const o = document.getElementById('acctreview-overlay'); if (o) o.classList.add('open'); }
+function closeAcctReview(){ const o = document.getElementById('acctreview-overlay'); if (o) o.classList.remove('open'); }
+function toggleAcctReviewAll(v){ _acctReviewAll = !!v; renderAcctReview(); updateAcctGapBadge(); }
+function renderAcctReview(){
+  const body = document.getElementById('acctreview-body'), title = document.getElementById('acctreview-title');
+  if (!body) return;
+  const rows = acctsNeedingReview().sort((x,y) => y.miss.length - x.miss.length);
+  if (title) title.textContent = 'Account gaps · ' + rows.length;
+  const controls = `<div class="oppgap-controls">
+    <label class="oppgap-switch"><input type="checkbox" ${_acctReviewAll?'checked':''} onchange="toggleAcctReviewAll(this.checked)"> Include customer-status gaps</label>
+  </div>`;
+  if (!rows.length){ body.innerHTML = controls + '<div style="padding:22px;text-align:center;color:var(--color-text-muted)">✓ No account gaps with the current checks.</div>'; return; }
+  body.innerHTML = controls + rows.map(({a, miss}) => {
+    const chips = miss.map(c => `<span class="oppgap-chip">${c.label}</span>`).join('');
+    const where = a.loc || a.city || (a.parentId ? '' : (a.billTo || ''));
+    const fix = miss.some(c => c.key==='nosite')
+      ? `<span title="Create a site for this account from its details" onclick="event.stopPropagation();createSiteFromAccount('${qattr(a.id)}')" style="cursor:pointer;color:var(--tsi-teal);font-size:12px;font-weight:600;white-space:nowrap;margin-left:8px">➕ Create site</span>` : '';
+    return `<div class="oppgap-row" onclick="openSiteDrawer('${qattr(a.id)}')">
+      <div class="oppgap-head"><span class="oppgap-acct">${qesc(a.name||'—')}</span><span class="oppgap-type">${a.parentId?'site':'account'}${where?' · '+qesc(String(where).slice(0,40)):''}</span>${fix}<span class="oppgap-n">${miss.length}</span></div>
+      <div class="oppgap-chips">${chips}</div>
+    </div>`;
+  }).join('');
+}
+// One-click: create a child site mirroring a top-level account's details.
+function createSiteFromAccount(accountId){
+  const data = getAccounts();
+  const acct = data.accounts.find(a => a.id === accountId);
+  if (!acct || acct.parentId) return;
+  const site = { ...acct,
+    id: 'S-' + (acct.name||'').replace(/[^A-Za-z0-9]/g,'').slice(0,8).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase(),
+    parentId: acct.id,
+    plantTags: [...(acct.plantTags || [])],
+    associatedContactIds: [...(acct.associatedContactIds || [])],
+    updatedAt: new Date().toISOString(), updatedBy: (typeof getUserInitials==='function'?getUserInitials():''),
+  };
+  data.accounts.push(site);
+  saveAccounts(data);
+  if (typeof renderAcctSidebar === 'function') renderAcctSidebar();
+  renderAcctReview(); updateAcctGapBadge();
+  showToast('✓ Site created for ' + (acct.name||'account'), 'var(--tsi-succ-green)');
 }
 
 let _amSiteMap   = null;
@@ -14056,6 +14122,7 @@ startAdminPoll();
         <button class="btn-acct-add" onclick="document.getElementById('kml-file').click()" title="Import mills/customers from a Google Earth .kml file">📍 KML</button>
         <input type="file" id="kml-file" accept=".kml,.xml" style="display:none" onchange="importKML(this.files&&this.files[0]); this.value='';">
         <button class="btn-acct-add" onclick="openNewSiteModal()">+ Site</button>
+        <button class="btn-acct-add" onclick="openAcctReview()" title="Accounts/sites missing info — accounts with no site, sites not geocoded">⚠ Gaps <span id="acct-gap-badge" style="color:var(--tsi-coral);font-weight:700"></span></button>
       </div>
       <input class="acct-search" id="acct-search" placeholder="Search accounts…" oninput="renderAcctSidebar()">
       <div class="acct-cust-filter" id="acct-cust-filter">
@@ -14754,6 +14821,15 @@ startAdminPoll();
     <button class="btn-save-opp" id="q-publish-btn" onclick="publishQuote()" title="Freeze a numbered version and set status Published (bumps the revision on re-publish)">Publish ▸</button>
   </div>
 </div><!-- /quote-drawer -->
+
+<!-- ══ ACCOUNT / SITE GAP REVIEW ══ -->
+<div class="ship-est-overlay" id="acctreview-overlay" onclick="if(event.target===this)closeAcctReview()">
+  <div class="ship-est" style="max-width:720px;width:94vw">
+    <div class="ship-est-h"><b id="acctreview-title">Account gaps</b><span class="ship-est-sub">accounts with no site, sites not geocoded — fix in place</span>
+      <button class="ship-est-x" onclick="closeAcctReview()">✕</button></div>
+    <div class="ship-est-body" id="acctreview-body"></div>
+  </div>
+</div>
 
 <!-- ══ OPPORTUNITY GAP REVIEW ══ -->
 <div class="ship-est-overlay" id="oppreview-overlay" onclick="if(event.target===this)closeOppReview()">
