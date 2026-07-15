@@ -184,6 +184,8 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .tsi-welcome .tw-avatar{width:38px;height:38px;border-radius:50%;background:var(--tsi-teal,#0a7d7d);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .tsi-welcome .tw-hi{font-size:15px;font-weight:700;color:var(--color-heading,#1a1a1a);line-height:1.2}
 .tsi-welcome .tw-email{font-size:11.5px;color:var(--color-text-muted,#888);font-family:var(--font-mono);margin-top:1px}
+.tsi-welcome .tw-notme{margin:9px 0 0;padding:5px 12px;font-size:11.5px;font-weight:600;background:transparent;border:1px solid var(--color-border-mid,#d0d0d0);border-radius:99px;color:var(--tsi-teal,#0a7d7d);cursor:pointer;font-family:var(--font-ui,inherit)}
+.tsi-welcome .tw-notme:hover{background:color-mix(in srgb,var(--tsi-teal,#0a7d7d) 10%,transparent);border-color:var(--tsi-teal,#0a7d7d)}
 .tsi-welcome .tw-cloud{margin:11px 0 8px;padding:6px 10px;border-radius:9px;font-size:11.5px;font-weight:600}
 .tsi-welcome .tw-cloud.linked{background:color-mix(in srgb,var(--tsi-succ-green,#1a9a5a) 14%,transparent);color:var(--tsi-succ-green,#1a9a5a)}
 .tsi-welcome .tw-cloud.local{background:color-mix(in srgb,var(--tsi-amber,#f5a623) 16%,transparent);color:#8a5a00}
@@ -3434,7 +3436,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#135 · 2026-07-14';
+const APP_BUILD = '#136 · 2026-07-14';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -7132,6 +7134,7 @@ function _welcomeRender(w, elapsed) {
         ${email ? `<div class="tw-email">${email}</div>` : ''}
       </div>
     </div>
+    ${(name || initials) ? `<button class="tw-notme" onclick="notMeSwitch()">I'm not ${qesc((String(who||'').split(' ')[0]) || who)} →</button>` : ''}
     <div class="tw-cloud ${on ? 'linked' : 'local'}">${on
       ? `☁ Linked to cloud · <b>${linkedN}/${items.length}</b> areas synced`
       : '○ Local only — changes stay on this device'}</div>
@@ -7143,6 +7146,15 @@ function dismissWelcome() {
   const w = document.getElementById('tsi-welcome');
   if (_welcomeTimers) { clearInterval(_welcomeTimers.tick); clearTimeout(_welcomeTimers.dismiss); _welcomeTimers = null; }
   if (w) { w.classList.remove('show'); setTimeout(() => w.remove(), 400); }
+}
+// "I'm not <name>" on the welcome card → dismiss it and open the header profile
+// popover so the actual person can sign in as themselves.
+function notMeSwitch() {
+  dismissWelcome();
+  setTimeout(() => {
+    const m = document.getElementById('user-profile-menu');
+    if (m && !m.classList.contains('open') && typeof toggleProfileMenu === 'function') toggleProfileMenu();
+  }, 140);
 }
 
 function showWelcomeToast() {
