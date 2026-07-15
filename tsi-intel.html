@@ -3434,7 +3434,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#134 · 2026-07-14';
+const APP_BUILD = '#135 · 2026-07-14';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -12139,6 +12139,8 @@ function toggleAcctMap() {
   const mapPanel  = document.getElementById('acct-map-panel');
   const btn       = document.getElementById('acct-map-toggle-btn');
   if (_acctMapShowing) {
+    // Map takes over — close the table panel if it was open (they share the main area).
+    if (_acctTableShowing) { _acctTableShowing = false; const tp = document.getElementById('acct-table-panel'); const tb = document.getElementById('acct-table-toggle-btn'); if (tp) tp.style.display = 'none'; if (tb) tb.style.background = ''; }
     mapPanel.style.display = '';
     if (mainPanel) mainPanel.style.display = 'none';   // don't stack the detail under the map on mobile
     btn.style.background = 'rgba(0,146,159,.15)';
