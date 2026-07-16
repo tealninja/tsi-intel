@@ -2868,6 +2868,7 @@ async function loadFromWorker() {
     const localOnly = DATA.filter(r => !serverIds.has(r.id));
     DATA = [...records, ...localOnly];
     if (typeof seedAllSnaps === 'function') seedAllSnaps();
+    syncStarredFromData();   // light up stars persisted on the server
     return true;
   } catch (e) {
     console.warn('Worker load failed, using local data:', e.message);
@@ -2935,6 +2936,13 @@ const TAG_DEFS  = {"SGF": ["Step Grate Furnace", "1D4ED8"], "RB": ["Register Bur
 let DATA = JSON.parse(JSON.stringify(_PIPELINE));
 let dirtyIds = new Set();
 let starredIds = new Set();
+// Rebuild the starred set from the records' own `starred` flag. Without this
+// a star saved to the cloud never lit up again after a reload, because
+// starredIds started empty and was only ever mutated by clicks this session.
+function syncStarredFromData() {
+  starredIds.clear();
+  DATA.forEach(o => { if (o.starred) starredIds.add(o.id); });
+}
 
 // ── CLOSE DATE NORMALIZER ─────────────────────────────────────
 // Returns a JS Date representing the midpoint of whatever format is given
@@ -7821,8 +7829,14 @@ function renderHistoryView() {
 }
 
 // ── AUTO-SAVE HELPER ─────────────────────────────────────────
-function autoSaveRecord(o) {
+function autoSaveRecord(o, attempt) {
   if (!API_WORKER_URL) return;
+  attempt = attempt || 0;
+  // Propose the NEXT version — the Worker uses optimistic concurrency and
+  // rejects a PUT whose version isn't ahead of what it holds. Every other
+  // save path (drawer, reopen, close) bumps like this; autoSaveRecord used
+  // to send the record unbumped, so stars / inline / notes saves all 409'd.
+  o.version = (o.version || 0) + 1;
   fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(o.id), {
     method: 'PUT', headers: workerHeaders(), body: JSON.stringify(o)
   }).then(async res => {
@@ -7830,21 +7844,23 @@ function autoSaveRecord(o) {
       // Cloud has it now — clear the local dirty flag so the export bar
       // reflects reality (it stays as an offline/backup affordance).
       if (dirtyIds.delete(o.id)) refreshDirtyBar();
+      return;
     }
-    if (res.status === 409) {
-      // Server has newer version — fetch it, merge our changes, retry once
+    if (res.status === 409 && attempt < 1) {
+      // Server is ahead. Adopt its current version (and any newer fields we
+      // lack), keep our edit on top, then retry once proposing serverVer+1.
       try {
         const conflict = await res.json();
-        const serverRec = conflict.serverRecord;
-        if (serverRec) {
-          // Merge: take server record as base, overlay our local changes
-          const merged = { ...serverRec, ...o, version: serverRec.version };
+        const serverRec = conflict.serverRecord || conflict.record || null;
+        const serverVer = (serverRec && typeof serverRec.version === 'number') ? serverRec.version
+                        : (typeof conflict.currentVersion === 'number' ? conflict.currentVersion
+                        : (typeof conflict.version === 'number' ? conflict.version : null));
+        if (serverVer != null) {
           const idx = DATA.findIndex(r => r.id === o.id);
+          const base = serverRec && serverRec.id === o.id ? serverRec : {};
+          const merged = { ...base, ...o, version: serverVer };  // retry will bump to serverVer+1
           if (idx >= 0) DATA[idx] = merged;
-          // Retry with updated version
-          fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(merged.id), {
-            method: 'PUT', headers: workerHeaders(), body: JSON.stringify(merged)
-          }).catch(() => {});
+          autoSaveRecord(merged, attempt + 1);
         }
       } catch(e) {}
     }
@@ -10437,6 +10453,7 @@ if(API_WORKER_URL) {
   startAdminPoll();
 }
 usageLog('session_start');
+syncStarredFromData();
 renderHotCards();
 renderPipeline();
 renderImminent();
