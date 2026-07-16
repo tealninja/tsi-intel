@@ -178,6 +178,76 @@ Roles (cumulative ladder):
   Honors the current search/filters/chips.
 
 ## ✅ Recently done
+
+### 🗒️ 2026-07-16 session — pipeline tree, traffic, preso & polish (raised by JT, builds #135–#153)
+Branch `claude/reintegrate-features-tablekit` → fast-forwarded to `main` after each change.
+
+**Pipeline / table**
+- [x] **Date-range column filters** — any table column holding dates gets a header ▾ popover:
+  all / before / after / between, with a dual-thumb slider over the column's date domain
+  (built as the reusable `.drf` component in tsi-style, applied via TableKit `dateFilters`).
+- [x] **Pipeline tree view "by parent account"** — renders INTO the main `#pip-table` so it
+  inherits the same column choices, show/hide, resize and widths. Rolls up total value,
+  weighted value and blended probability per parent; a **sub-tree** appears when a site has
+  more than one opportunity. Caret (2×) + left-justified parent headline.
+- [x] **Parent-account column** in the pipeline table (sortable/filterable, hidden by default).
+- [x] **Bulk-edit checkbox column + bulk delete** in the table.
+- [x] **Row-icon polish** — star/bell/link centered vertically and enlarged; starred rows kept
+  at readable contrast (deepened teal).
+- [x] **Star + inline edits auto-save to D1** — confirmed & fixed (was a 409 on the old base;
+  new base uses `/api/store`, no version conflict). `syncStarredFromData()` on load/boot.
+- [x] **Delete actually syncs** — root-caused a `loadFromWorker` bug that merged the embedded
+  `_PIPELINE` seed back in and resurrected deleted opps; now only local *unsaved* rows survive
+  a refresh. Verified deleted opps stay gone in D1.
+- [x] Header cleanup: dropped the "Operations Review · date" subheading; enlarged the dashboard title.
+
+**Stage board**
+- [x] **Group-by + sort-by** controls (group by company / line of business; sort alphabetically).
+
+**Accounts**
+- [x] **Industry is now a multi-tag editor** (like Product Types) — a site/parent can span several
+  industries; legacy "OSB/LVL" strings parse into tags, saved as `industryTags[]` + a joined string.
+- [x] **HQ/corporate locations hide capacity + shipping port** (production-only attributes) on both
+  the account card and the site drawer (row toggles live with Location Type).
+- [x] **Capacity/port row alignment** fixed in the site drawer (trailing status line was
+  bottom-aligning the cells and lifting the port input).
+- [x] **Logos back onto white** everywhere (account header, sidebar thumb, media preview) so
+  transparent SVG/PNG logos read on any surface, including dark mode.
+- [x] **Logos upload as PNG** (were re-encoded to JPEG → transparent pixels went **black**);
+  transparency now preserved. NOTE: logos stored before #151 must be **re-uploaded** to drop
+  their baked-in black.
+
+**Deck builder / presentation ("Project Track")**
+- [x] **Ctrl/Shift multi-select + multi-card drag** in the deck builder (much faster arranging).
+- [x] **Group slides by line / region / account / parent account** (dynamic sections ordered by value).
+- [x] **"Value by business line" overview bars segmented by job** with white divider lines +
+  per-job tooltip breakdown.
+- [x] **Customer logo on the section header** when a section is grouped by account/parent and all
+  jobs share one logo. (Per-job slide logos **2× larger**, shadow → hairline border.)
+- [x] **Stage-snapshot slide per section** — a read-only kanban of just that section's
+  opportunities-under-review across the PIP_STAGES funnel (skips single-opp sections & quotes).
+
+**Traffic (new tab) — assignment & workload** (build #153)
+- [x] **🚦 Traffic board** — one column per person + a dashed **Unassigned** column. Deals are
+  **weighted by stage** (Lead ×1 … PO Received ×6) so each column's ⚙ effort score + load bar
+  reflect real load, not headcount. Sort people by effort / value / count. **Drag a card onto a
+  person to assign** (sets `lead`, stamps updatedAt/By, logs, persists via `oppPersist`); the
+  pipeline table re-renders in sync. Verified light + dark.
+
+**Housekeeping**
+- [x] Header **build stamp slimmed** to just the number (#153); full stamp moved to the profile
+  menu + header tooltip.
+- [x] Confirmed **where opportunities live**: D1 `collections` table, `collection='opportunities'`,
+  one JSON blob per opp (not a dedicated table). Follow-up idea below.
+
+**Known follow-ups from this session**
+- [ ] Deleting an opp doesn't clean its **legacy KV mirror** (`/api/pipeline/:id`) — harmless now
+  (KV only read on a first-run empty store) but worth a tidy-up when we drop the KV transition.
+- [ ] Optionally promote **opportunities to a real D1 table** (currently JSON blobs in `collections`).
+- [ ] Traffic **Unassigned** column is the natural inbox for parsed/web-form opps that arrive with
+  no owner — wire new intake to land there.
+
+### earlier
 - [x] **Accounts tabular view** (build #134) — a ▦ Table toggle in the Accounts
   header opens a full sortable/filterable grid of every account & site, sharing
   the TableKit engine with the pipeline/quotes tables: click-to-sort, per-column
