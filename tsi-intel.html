@@ -2032,6 +2032,7 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .acct-tbl-geo-no{color:var(--tsi-coral,#e5484d);font-weight:600}
 /* Account detail: map + climatogram — even split on desktop, stacked on mobile */
 .am-mapclima{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.am-mapclima.am-maponly{grid-template-columns:1fr}
 /* Account media (logo + photos) */
 /* Logos are often transparent SVG/PNG — always back them with white so they read on
    any surface (incl. dark mode) instead of disappearing into a dark/transparent field. */
@@ -3633,7 +3634,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#157 · 2026-07-16 · package deck as self-contained static HTML (download / link)';
+const APP_BUILD = '#158 · 2026-07-16 · slide logo→top-right + compact section rows + no weather on HQ';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -9800,14 +9801,14 @@ function renderAcctMain(siteId) {
     </details>
 
     ${(site.lat && site.lon) ? `
-    <!-- MAP + CLIMATOGRAM -->
+    <!-- MAP (+ CLIMATOGRAM, skipped for corporate/HQ locations) -->
     <div class="acct-section" style="padding:12px">
-      <div class="am-mapclima">
+      <div class="am-mapclima${site.locType==='corporate'?' am-maponly':''}">
         <div id="am-site-map" style="height:200px;border-radius:var(--radius-md);background:var(--color-bg);overflow:hidden"></div>
-        <div>
+        ${site.locType==='corporate' ? '' : `<div>
           <div id="am-clima-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px"></div>
           <canvas id="am-clima-canvas" height="110"></canvas>
-        </div>
+        </div>`}
       </div>
     </div>
     ` : ''}
@@ -10182,6 +10183,9 @@ function renderAcctSiteMapClima(site) {
       setTimeout(() => _amSiteMap.invalidateSize(), 100);
     } catch {}
   }
+
+  // Corporate / HQ locations don't get a climatogram — weather is a plant concern.
+  if (site.locType === 'corporate') return;
 
   // Climate — reuse cached data on the site record if present, else fetch
   if (site._monthlyHigh && site._monthlyMean && site._monthlyLow && site._monthlyPrecip) {
@@ -16795,14 +16799,15 @@ startAdminPoll();
   background:radial-gradient(1200px 500px at 12% -10%,var(--pz-slidea) 0%,var(--pz-slideb) 55%);
   border:1px solid var(--pz-line);border-radius:16px;padding:34px 40px 30px;box-shadow:var(--pz-shadow);overflow:auto}
 .pz-slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--acc,#00929f)}
-/* slide-master footer — TSI logo + Confidential on every slide */
-.pz-has-footer{padding-bottom:54px}
-.pz-slide-footer{position:absolute;left:6px;right:0;bottom:0;height:40px;display:flex;align-items:center;
-  padding:0 40px;border-top:1px solid var(--pz-line);pointer-events:none}
-.pz-foot-logo{display:flex;align-items:center;opacity:.9}
-.pz-foot-svg{height:19px;width:auto;display:block}
+/* slide-master mark — TSI logo + Confidential, top-right of every slide (out of
+   the content scroll path so it's never covered by a long list) */
+.pz-has-footer{padding-top:30px}
+.pz-slide-footer{position:absolute;top:24px;right:34px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none;z-index:5}
+.pz-foot-logo{display:flex;align-items:center;opacity:.92}
+.pz-foot-svg{height:20px;width:auto;display:block}
 .pz-foot-tsi{font:600 15px var(--font-display,serif)}
-.pz-foot-conf{position:absolute;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--pz-faint);font-weight:600}
+.pz-foot-conf{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--pz-faint);font-weight:600}
+.pz-has-footer > .pz-eyebrow{padding-right:104px}
 .pz-eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--pz-faint);margin-bottom:18px;flex-wrap:wrap}
 .pz-eyebrow .on{color:var(--acc,#00929f);font-weight:700}
 .pz-eye-link{cursor:pointer;transition:color .12s}
@@ -16882,12 +16887,13 @@ startAdminPoll();
 .pz-sec-big{font-size:52px;font-weight:800;letter-spacing:-1px;margin:6px 0 8px}
 .pz-sec-blurb{font-size:17px;color:var(--pz-muted);margin-bottom:22px}
 .pz-sec-list{display:flex;flex-direction:column;gap:8px}
-.pz-sec-item{display:flex;flex-direction:column;gap:6px;padding:9px 8px;border-bottom:1px solid var(--pz-line);border-radius:8px;cursor:pointer;transition:.12s}
+.pz-sec-item{display:flex;flex-direction:column;gap:6px;padding:6px 8px;border-bottom:1px solid var(--pz-line);border-radius:8px;cursor:pointer;transition:.12s}
 .pz-sec-item:hover{background:var(--pz-panel2)}
 .pz-sec-item:hover .pz-sec-go{opacity:1;transform:translateX(0)}
-.pz-si-main{display:flex;align-items:baseline;gap:12px}
-.pz-sec-item .a{font-weight:700}.pz-sec-item .t{color:var(--pz-muted)}.pz-sec-item .v{margin-left:auto;color:var(--pz-faint);font-variant-numeric:tabular-nums}
-.pz-si-tags{display:flex;flex-wrap:wrap;gap:5px}
+.pz-si-main{display:flex;align-items:center;gap:10px;min-width:0}
+.pz-sec-item .a{font-weight:700;white-space:nowrap}.pz-sec-item .t{color:var(--pz-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1}
+.pz-sec-item .v{margin-left:auto;color:var(--pz-faint);font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0}
+.pz-si-tags{display:inline-flex;flex-wrap:nowrap;gap:5px;flex-shrink:0;overflow:hidden}
 .pz-si-tag{font-size:10.5px;font-weight:600;color:#fff;padding:2px 7px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
 .pz-sec-go{color:var(--pz-faint);opacity:0;transform:translateX(-4px);transition:.15s;align-self:center}
 /* stage snapshot — compact read-only kanban of a section's opps under review */
@@ -19492,10 +19498,11 @@ function presoSectionHTML(s){
   const secLogo=(()=>{ let lg=''; for(const o of jobs){ const l=(typeof oppAcctLogo==='function')?oppAcctLogo(o):''; if(!l) return ''; if(lg && lg!==l) return ''; lg=l; } return lg; })();
   const list=jobs.length ? jobs.map(o=>{
       const tg=presoScopeTags(o.tags);
-      const tagHtml=tg.length?`<div class="pz-si-tags">${tg.map(t=>`<span class="pz-si-tag" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</div>`:'';
+      // Tags sit inline to the right of the project type (single-row items) so the
+      // list stays compact and doesn't scroll behind the slide footer.
+      const tagHtml=tg.length?`<span class="pz-si-tags">${tg.map(t=>`<span class="pz-si-tag" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</span>`:'';
       return `<div class="pz-sec-item" onclick="presoJumpToId('${qattr(o.id)}')" title="Open this opportunity">
-        <div class="pz-si-main"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span><span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div>
-        ${tagHtml}</div>`;
+        <div class="pz-si-main"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span>${tagHtml}<span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div></div>`;
     }).join('')
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
