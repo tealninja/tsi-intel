@@ -3633,7 +3633,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#154 · 2026-07-16 · Mill visits — activity log (who/where/when/what) + account-page section';
+const APP_BUILD = '#155 · 2026-07-16 · deck-builder star + slide-master logo/Confidential footer';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -16795,6 +16795,14 @@ startAdminPoll();
   background:radial-gradient(1200px 500px at 12% -10%,var(--pz-slidea) 0%,var(--pz-slideb) 55%);
   border:1px solid var(--pz-line);border-radius:16px;padding:34px 40px 30px;box-shadow:var(--pz-shadow);overflow:auto}
 .pz-slide::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--acc,#00929f)}
+/* slide-master footer — TSI logo + Confidential on every slide */
+.pz-has-footer{padding-bottom:54px}
+.pz-slide-footer{position:absolute;left:6px;right:0;bottom:0;height:40px;display:flex;align-items:center;
+  padding:0 40px;border-top:1px solid var(--pz-line);pointer-events:none}
+.pz-foot-logo{display:flex;align-items:center;opacity:.9}
+.pz-foot-svg{height:19px;width:auto;display:block}
+.pz-foot-tsi{font:600 15px var(--font-display,serif)}
+.pz-foot-conf{position:absolute;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--pz-faint);font-weight:600}
 .pz-eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--pz-faint);margin-bottom:18px;flex-wrap:wrap}
 .pz-eyebrow .on{color:var(--acc,#00929f);font-weight:700}
 .pz-eye-link{cursor:pointer;transition:color .12s}
@@ -19118,6 +19126,19 @@ function presoFullscreen(){
   else if(ov.requestFullscreen){ ov.requestFullscreen().catch(()=>{}); }
 }
 
+// Slide footer — TSI logo (leaf stays sage; wordmark recolours to the slide theme)
+// + a CONFIDENTIAL mark, drawn on every slide (present mode + static export).
+function presoLogoSVG(wordColor){
+  const src=document.querySelector('.header-logo');
+  if(!src) return `<span class="pz-foot-tsi">TSI</span>`;
+  const c=src.cloneNode(true); c.removeAttribute('class'); c.classList.add('pz-foot-svg');
+  c.querySelectorAll('path').forEach(p=>{ const f=(p.getAttribute('fill')||'').toLowerCase(); if(f!=='#809848') p.setAttribute('fill', wordColor); });
+  return c.outerHTML;
+}
+function presoFooterHTML(){
+  const light=document.getElementById('preso-overlay')?.classList.contains('preso-light');
+  return `<div class="pz-slide-footer"><span class="pz-foot-logo">${presoLogoSVG(light?'#19446C':'#ffffff')}</span><span class="pz-foot-conf">Confidential</span></div>`;
+}
 function presoRender(){
   const slide=_presoDeck[_presoIdx]; if(!slide) return;
   const stage=document.getElementById('pz-stage');
@@ -19125,6 +19146,8 @@ function presoRender(){
   else if(slide.type==='section') stage.innerHTML=presoSectionHTML(slide);
   else if(slide.type==='stages') stage.innerHTML=presoStagesHTML(slide);
   else stage.innerHTML=presoJobHTML(slide);
+  // slide-master footer: TSI logo + CONFIDENTIAL, on every slide
+  const _sl=stage.querySelector('.pz-slide'); if(_sl){ _sl.classList.add('pz-has-footer'); _sl.insertAdjacentHTML('beforeend', presoFooterHTML()); }
   stage.scrollTop=0;
   presoRenderRail();
   if(slide.type==='overview'){ presoRenderOvMap(slide); presoRenderOvChart(slide); }
@@ -19691,7 +19714,7 @@ function pbCard(id,col){
     : `${qesc(it.stage||'—')}${it.val?' · '+presoMoney(it.val):''}${it.close?' · '+qesc(it.close):''}`;
   return `<div class="pb-card${_pbSelected.has(id)?' selected':''}" draggable="true" data-id="${qattr(id)}" style="--c:${acc}"
       onclick="pbCardClick(event,'${qattr(id)}')" ondragstart="pbDragStart(event,'${qattr(id)}')" ondragend="pbDragEnd(event)">
-    <div class="a"><span class="grip">⠿</span>${qesc(it.acct)}${it.__quote?' <span class="pb-badge">SAMPLE</span>':''}</div>
+    <div class="a"><span class="grip">⠿</span>${(!it.__quote && typeof starredIds!=='undefined' && starredIds.has(it.id))?'<span class="pb-star" title="Starred opportunity">⭐</span>':''}${qesc(it.acct)}${it.__quote?' <span class="pb-badge">SAMPLE</span>':''}</div>
     <div class="t">${qesc(it.type||'')}</div>
     <div class="m">${meta}</div></div>`;
 }
