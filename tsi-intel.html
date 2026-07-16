@@ -3580,7 +3580,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#146 · 2026-07-16 · deck builder ctrl/shift multiselect + multidrag';
+const APP_BUILD = '#147 · 2026-07-16 · preso group-by account/parent + bar-chart job segments';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -16553,7 +16553,7 @@ startAdminPoll();
         <div class="ps-row"><label>Closes within</label><select id="ps-close"><option value="">Any time</option><option value="90">90 days</option><option value="180">180 days</option><option value="365">This year</option><option value="730">2 years</option></select></div>
         <div class="ps-row"><label>Min value ($)</label><input id="ps-minval" type="number" min="0" step="100000" placeholder="0"></div>
         <div class="ps-row"><label>Stages</label><div class="ps-stages" id="ps-stages"></div></div>
-        <div class="ps-row"><label>Group by</label><select id="ps-groupby"><option value="line">Line of business</option><option value="stage">Stage</option><option value="region">Region</option></select></div>
+        <div class="ps-row"><label>Group by</label><select id="ps-groupby"><option value="line">Line of business</option><option value="stage">Stage</option><option value="region">Region</option><option value="account">Account</option><option value="parent">Parent account</option></select></div>
       </div>
     </div>
     <div class="ps-foot"><button class="ps-btn" onclick="closePresoSettings()">Cancel</button><button class="ps-btn primary" onclick="presoPresentFromSettings()">🎤 Present ▶</button></div>
@@ -18425,9 +18425,14 @@ function presoRegionOf(o){
   if(/usa|united states|u\.s|america|canada|mexico|georgia|carolina|arkansas|texas|oregon|louisiana|alabama|brazil|chile|argentina|,\s*[a-z]{2}\b/.test(s)) return 'Americas';
   return 'Other';
 }
+const PRESO_GROUP_PALETTE = ['#19446C','#00929F','#809848','#B45309','#C1554B','#6E8C34','#0E7490','#7C3AED','#92400E','#374151','#0891B2','#166534'];
+function presoAccountKey(it){ return (it.acct||'—').trim() || '—'; }
+function presoParentKey(it){ return (typeof oppParentAccount==='function') ? oppParentAccount(it) : presoAccountKey(it); }
 function presoSectionKeyOf(it, groupBy){
-  if(groupBy==='stage')  return it.stage || 'Lead';
-  if(groupBy==='region') return presoRegionOf(it);
+  if(groupBy==='stage')   return it.stage || 'Lead';
+  if(groupBy==='region')  return presoRegionOf(it);
+  if(groupBy==='account') return presoAccountKey(it);
+  if(groupBy==='parent')  return presoParentKey(it);
   return presoClassify(it);
 }
 function presoSectionsFor(groupBy, items){
@@ -18438,6 +18443,15 @@ function presoSectionsFor(groupBy, items){
   if(groupBy==='region'){
     const present=new Set(items.map(i=>presoRegionOf(i)));
     return ['Americas','Europe','Asia-Pacific','Other'].filter(r=>present.has(r)).map(r=>({key:r,label:r,acc:PRESO_REGION_COLORS[r],blurb:'Region'}));
+  }
+  if(groupBy==='account' || groupBy==='parent'){
+    // Dynamic sections from the accounts (or parent accounts) present, ordered
+    // by total value so the biggest customer leads. Colors cycle the palette.
+    const keyFn = groupBy==='parent' ? presoParentKey : presoAccountKey;
+    const agg={};
+    items.forEach(i=>{ const k=keyFn(i); agg[k]=(agg[k]||0)+(Number(i.val)||0); });
+    return Object.keys(agg).sort((a,b)=> agg[b]-agg[a] || a.localeCompare(b))
+      .map((k,idx)=>({ key:k, label:k, acc:PRESO_GROUP_PALETTE[idx%PRESO_GROUP_PALETTE.length], blurb:(groupBy==='parent'?'Parent account':'Account') }));
   }
   return PRESO_SECTIONS;   // line of business
 }
@@ -18629,16 +18643,46 @@ function presoRenderOvChart(s){
   const labels=sections.map(x=>x.label);
   const data=sections.map(sec=>(s.bySect[sec.key]||[]).reduce((a,o)=>a+(Number(o.val)||0),0)/1e6);
   const colors=sections.map(x=>x.acc);
+  // Per-bar job breakdown: cumulative boundaries (in $M, excluding the final
+  // total) + the jobs themselves, so we can draw white divider lines and label
+  // each segment with its opportunity.
+  const segsPerBar=sections.map(sec=>{
+    const jobs=(s.bySect[sec.key]||[]).slice().sort((a,b)=>(Number(b.val)||0)-(Number(a.val)||0));
+    const bounds=[]; let acc=0;
+    jobs.forEach((o,i)=>{ const v=(Number(o.val)||0)/1e6; if(i<jobs.length-1){ acc+=v; bounds.push(acc); } });
+    return { bounds, jobs };
+  });
   const light=document.getElementById('preso-overlay').classList.contains('preso-light');
   const tick=light?'#51617a':'#8fa2b7';
+  // Plugin: draw a thin white line at each internal job boundary within a bar.
+  const jobSegPlugin={ id:'jobSegs', afterDatasetsDraw(chart){
+    const meta=chart.getDatasetMeta(0), x=chart.scales.x; if(!meta||!x) return;
+    const ctx=chart.ctx;
+    meta.data.forEach((bar,i)=>{
+      const seg=segsPerBar[i]; if(!seg||!seg.bounds.length) return;
+      const props=bar.getProps(['y','height','base'],true);
+      const y0=props.y-props.height/2+1, y1=props.y+props.height/2-1;
+      ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.92)'; ctx.lineWidth=1.5;
+      seg.bounds.forEach(cum=>{ const px=x.getPixelForValue(cum);
+        ctx.beginPath(); ctx.moveTo(px,y0); ctx.lineTo(px,y1); ctx.stroke(); });
+      ctx.restore();
+    });
+  }};
   try{ if(_presoOvChart){ _presoOvChart.destroy(); _presoOvChart=null; } }catch(_){}
   try{
     _presoOvChart=new Chart(el.getContext('2d'),{ type:'bar',
-      data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:5, maxBarThickness:26 }] },
+      data:{ labels, datasets:[{ data, backgroundColor:colors, borderRadius:4, maxBarThickness:30 }] },
       options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>'$'+c.parsed.x.toFixed(1)+'M'}}},
+        tooltip:{callbacks:{
+          title:c=>c[0]?.label||'',
+          label:c=>'Total  $'+c.parsed.x.toFixed(1)+'M',
+          afterBody:c=>{ const seg=segsPerBar[c[0]?.dataIndex]; if(!seg) return [];
+            return seg.jobs.slice(0,8).map(o=>'• '+(o.acct||'—')+(o.type?' — '+o.type:'')+'  $'+((Number(o.val)||0)/1e6).toFixed(1)+'M')
+              .concat(seg.jobs.length>8?['…and '+(seg.jobs.length-8)+' more']:[]); }
+        }}},
         scales:{ x:{ ticks:{color:tick,callback:v=>'$'+v+'M'}, grid:{color:light?'rgba(30,50,80,.08)':'rgba(255,255,255,.06)'} },
-                 y:{ ticks:{color:tick}, grid:{display:false} } } } });
+                 y:{ ticks:{color:tick}, grid:{display:false} } } },
+      plugins:[jobSegPlugin] });
   }catch(_){}
 }
 
