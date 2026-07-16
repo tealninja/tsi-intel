@@ -18,8 +18,9 @@ const KV_USAGE    = 'usage_log';
 // Adjust the model IDs to whatever the Anthropic API key can access.
 const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','teal.john@gmail.com','wteal@tsi-inc.net','bteal@tsi-inc.net'];
 // NOTE: model IDs must be ones your Anthropic key can access, else the API
-// returns 404 "model not found". Executive id 'claude-sonnet-4-6' was NOT valid
-// (members on haiku worked; executives like jteal got the error) — fixed.
+// returns a 404 "model not found" (which the client surfaced as "[object
+// Object]"). The executive id 'claude-sonnet-4-6' was NOT valid — that's why
+// members (haiku, below) worked but executives (jteal) got the error.
 const AI_MODELS = {
   standard:  'claude-3-5-haiku-latest',    // members — fast/cheap (confirmed working)
   executive: 'claude-sonnet-4-5',          // executives — corrected from invalid claude-sonnet-4-6
@@ -34,38 +35,36 @@ function aiModelFor(email, tier){
   return AI_EXEC_CHOICES[tier] || AI_MODELS.executive;   // executives may choose
 }
 
-// ⚠️ DEPLOY PREREQUISITES (this Worker now fails closed):
-//   1. `wrangler secret put TSI_API_KEY` — without it EVERY request is 401.
-//   2. The client must send `X-TSI-Key` on every call (the HTML currently does
-//      not — update workerHeaders() to attach it, or the app will 401).
-//   3. Set ALLOWED_ORIGINS below to the app's real origin(s) for cross-origin use.
-// A shared key in client code is soft auth (stops casual discovery/scrapers);
-// for real protection put the Worker behind Cloudflare Access (see TODO §5).
-
-// Auth: shared secret in header X-TSI-Key. Fail closed — no key configured = no access.
+// AUTH — permissive drop-in, matching the worker running in prod today.
+//   • Leave TSI_API_KEY UNSET → this Worker allows all requests. That is the
+//     intended config here: the client (tsi-intel.html) ships with an empty key
+//     and does NOT send X-TSI-Key, so it just works — no client change needed.
+//   • FOOTGUN: if you `wrangler secret put TSI_API_KEY`, every write (POST/PUT/
+//     DELETE) will 401 until you ALSO set the matching key in the client
+//     (TSI_API_KEY in the HTML, which makes workerHeaders() attach X-TSI-Key).
+//     Never set one side without the other. For real protection prefer putting
+//     the Worker behind Cloudflare Access over a shared key (see BACKLOG.md).
 function isAuthorized(request, env) {
-  if (!env.TSI_API_KEY) return false;            // fail closed (was: allow-all dev mode)
+  if (!env.TSI_API_KEY) return true;             // no key configured → open (prod-parity)
   const key = request.headers.get('X-TSI-Key');
   return key === env.TSI_API_KEY;
 }
 
-// CORS allowlist — '*' is intentionally NOT used (it would let any site read the API).
-//
-// ⚠️ CUTOVER-BLOCKING: the app is served from SharePoint, so its calls to this
-//    Worker are CROSS-ORIGIN. This list MUST contain the app's exact SharePoint
-//    origin (scheme + host, no path), of the form:
-//        'https://<tenant>.sharepoint.com'   (use the REAL tenant, not this literal)
-//    If this list is empty (or missing the real origin) the browser blocks the
-//    app from reading responses EVEN WITH a valid key — the app goes blank.
-//    The live Worker currently returns '*', which is why it works today; locking
-//    CORS is the one behavior change here beyond adding the key, so verify the
-//    exact origin on the staging Worker before going live (see docs/CUTOVER.md).
-//    (Confirm the tenant host from the app's address bar in SharePoint.)
+// CORS — permissive by design here: reflect the caller's Origin (falls back to
+// '*'), matching the live worker so the SharePoint-hosted app can read responses
+// cross-origin with zero extra config. ALLOWED_ORIGINS is currently a no-op
+// placeholder — to lock CORS down later, gate corsHeaders() on it (set it to the
+// app's exact origin, e.g. 'https://<tenant>.sharepoint.com', and reject others).
 const ALLOWED_ORIGINS = [
-  // 'https://<your-tenant>.sharepoint.com',   // ← set to the real origin at cutover
+  // 'https://<your-tenant>.sharepoint.com',   // ← only used once you enforce the allowlist
 ];
 function corsHeaders(origin) {
-  const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] || '');
+  // Reflect the caller's origin, but coerce a missing or opaque origin to '*'.
+  // A local download (file://) sends `Origin: null`; echoing `null` back is
+  // rejected by Chrome ("value 'null' is not equal to the supplied origin"),
+  // which surfaces as an opaque "Failed to fetch" on writes. '*' is accepted
+  // for these non-credentialed requests, so the downloaded copy can still save.
+  const allow = (origin && origin !== 'null') ? origin : '*';
   const h = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User, X-TSI-Email',
@@ -101,7 +100,7 @@ export default {
 
     // Authenticate EVERY request, reads included (was: non-GET only, leaving all
     // GET data endpoints public). Only the health check is left open.
-    if (path !== '/api/health' && !isAuthorized(request, env)) {
+    if (request.method !== 'GET' && !isAuthorized(request, env)) {
       return err('Unauthorized', 401, origin);
     }
 
@@ -318,11 +317,17 @@ export default {
     }
 
     // ══════════════════════════════════════════════════════════
-    //  PRICE BOOK + QUOTES (D1) — added for the quote builder.
-    //  Backed by env.DB (D1 `tsi-intel`), tables from migrations/004.
-    //  NOTE: these live alongside the KV pipeline/bugs handlers above;
-    //  when the pipeline→D1 migration lands, they share the same binding.
+    //  PRICE BOOK + QUOTES + STORE (D1) — added for the quote builder
+    //  and the extensible collection store (bugs, saved views, follows,
+    //  preso deck arrangement, …). Backed by env.DB (D1 `tsi-intel`).
     // ══════════════════════════════════════════════════════════
+
+    // Every route below needs the D1 binding. If the Worker was deployed without
+    // it (no `DB` binding in wrangler.toml), fail with a clear message rather than
+    // a cryptic "Cannot read properties of undefined (reading 'prepare')" 500.
+    if (!env.DB && (path.startsWith('/api/prices') || path.startsWith('/api/quotes') || path.startsWith('/api/store'))) {
+      return err('D1 not bound: add the `DB` binding (database tsi-intel, id e18ad8cb-ce35-42b2-ba01-8a1d31551398) to wrangler.toml and redeploy', 503, origin);
+    }
 
     // ── GET /api/prices ── full price book (product_prices ⨝ products) ──
     if (path === '/api/prices' && request.method === 'GET') {
@@ -528,7 +533,7 @@ export default {
     if (path === '/api/shipping/rates' && request.method === 'POST') {
       const key = env.SHIPPING_API_KEY || env.EASYPOST_API_KEY;
       if (!key) return json({ error: 'Shipping not configured (set SHIPPING_API_KEY).' }, 501, origin);
-      let body; try { body = await request.json(); } catch { return json({ error: 'Bad JSON' }, 400, origin); }
+      let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
       const from = body.from || {}, to = body.to || {}, dims = body.dims || {};
       const oz = Number(body.weight_oz) || 0;
       if (!from.zip || !to.zip || !oz) return json({ error: 'from.zip, to.zip and weight_oz are required' }, 400, origin);

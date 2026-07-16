@@ -1,0 +1,30 @@
+{
+  // Remote MCP server for TSI Quotes — deploys as its own Worker (tsi-intel-mcp),
+  // separate from the static site (tsi-intel) and the API worker (tsi-intel-api),
+  // but sharing the same D1 database.
+  "name": "tsi-intel-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The McpAgent runs as a Durable Object with SQLite storage.
+  "durable_objects": {
+    "bindings": [{ "name": "MCP_OBJECT", "class_name": "TsiQuotesMCP" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["TsiQuotesMCP"] }
+  ],
+
+  // Same D1 as the app/API (tsi-intel) — quotes land in the shared database.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "tsi-intel", "database_id": "e18ad8cb-ce35-42b2-ba01-8a1d31551398" }
+  ],
+
+  // KV for the OAuth provider's grant/token store. Create one and paste its id:
+  //   wrangler kv namespace create OAUTH_KV
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "<CREATE_AND_PASTE_KV_ID>" }
+  ]
+
+  // Secret (do NOT commit): wrangler secret put MCP_LOGIN_PASSWORD
+}

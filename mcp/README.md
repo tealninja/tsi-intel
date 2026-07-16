@@ -1,129 +1,81 @@
-# TSI-Intel MCP server
+# TSI Quotes — Remote MCP Server
 
-An [MCP](https://modelcontextprotocol.io) server that lets Claude work with the
-TSI-Intel app directly — read and edit the sales **pipeline (opportunities)** on
-the live `tsi-intel-api` Worker, and search the **accounts / contacts /
-products** reference data.
+Chat with Claude on **claude.ai** to build and manage quotes, using your Claude
+subscription (no API tokens). This is a Cloudflare Worker that exposes MCP tools
+backed by the shared **D1** database (`tsi-intel`) — the same store the app and
+API use, so quotes created here appear in the app's **Quotes** tab.
 
-## Two ways to run it
+## Tools exposed
 
-Both expose the **same 12 tools** (defined once in `src/tools.js`):
+| Tool | What it does |
+|------|--------------|
+| `search_catalog` | Search the 131-item product catalog by text/category |
+| `get_price_book` | Current D1 prices (seeded from the Biocarbon sample price list) |
+| `create_quote` | Create a quote + lines; prices auto-fill from the price book; custom lines allowed |
+| `add_quote_line` | Append a line to an existing quote, recompute totals |
+| `list_quotes` / `get_quote` | Read quotes back |
+| `set_quote_status` | Draft → Sent → Accepted / Declined / Expired |
 
-| Where you use Claude | Run this | How to connect |
-| --- | --- | --- |
-| **Claude Desktop / Claude Code** (local) | this package — stdio server (`src/index.js`) | see [Setup](#setup) below |
-| **claude.ai (web console)** | the Cloudflare Worker in [`worker/`](worker/README.md) — remote server | add its URL as a Custom Connector |
+Example prompt in claude.ai once connected:
+> *"Build a quote for Idemitsu — 5 tons of high-torrefied chips, proximate +
+> calorific testing on 2 samples, and sealed super sacks. Standard Biocarbon
+> terms."* → Claude calls `get_price_book` + `create_quote` and returns the
+> quote number and total.
 
-The web console can only talk to a **remote** MCP server (a public HTTPS
-endpoint), so a local stdio process won't do — deploy the Worker for that. See
-[`worker/README.md`](worker/README.md).
+## Architecture
 
-## What it can and can't touch
+`OAuthProvider` (from `@cloudflare/workers-oauth-provider`) wraps the MCP handler
+(`TsiQuotesMCP.serve("/mcp")`, an `McpAgent` Durable Object). The OAuth library
+handles the protocol (dynamic client registration, tokens, PKCE) that claude.ai
+needs; `src/index.ts`'s `AuthHandler` only supplies the **login step** — a shared
+password gate. Quote/price logic lives in `src/db.ts` and mirrors
+`worker.js`'s `/api/quotes` (totals recomputed server-side).
 
-| Data | Where it lives | This server |
-| --- | --- | --- |
-| **Pipeline / opportunities** | `tsi-intel-api` Cloudflare Worker (shared) | **read + write** — edits round-trip to the app for everyone |
-| **Bugs** | same Worker (`/api/bugs`) | read + append |
-| **Accounts / contacts / products** | each browser's `localStorage`, seeded from `seed_*.json` | **read-only search** |
+## Deploy
 
-> The app keeps accounts, contacts and products in the browser's `localStorage`,
-> not on the Worker — so an MCP server has nothing live to write to. Those tools
-> serve the repo's `seed_*.json` exports for lookup; edits there would not sync
-> anywhere. The pipeline is the one shared, mutable store, and it's fully
-> read/write here.
-
-## Tools
-
-**Pipeline (live):**
-- `list_opportunities` — filter by account, category, status, stage, lead, tag,
-  country, value range, free-text; returns rows + count/total/weighted totals
-- `get_opportunity` — full record by id
-- `pipeline_summary` — totals and weighted (value × probability) value, optionally
-  grouped by stage / category / status / lead / account / country / source
-- `create_opportunity` — create + save (auto-generates an id from the account)
-- `update_opportunity` — partial update; preserves other fields, bumps version
-- `delete_opportunity` — delete (requires `confirm: true`)
-
-**Reference (read-only):**
-- `search_accounts`, `get_account` (with child sites + linked contacts)
-- `search_contacts`
-- `search_products`
-
-**Bugs:** `list_bugs`, `report_bug`
-
-## Setup
+> Prereqs: Node 18+, `wrangler` logged in to the Cloudflare account that owns the
+> `tsi-intel` D1 database. This is a **separate Worker** from the static site — it
+> does not affect the app deploy.
 
 ```bash
 cd mcp
 npm install
-npm test        # offline smoke test (no Worker needed)
+
+# 1) KV for the OAuth grant/token store — paste the id into wrangler.jsonc
+wrangler kv namespace create OAUTH_KV
+
+# 2) Shared login password (kept out of git)
+wrangler secret put MCP_LOGIN_PASSWORD
+
+# 3) Deploy
+npm run deploy   # → https://tsi-intel-mcp.<subdomain>.workers.dev
 ```
 
-Requires Node 18+.
+If the `agents` / `@modelcontextprotocol/sdk` / `workers-oauth-provider` versions
+have moved since this was written, run `npm install <pkg>@latest` for the three —
+the tool code in `src/db.ts` is framework-agnostic and won't change.
 
-### Configuration (environment variables)
+## Connect it in claude.ai
 
-| Var | Default | Purpose |
-| --- | --- | --- |
-| `TSI_WORKER_URL` | `https://tsi-intel-api.teal-john.workers.dev` | The API Worker base URL |
-| `TSI_USER` | `JT` | Your initials — written to `createdBy`/`updatedBy` and the `X-TSI-User` header |
-| `TSI_API_KEY` | _(empty)_ | Only if the Worker enforces `X-TSI-Key` |
-| `TSI_SEED_DIR` | repo root | Folder holding the `seed_*.json` files (auto-detected) |
+1. **Settings → Connectors → Add custom connector** (Pro/Max/Team/Enterprise;
+   Team/Enterprise require an Owner).
+2. URL: `https://tsi-intel-mcp.<subdomain>.workers.dev/mcp`
+3. Claude opens the login page → enter the `MCP_LOGIN_PASSWORD` → authorize.
+4. Start a chat and ask Claude to build a quote. Tools appear under the connector.
 
-### Claude Desktop
+## Auth options (pick per your security needs)
 
-Add to `claude_desktop_config.json`
-(macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`):
+- **Shared password (default here)** — simplest; the password is the only guard.
+- **Cloudflare Access managed OAuth** *(recommended for production)* — put this
+  Worker behind a Zero Trust Access application and validate the Access JWT;
+  Cloudflare handles per-user identity (Google/email OTP/etc.). See Cloudflare's
+  "Secure MCP servers with Access". Then you can drop the password gate.
+- **GitHub/Google upstream OAuth** — swap `AuthHandler` for the upstream-IdP
+  variant from Cloudflare's remote-MCP OAuth demo.
 
-```json
-{
-  "mcpServers": {
-    "tsi-intel": {
-      "command": "node",
-      "args": ["/absolute/path/to/tsi-intel/mcp/src/index.js"],
-      "env": { "TSI_USER": "JT" }
-    }
-  }
-}
-```
+## Security notes
 
-Restart Claude Desktop. The tools appear under the 🔌 menu.
-
-### Claude Code
-
-```bash
-claude mcp add tsi-intel -- node /absolute/path/to/tsi-intel/mcp/src/index.js
-```
-
-or add to `.mcp.json` at the repo root:
-
-```json
-{
-  "mcpServers": {
-    "tsi-intel": {
-      "command": "node",
-      "args": ["mcp/src/index.js"],
-      "env": { "TSI_USER": "JT" }
-    }
-  }
-}
-```
-
-## Try it
-
-Once connected, ask Claude things like:
-
-- "Show me my open pipeline over $50M, grouped by stage."
-- "What's the weighted value of everything ZS leads?"
-- "Bump the Alfanar FEED opportunity to 90% probability and move it to Negotiation."
-- "Create a new Dryer System opportunity for Newco Energy, ~$5M, 40%."
-- "Who's the contact at Drax and what's the SKU for the register burner?"
-
-## Notes
-
-- **Writes are live and shared.** `create`/`update`/`delete` hit the production
-  Worker and show up in the app for everyone. Prefer setting `status: "L"` (lost)
-  over deleting.
-- Concurrency: the Worker may reject an update with **409** if the record changed
-  underneath you; re-read and retry.
-- The value field is raw currency units (e.g. `9000000` = $9M).
+- The Worker is public; the password (or Access) is the only barrier — treat the
+  secret like a production credential and rotate it if shared.
+- Every tool call recomputes quote totals server-side; client math is never trusted.
+- Writes go straight to the production `tsi-intel` D1. Consider a staging D1 for testing.
