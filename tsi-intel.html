@@ -3633,7 +3633,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#155 · 2026-07-16 · deck-builder star + slide-master logo/Confidential footer';
+const APP_BUILD = '#156 · 2026-07-16 · deck job maps zoom/pan + saved per-mill framing';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -16841,6 +16841,11 @@ startAdminPoll();
 .pz-map .nm{position:absolute;left:8px;bottom:8px;z-index:800;font-size:11px;color:var(--pz-text,#e6eef7);background:color-mix(in srgb,var(--pz-panel) 82%,transparent);padding:2px 7px;border-radius:6px;backdrop-filter:blur(2px)}
 .pz-map .leaflet-container{background:var(--pz-panel)}
 .pz-port-marker,.acct-port-marker{font-size:17px;line-height:22px;text-align:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));cursor:pointer}
+.pz-map-reset{width:26px;height:26px;line-height:24px;text-align:center;font-size:14px;cursor:pointer;
+  background:var(--pz-panel);color:var(--pz-text);border:1px solid var(--pz-line);border-radius:6px;padding:0}
+.pz-map-reset:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
+.pz-map .leaflet-control-zoom a{background:var(--pz-panel);color:var(--pz-text);border-color:var(--pz-line)}
+#pz-jobmap{cursor:grab}
 .pz-clima{height:120px;margin-top:4px}
 .pz-comm{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
 .pz-comm .k{color:var(--pz-faint)}.pz-comm .v{color:var(--pz-ink);text-align:right;font-variant-numeric:tabular-nums}
@@ -19086,6 +19091,7 @@ async function openPreso(){
   presoApplyTheme();
   document.getElementById('pz-stage').innerHTML='<div style="margin:auto;color:var(--pz-faint)">Building deck…</div>';
   document.addEventListener('keydown', presoKey);
+  try{ presoMapViewStore().pull(); }catch(_){}   // load the team's saved per-mill map framings
   try{ _presoDeck=await presoBuildDeck(); }catch(e){ _presoSectionsActive=PRESO_SECTIONS; _presoDeck=[{type:'overview',bySect:{},sections:PRESO_SECTIONS}]; }
   _presoIdx=0; presoRender();
 }
@@ -19303,6 +19309,27 @@ function presoSitePort(o){
 // deferred/whenReady init so it renders reliably inside the animated overlay. Shows
 // the deal pin plus a 🚢 boat marker + connector when the site has a shipping port.
 let _presoJobMap=null;
+// Per-opportunity map framing — presenters can pan/zoom each mill's map to get it
+// right; the center+zoom is remembered per opp (synced via the 'preso_mapviews'
+// collection) so it's restored on revisit and shared with the team.
+let _presoMapViewStore=null;
+function presoMapViewStore(){ return _presoMapViewStore || (_presoMapViewStore = Store('preso_mapviews')); }
+function presoGetMapView(id){ return presoMapViewStore().all().find(v=>v.id===id) || null; }
+let _presoMapSaveTimer=null;
+function presoSaveMapView(id, map){
+  if(!id||!map) return;
+  const c=map.getCenter();
+  const rec={ id, lat:+c.lat.toFixed(5), lon:+c.lng.toFixed(5), zoom:map.getZoom() };
+  clearTimeout(_presoMapSaveTimer);
+  _presoMapSaveTimer=setTimeout(()=>{ try{ presoMapViewStore().put(rec); }catch(_){} }, 700);   // debounce D1 writes
+}
+function presoResetMapView(id){
+  if(!id) return;
+  try{ presoMapViewStore().remove(id); }catch(_){}
+  const cur=_presoDeck[_presoIdx];
+  if(cur&&cur.type==='job'&&cur.job&&cur.job.id===id){ presoRenderJobMap(cur.job, cur.section); }
+  showToast('Map framing reset','var(--tsi-teal)');
+}
 function presoRenderJobMap(o,sec){
   const el=document.getElementById('pz-jobmap'); if(!el) return;
   const c=presoCoords(presoLoc(o));
@@ -19313,8 +19340,15 @@ function presoRenderJobMap(o,sec){
     if(!document.getElementById('pz-jobmap')||!cur||cur.type!=='job'||cur.job!==o) return;
     try{
       const light=document.getElementById('preso-overlay').classList.contains('preso-light');
-      const map=L.map(el,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false,doubleClickZoom:false,boxZoom:false,keyboard:false}).setView(c,6);
+      // Interactive so presenters can frame each mill; keyboard stays off so ←/→ still page slides.
+      const map=L.map(el,{zoomControl:true,attributionControl:false,scrollWheelZoom:true,dragging:true,doubleClickZoom:true,boxZoom:true,keyboard:false}).setView(c,6);
       _presoJobMap=map;
+      const _saved=presoGetMapView(o.id);
+      // small reset control to drop a custom framing and re-fit
+      const ResetCtl=L.Control.extend({ options:{position:'topright'},
+        onAdd:function(){ const b=L.DomUtil.create('button','pz-map-reset'); b.type='button'; b.title='Reset map framing'; b.innerHTML='⟲';
+          L.DomEvent.on(b,'click',(ev)=>{ L.DomEvent.stop(ev); presoResetMapView(o.id); }); return b; } });
+      map.addControl(new ResetCtl());
       L.tileLayer(light
         ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
         : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
@@ -19331,9 +19365,15 @@ function presoRenderJobMap(o,sec){
       // Tiles cover the fallback grid/pin once the map is live.
       el.querySelectorAll('.gb,.pin').forEach(x=>x.style.display='none');
       const fit=()=>{ if(_presoJobMap!==map) return; map.invalidateSize();
-        if(pts.length>1) map.fitBounds(pts,{padding:[38,38],maxZoom:7}); else map.setView(c,6); };
+        if(_saved){ map.setView([_saved.lat,_saved.lon], _saved.zoom); }       // restore the presenter's saved framing
+        else if(pts.length>1) map.fitBounds(pts,{padding:[38,38],maxZoom:7}); else map.setView(c,6); };
       map.whenReady(fit);
       [60,240,600].forEach(t=>setTimeout(fit,t));
+      // Only persist framing from USER gestures — attach after the programmatic
+      // fit has settled so auto-fit doesn't save a "custom" view for every slide.
+      setTimeout(()=>{ if(_presoJobMap!==map) return;
+        map.on('zoomend dragend', ()=>{ if(_presoJobMap===map) presoSaveMapView(o.id, map); });
+      }, 750);
     }catch(e){}
   },0));
 }
