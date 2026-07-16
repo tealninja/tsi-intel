@@ -1860,8 +1860,12 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .oppgap-n { font-size:10px; font-weight:700; color:var(--tsi-coral); background:rgba(139,26,10,0.1); border-radius:99px; padding:1px 7px; }
 .oppgap-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
 .oppgap-chip { font-size:10px; background:rgba(139,26,10,0.12); color:var(--tsi-coral); border-radius:99px; padding:2px 8px; white-space:nowrap; }
-.oppgap-controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--color-border); }
+.oppgap-controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--color-border); flex-wrap:wrap; }
 .oppgap-switch { display:flex; align-items:center; gap:7px; font-size:12px; cursor:pointer; color:var(--color-text-primary); }
+.gap-sort-select { height:26px; padding:0 6px; font:400 11px var(--font-ui); cursor:pointer;
+  color:var(--color-text-primary); background:var(--color-surface);
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-sm); outline:none; }
+.gap-sort-select:focus { border-color:var(--tsi-teal); }
 .oppgap-switch input { accent-color:var(--tsi-teal); width:15px; height:15px; }
 /* Fix-flow: highlight an opportunity field that's flagged as missing. */
 .field-missing { border-color:var(--tsi-coral) !important; background:rgba(139,26,10,0.05) !important; box-shadow:0 0 0 3px rgba(139,26,10,0.14); }
@@ -3494,7 +3498,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#138 · 2026-07-16 · date-range filter + estimate history';
+const APP_BUILD = '#139 · 2026-07-16 · gap-review order-by';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3552,6 +3556,21 @@ const OPP_REVIEW_CHECKS_EXTRA = [
   { key:'geo',   label:'Not geocoded',    test:o => !(o.lat && o.lon) },
 ];
 let _oppReviewAll = false;   // include the EXTRA (legacy) checks
+let _oppReviewSort = 'gaps';  // order of the review list + Fix-all step-through
+function setOppReviewSort(v){ _oppReviewSort = v; renderOppReview(); }
+// Comparator shared by the list render and the Fix-all queue, so both page in
+// the same order. Ties fall back to most-missing-first.
+function oppReviewComparator(){
+  const miss = o => oppMissingFields(o).length;
+  const byGaps = (a,b) => miss(b) - miss(a);
+  switch(_oppReviewSort){
+    case 'acct':  return (a,b)=> (a.acct||'').localeCompare(b.acct||'') || byGaps(a,b);
+    case 'value': return (a,b)=> ((b.val??-1)-(a.val??-1)) || byGaps(a,b);
+    case 'close': return (a,b)=>{ const da=parseCloseDate(a.close), db=parseCloseDate(b.close);
+      return (da?da.getTime():Infinity)-(db?db.getTime():Infinity) || byGaps(a,b); };
+    default:      return (a,b)=> byGaps(a,b) || (a.acct||'').localeCompare(b.acct||'');
+  }
+}
 let _oppFixMode   = false;   // drawer opened from the gap-review "fix" flow → highlight missing fields
 // Which drawer field each check maps to (for highlighting during the fix flow).
 const OPP_CHECK_FIELD = { val:'d-val', prob:'d-prob', close:'d-close', stage:'d-stage', cat:'d-cat', lead:'d-lead', acct:'d-acct', geo:'d-loc-search' };
@@ -3581,17 +3600,22 @@ function startOppFixAll(){
 function oppsNeedingReview(){ return DATA.filter(o => o.status === 'O' && oppMissingFields(o).length); }
 // Same order the review list renders in (most-missing first), so the fix
 // step-through opens the top row and pages straight down the visible list.
-function oppsNeedingReviewSorted(){ return oppsNeedingReview().sort((a,b) => oppMissingFields(b).length - oppMissingFields(a).length); }
+function oppsNeedingReviewSorted(){ return oppsNeedingReview().sort(oppReviewComparator()); }
 function updateOppGapBadge(){ const el = document.getElementById('opp-gap-badge'); if (el){ const n = oppsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
 function openOppReview(){ renderOppReview(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.add('open'); }
 function closeOppReview(){ exitOppFixDock(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.remove('open'); }
 function renderOppReview(){
   const body = document.getElementById('oppreview-body'), title = document.getElementById('oppreview-title');
   if (!body) return;
-  const rows = oppsNeedingReview().sort((a,b) => oppMissingFields(b).length - oppMissingFields(a).length);
+  const rows = oppsNeedingReviewSorted();
   if (title) title.textContent = 'Review gaps · ' + rows.length + ' opportunit' + (rows.length===1?'y':'ies');
+  const sortOpts = [['gaps','Most gaps'],['acct','Account (A→Z)'],['value','Value (high→low)'],['close','Close (soonest)']];
   const controls = `<div class="oppgap-controls">
     <label class="oppgap-switch"><input type="checkbox" ${_oppReviewAll?'checked':''} onchange="toggleOppReviewAll(this.checked)"> Include legacy gaps <span style="color:var(--color-text-muted)">(account link &amp; location)</span></label>
+    <label class="oppgap-switch" style="gap:6px">Order by
+      <select class="gap-sort-select" onchange="setOppReviewSort(this.value)">
+        ${sortOpts.map(([v,l])=>`<option value="${v}" ${_oppReviewSort===v?'selected':''}>${l}</option>`).join('')}
+      </select></label>
     <button class="btn-save-opp" style="flex:0 0 auto;width:auto;padding:6px 16px" onclick="startOppFixAll()" ${rows.length?'':'disabled'}>Fix all ▸</button>
   </div>`;
   if (!rows.length){ body.innerHTML = controls + '<div style="padding:22px;text-align:center;color:var(--color-text-muted)">✓ No gaps with the current checks.</div>'; return; }
@@ -9329,9 +9353,26 @@ function acctsNeedingReview(){
   return accounts.map(a => ({ a, miss: checks.filter(c => { try { return c.test(a, cc); } catch(_){ return false; } }) }))
                  .filter(x => x.miss.length);
 }
-// Same order the review list renders in (most-missing first), so the fix
-// step-through opens the top row and pages straight down the visible list.
-function acctsNeedingReviewSorted(){ return acctsNeedingReview().sort((x,y) => y.miss.length - x.miss.length); }
+let _acctReviewSort = 'gaps';   // order of the review list + Fix-all step-through
+function setAcctReviewSort(v){ _acctReviewSort = v; renderAcctReview(); }
+// Comparator shared by the account list render and the Fix-all queue. 'parent'
+// groups sites under their parent account's name (top-level accounts sort by
+// their own name), so related records are fixed back-to-back.
+function acctReviewComparator(){
+  const byGaps = (x,y) => y.miss.length - x.miss.length;
+  if(_acctReviewSort==='name')   return (x,y)=> (x.a.name||'').localeCompare(y.a.name||'') || byGaps(x,y);
+  if(_acctReviewSort==='parent'){
+    const accounts = getAccounts().accounts;
+    const byId = Object.fromEntries(accounts.map(a=>[a.id,a]));
+    const pname = a => (a.parentId && byId[a.parentId] ? byId[a.parentId].name : a.name) || '';
+    // group by parent name, then parents before their sites, then by name
+    return (x,y)=> pname(x.a).localeCompare(pname(y.a))
+                || (x.a.parentId?1:0)-(y.a.parentId?1:0)
+                || (x.a.name||'').localeCompare(y.a.name||'');
+  }
+  return (x,y)=> byGaps(x,y) || (x.a.name||'').localeCompare(y.a.name||'');
+}
+function acctsNeedingReviewSorted(){ return acctsNeedingReview().sort(acctReviewComparator()); }
 function updateAcctGapBadge(){ const el = document.getElementById('acct-gap-badge'); if (el){ const n = acctsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
 function openAcctReview(){ renderAcctReview(); const o = document.getElementById('acctreview-overlay'); if (o) o.classList.add('open'); }
 function closeAcctReview(){ exitAcctFixDock(); const o = document.getElementById('acctreview-overlay'); if (o) o.classList.remove('open'); }
@@ -9351,10 +9392,15 @@ function startAcctFixAll(){
 function renderAcctReview(){
   const body = document.getElementById('acctreview-body'), title = document.getElementById('acctreview-title');
   if (!body) return;
-  const rows = acctsNeedingReview().sort((x,y) => y.miss.length - x.miss.length);
+  const rows = acctsNeedingReviewSorted();
   if (title) title.textContent = 'Account gaps · ' + rows.length;
+  const sortOpts = [['gaps','Most gaps'],['name','Account (A→Z)'],['parent','Parent account']];
   const controls = `<div class="oppgap-controls">
     <label class="oppgap-switch"><input type="checkbox" ${_acctReviewAll?'checked':''} onchange="toggleAcctReviewAll(this.checked)"> Include customer-status gaps</label>
+    <label class="oppgap-switch" style="gap:6px">Order by
+      <select class="gap-sort-select" onchange="setAcctReviewSort(this.value)">
+        ${sortOpts.map(([v,l])=>`<option value="${v}" ${_acctReviewSort===v?'selected':''}>${l}</option>`).join('')}
+      </select></label>
     <button class="btn-save-opp" style="flex:0 0 auto;width:auto;padding:6px 16px" onclick="startAcctFixAll()" ${rows.length?'':'disabled'}>Fix all ▸</button>
   </div>`;
   if (!rows.length){ body.innerHTML = controls + '<div style="padding:22px;text-align:center;color:var(--color-text-muted)">✓ No account gaps with the current checks.</div>'; return; }
