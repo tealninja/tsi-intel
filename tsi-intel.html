@@ -675,6 +675,31 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 thead th.col-filtered { background:rgb(0,90,100)!important; }
 thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacity:.8; }
 
+/* ── DATE-RANGE COLUMN FILTER (mode toggle + dual-thumb slider) ── */
+.drf-panel { width:250px; padding:12px; }
+.drf-modes { display:inline-flex; width:100%; padding:2px; margin-bottom:12px;
+  border-radius:var(--radius-md); background:color-mix(in srgb, var(--tsi-charcoal) 8%, transparent); }
+[data-theme="dark"] .drf-modes { background:rgba(255,255,255,0.08); }
+.drf-mode { flex:1; padding:5px 0; border:none; background:transparent; border-radius:var(--radius-sm);
+  font:500 10px var(--font-ui); color:var(--color-text-secondary); cursor:pointer; transition:all var(--transition); }
+.drf-mode:hover:not(.active) { color:var(--color-heading); }
+.drf-mode.active { background:var(--tsi-teal); color:#fff; }
+[data-theme="dark"] .drf-mode.active { background:var(--tsi-teal-dark); color:#0a1420; }
+.drf-scale { display:flex; justify-content:space-between; margin-bottom:6px;
+  font:400 9px var(--font-mono); color:var(--color-text-muted); }
+.drf-slider { position:relative; height:13px; margin:0 6px 10px; }
+.drf-rail { position:absolute; top:50%; left:-6px; right:-6px; height:3px; transform:translateY(-50%);
+  border-radius:2px; background:var(--color-border-mid); }
+.drf-range { position:absolute; top:50%; height:3px; transform:translateY(-50%); border-radius:2px; background:var(--tsi-teal); }
+.drf-thumb { position:absolute; top:50%; width:13px; height:13px; margin-left:-6.5px; transform:translateY(-50%);
+  border-radius:50%; background:var(--color-surface); border:2px solid var(--tsi-teal); cursor:grab; touch-action:none; }
+.drf-thumb:active { cursor:grabbing; }
+.drf-thumb:focus-visible { outline:2px solid var(--tsi-teal); outline-offset:2px; }
+.drf-thumb.pinned { border-color:var(--color-border-mid); cursor:default; opacity:.55; }
+.drf-readout { text-align:center; margin-bottom:12px; font:500 12px var(--font-mono); color:var(--color-heading); }
+.drf-readout .drf-dash { color:var(--color-text-muted); margin:0 4px; }
+.drf-empty { text-align:center; font:400 11px var(--font-ui); color:var(--color-text-muted); padding:8px 0 12px; }
+
 
 /* ── BUG REGISTER ────────────────────────────────────── */
 .bug-layout { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-3); }
@@ -3436,7 +3461,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#136 · 2026-07-14';
+const APP_BUILD = '#137 · 2026-07-16 · date-range column filter';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -13358,7 +13383,7 @@ const TableKit = {
       try { const legacy = JSON.parse(localStorage.getItem('tsi_pip_hidden_cols_v2') || '[]'); if (legacy.length) hidden = new Set(legacy); } catch {}
     }
     _tkTables[id] = Object.assign({ id, columns:[], data:null, render:()=>{}, capture:null, apply:null,
-      hidden, hiddenKey, colFilters:{} }, cfg);
+      hidden, hiddenKey, colFilters:{}, dateFilters:{} }, cfg);
     TableKit.applyVisibility(id);
     return _tkTables[id];
   },
@@ -13419,28 +13444,44 @@ const TableKit = {
   },
   filterRows(id, rows){
     const t=_tkTables[id]; if(!t) return rows; const cf=t.colFilters;
+    const df=t.dateFilters||{};
     const keys=Object.keys(cf).filter(k=>cf[k] && cf[k].size);
-    if(!keys.length) return rows;
+    const dkeys=Object.keys(df).filter(k=>df[k]);
+    if(!keys.length && !dkeys.length) return rows;
     return rows.filter(r=>{
       for(const col of keys){
         const allowed=cf[col], d=TableKit.colDef(id,col);
         if(d && d.filterMulti){ if(!d.filterMulti(r).some(v=>allowed.has(v))) return false; continue; }
         if(!allowed.has(TableKit.colFilterVal(id,col,r))) return false;
       }
+      for(const col of dkeys){
+        const rng=df[col], d=TableKit.colDef(id,col);
+        const dt = d && d.dateVal ? d.dateVal(r) : null;
+        if(!dt || isNaN(dt.getTime())) return false;          // undated rows drop out of a date window
+        if(rng.from!=null && dt < rng.from) return false;
+        if(rng.to!=null   && dt > rng.to)   return false;
+      }
       return true;
     });
   },
   updateFilterIndicators(id){
     const t=_tkTables[id]; if(!t) return;
-    document.querySelectorAll('#'+id+' thead th[data-col]').forEach(th=> th.classList.toggle('col-filtered', !!(t.colFilters[th.dataset.col] && t.colFilters[th.dataset.col].size)));
+    document.querySelectorAll('#'+id+' thead th[data-col]').forEach(th=>{
+      const c=th.dataset.col;
+      const valFiltered = !!(t.colFilters[c] && t.colFilters[c].size);
+      const dateFiltered = !!(t.dateFilters && t.dateFilters[c]);
+      th.classList.toggle('col-filtered', valFiltered || dateFiltered);
+    });
   },
-  clearColFilters(id){ const t=_tkTables[id]; if(!t) return; t.colFilters={}; TableKit.updateFilterIndicators(id); t.render(); },
+  clearColFilters(id){ const t=_tkTables[id]; if(!t) return; t.colFilters={}; t.dateFilters={}; TableKit.updateFilterIndicators(id); t.render(); },
 
   // ── saved views ─────────────────────────────────────────────────────────────
   captureView(id){
     const t=_tkTables[id]; const cf={};
     Object.entries(t.colFilters).forEach(([k,v])=>{ if(v && v.size) cf[k]=[...v]; });
-    return { sort: activeSort[id] ? {...activeSort[id]} : null, hidden:[...t.hidden], colFilters:cf, extra: t.capture ? t.capture() : null };
+    const dfl={};
+    Object.entries(t.dateFilters||{}).forEach(([k,v])=>{ if(v) dfl[k]={ mode:v.mode, from:v.from!=null?+v.from:null, to:v.to!=null?+v.to:null }; });
+    return { sort: activeSort[id] ? {...activeSort[id]} : null, hidden:[...t.hidden], colFilters:cf, dateFilters:dfl, extra: t.capture ? t.capture() : null };
   },
   applyViewState(id, st){
     const t=_tkTables[id]; if(!t) return;
@@ -13448,6 +13489,7 @@ const TableKit = {
     t.hidden = new Set(st.hidden||[]); try{ localStorage.setItem(t.hiddenKey, JSON.stringify([...t.hidden])); }catch{}
     TableKit.applyVisibility(id);
     t.colFilters={}; Object.entries(st.colFilters||{}).forEach(([k,v])=>{ t.colFilters[k]=new Set(v); });
+    t.dateFilters={}; Object.entries(st.dateFilters||{}).forEach(([k,v])=>{ t.dateFilters[k]={ mode:v.mode, from:v.from!=null?new Date(v.from):null, to:v.to!=null?new Date(v.to):null }; });
     TableKit.updateFilterIndicators(id);
     if(t.apply && st.extra) t.apply(st.extra);
     else t.render();
@@ -13519,6 +13561,8 @@ let _tkPopEl=null, _tkVEditId=null;
 let _tkCFP=null;
 function tkCloseFilterPanel(){ if(_tkCFP){ _tkCFP.remove(); _tkCFP=null; } }
 function tkOpenColFilter(th, id, col){
+  const _cd=TableKit.colDef(id,col);
+  if(_cd && _cd.dateRange){ return tkOpenDateFilter(th, id, col); }
   tkCloseFilterPanel();
   const t=TableKit.get(id); if(!t) return;
   const panel=document.createElement('div'); panel.className='col-filter-panel';
@@ -13560,6 +13604,96 @@ function tkOpenColFilter(th, id, col){
   document.body.appendChild(panel); _tkCFP=panel; srch.focus();
 }
 
+// Date-range filter popover for date columns (mode: all/before/after/between
+// + dual-thumb slider scaled to the column's own date domain). Stores the
+// result in t.dateFilters[col] = { mode, from:Date|null, to:Date|null }.
+function tkOpenDateFilter(th, id, col){
+  tkCloseFilterPanel();
+  const t=TableKit.get(id); if(!t) return;
+  const d=TableKit.colDef(id,col);
+  const rows = t.data ? t.data() : [];
+  const dates = rows.map(r=>d.dateVal(r)).filter(x=>x && !isNaN(x.getTime())).sort((a,b)=>a-b);
+  const panel=document.createElement('div'); panel.className='col-filter-panel drf-panel';
+  if(!dates.length){
+    panel.innerHTML='<div class="drf-empty">No dated rows to filter.</div>';
+    const r0=th.getBoundingClientRect();
+    panel.style.cssText=`top:${r0.bottom}px;left:${Math.min(r0.left, window.innerWidth-250)}px`;
+    document.body.appendChild(panel); _tkCFP=panel; return;
+  }
+  const minMs=+dates[0], maxMs=+dates[dates.length-1], span=Math.max(1, maxMs-minMs);
+  const fmtD=x=>x.toISOString().slice(0,10);
+  const active=t.dateFilters[col];
+  let mode = active ? active.mode : 'between';
+  let lo = active && active.from!=null ? (Math.max(minMs,+active.from)-minMs)/span : 0;
+  let hi = active && active.to!=null   ? (Math.min(maxMs,+active.to)-minMs)/span   : 1;
+  const clamp=v=>Math.max(0,Math.min(1,v));
+  const posDate=p=>new Date(minMs+p*span);
+
+  panel.innerHTML =
+    '<div class="drf-modes">' +
+      ['all','before','after','between'].map(m=>`<button type="button" class="drf-mode${m===mode?' active':''}" data-mode="${m}">${m[0].toUpperCase()+m.slice(1)}</button>`).join('') +
+    '</div>' +
+    `<div class="drf-scale"><span>${fmtD(dates[0])}</span><span>${fmtD(dates[dates.length-1])}</span></div>` +
+    '<div class="drf-slider"><div class="drf-rail"></div><div class="drf-range"></div>' +
+      '<div class="drf-thumb lo" tabindex="0" role="slider" aria-label="Window start"></div>' +
+      '<div class="drf-thumb hi" tabindex="0" role="slider" aria-label="Window end"></div></div>' +
+    '<div class="drf-readout"></div>' +
+    '<div class="cfp-actions"><button type="button" class="cfp-btn" data-act="clear">Clear</button>' +
+      '<button type="button" class="cfp-btn apply" data-act="apply">Apply</button></div>';
+
+  const slider=panel.querySelector('.drf-slider'), loEl=panel.querySelector('.drf-thumb.lo'),
+        hiEl=panel.querySelector('.drf-thumb.hi'), rangeEl=panel.querySelector('.drf-range'),
+        readout=panel.querySelector('.drf-readout');
+  function describe(){
+    if(mode==='all') return 'All dates';
+    if(mode==='before') return 'Before '+fmtD(posDate(hi));
+    if(mode==='after')  return 'After '+fmtD(posDate(lo));
+    return fmtD(posDate(lo))+'<span class="drf-dash">–</span>'+fmtD(posDate(hi));
+  }
+  function layout(){
+    loEl.style.left=(lo*100)+'%'; hiEl.style.left=(hi*100)+'%';
+    rangeEl.style.left=(lo*100)+'%'; rangeEl.style.width=((hi-lo)*100)+'%';
+    loEl.classList.toggle('pinned', mode==='before');
+    hiEl.classList.toggle('pinned', mode==='after');
+    readout.innerHTML=describe();
+  }
+  function setMode(m){
+    mode=m;
+    if(m==='all'){ lo=0; hi=1; } if(m==='before'){ lo=0; } if(m==='after'){ hi=1; }
+    panel.querySelectorAll('.drf-mode').forEach(b=>b.classList.toggle('active', b.dataset.mode===m));
+    layout();
+  }
+  function wire(el,isLo){
+    el.addEventListener('pointerdown',e=>{
+      if(el.classList.contains('pinned')) return;
+      el.setPointerCapture(e.pointerId);
+      const rail=slider.getBoundingClientRect();
+      const move=ev=>{ const p=clamp((ev.clientX-rail.left)/rail.width); if(isLo) lo=Math.min(p,hi); else hi=Math.max(p,lo); layout(); };
+      const up=()=>{ el.removeEventListener('pointermove',move); el.removeEventListener('pointerup',up); };
+      el.addEventListener('pointermove',move); el.addEventListener('pointerup',up);
+    });
+    el.addEventListener('keydown',e=>{
+      if(el.classList.contains('pinned')) return;
+      const step=e.shiftKey?0.1:0.02;
+      if(e.key==='ArrowLeft'){ if(isLo) lo=clamp(lo-step); else hi=clamp(Math.max(hi-step,lo)); layout(); e.preventDefault(); }
+      if(e.key==='ArrowRight'){ if(isLo) lo=clamp(Math.min(lo+step,hi)); else hi=clamp(hi+step); layout(); e.preventDefault(); }
+    });
+  }
+  wire(loEl,true); wire(hiEl,false);
+  panel.querySelectorAll('.drf-mode').forEach(btn=>btn.addEventListener('click',()=>setMode(btn.dataset.mode)));
+  panel.querySelector('[data-act="clear"]').addEventListener('click',()=>{ delete t.dateFilters[col]; TableKit.updateFilterIndicators(id); tkCloseFilterPanel(); t.render(); });
+  panel.querySelector('[data-act="apply"]').addEventListener('click',()=>{
+    if(mode==='all') delete t.dateFilters[col];
+    else t.dateFilters[col]={ mode, from:(mode==='before')?null:posDate(lo), to:(mode==='after')?null:posDate(hi) };
+    TableKit.updateFilterIndicators(id); tkCloseFilterPanel(); t.render();
+  });
+  layout();
+  const rect=th.getBoundingClientRect(); const panelH=250;
+  const top = rect.bottom+panelH>window.innerHeight ? Math.max(4,rect.top-panelH) : rect.bottom;
+  panel.style.cssText+=`;top:${top}px;left:${Math.min(rect.left, window.innerWidth-260)}px`;
+  document.body.appendChild(panel); _tkCFP=panel;
+}
+
 // ── PERSONAL FOLLOWS (per-user faves; soft identity) ───────────────────────
 const followStore = Store('follows');
 function _followId(oppId){ return currentUserId() + '::opp::' + oppId; }
@@ -13596,7 +13730,7 @@ TableKit.register('pip-table', {
     { i:10, label:'Prob',             col:'prob', sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
     { i:11, label:'Wtd',              col:'wtd',  sortable:true, sortVal:o=>(o.val&&o.prob)?o.val*o.prob:-1 },
     { i:12, label:'Stage',            col:'stage',sortable:true },
-    { i:13, label:'Close',            col:'close',sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD' },
+    { i:13, label:'Close',            col:'close',sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD', dateRange:true, dateVal:o=>parseCloseDate(o.close) },
     { i:14, label:'Lead',             col:'lead', sortable:true },
     { i:15, label:'Notes' },
     { i:16, label:'Last Update' },
@@ -13623,7 +13757,7 @@ TableKit.register('imm-table', {
   data: () => (typeof IMMINENT_IDS!=='undefined' ? IMMINENT_IDS.map(id=>open().find(o=>o.id===id)).filter(Boolean) : []),
   render: () => renderImminent(),
   columns: [
-    { i:2,  label:'PO Target',    col:'close', sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD' },
+    { i:2,  label:'PO Target',    col:'close', sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD', dateRange:true, dateVal:o=>parseCloseDate(o.close) },
     { i:3,  label:'Account',      col:'acct',  sortable:true },
     { i:4,  label:'Location',     col:'loc' },
     { i:5,  label:'Project',      col:'type' },
