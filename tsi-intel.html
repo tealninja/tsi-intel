@@ -3589,7 +3589,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#151 · 2026-07-16 · logos upload as PNG (keep transparency, no black background)';
+const APP_BUILD = '#152 · 2026-07-16 · preso stage-snapshot slide per section';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -16462,12 +16462,27 @@ startAdminPoll();
 .pz-si-tags{display:flex;flex-wrap:wrap;gap:5px}
 .pz-si-tag{font-size:10.5px;font-weight:600;color:#fff;padding:2px 7px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
 .pz-sec-go{color:var(--pz-faint);opacity:0;transform:translateX(-4px);transition:.15s;align-self:center}
+/* stage snapshot — compact read-only kanban of a section's opps under review */
+.pzs-board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(140px,1fr);gap:10px;align-items:start;overflow-x:auto;padding-bottom:6px}
+.pzs-col{display:flex;flex-direction:column;min-width:0;background:var(--pz-panel);border:1px solid var(--pz-line);border-radius:8px;overflow:hidden}
+.pzs-col-h{display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid var(--pz-line);border-top:2px solid var(--c,#8a8f98);font-size:11px}
+.pzs-dot{width:7px;height:7px;border-radius:50%;background:var(--c,#8a8f98);flex-shrink:0}
+.pzs-nm{font-weight:700;color:var(--pz-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pzs-ct{margin-left:auto;color:var(--pz-faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pzs-body{display:flex;flex-direction:column;gap:6px;padding:8px}
+.pzs-card{border:1px solid var(--pz-line);border-left:3px solid var(--c,#8a8f98);border-radius:6px;padding:7px 8px;cursor:pointer;transition:.12s;background:var(--pz-panel2)}
+.pzs-card:hover{border-color:var(--c,#8a8f98);transform:translateY(-1px)}
+.pzs-a{font-weight:700;font-size:12px;color:var(--pz-text);line-height:1.25}
+.pzs-t{font-size:10.5px;color:var(--pz-muted);margin-top:2px;line-height:1.2}
+.pzs-m{display:flex;gap:8px;margin-top:5px;font-size:10.5px;color:var(--pz-faint);font-variant-numeric:tabular-nums}
+.pzs-empty{color:var(--pz-faint);font-size:12px;text-align:center;padding:6px 0}
 #pz-ovmap .leaflet-interactive{cursor:pointer}
 /* rail */
 .pz-rail{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:11px 22px;border-top:1px solid var(--pz-line2);font-size:11px;color:var(--pz-faint);overflow-x:auto;white-space:nowrap}
 .pz-rseg{display:inline-flex;align-items:center;gap:5px}
 .pz-rnode{width:9px;height:9px;border-radius:50%;background:var(--pz-node);cursor:pointer;flex:0 0 auto}
 .pz-rnode.on{box-shadow:0 0 0 4px color-mix(in srgb,var(--c,#00929f) 22%,transparent);background:var(--c,#00929f)}
+.pz-rnode-sq{border-radius:2px;width:8px;height:8px}
 .pz-rname{text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
 .pz-rname.cur{color:var(--pz-ink);font-weight:700}
 .pz-rdash{width:20px;height:1px;background:var(--pz-line);flex:0 0 auto}
@@ -18634,6 +18649,9 @@ async function presoBuildDeck(){
   sections.forEach(s=>{
     const jobs=bySect[s.key]||[];
     deck.push({type:'section', section:s, jobs});
+    // Stage snapshot of just this section's opportunities under review — skip it for
+    // single-opp sections (a one-card funnel isn't worth a slide).
+    if(jobs.filter(j=>!j.__quote).length>=2) deck.push({type:'stages', section:s, jobs:jobs.filter(j=>!j.__quote)});
     jobs.forEach((job,i)=>deck.push({type:'job', section:s, job, i, n:jobs.length}));
   });
   return deck;
@@ -18690,6 +18708,7 @@ function presoRender(){
   const stage=document.getElementById('pz-stage');
   if(slide.type==='overview') stage.innerHTML=presoOverviewHTML(slide);
   else if(slide.type==='section') stage.innerHTML=presoSectionHTML(slide);
+  else if(slide.type==='stages') stage.innerHTML=presoStagesHTML(slide);
   else stage.innerHTML=presoJobHTML(slide);
   stage.scrollTop=0;
   presoRenderRail();
@@ -18953,6 +18972,36 @@ function presoSectionHTML(s){
     <div class="pz-sec-list">${list}</div></div>`;
 }
 
+// Stage snapshot — the section's opportunities-under-review laid out as a compact,
+// read-only kanban (same PIP_STAGES funnel as the live board), so a reviewer sees
+// where this account/line/region's deals sit before drilling into each one.
+function presoStagesHTML(s){
+  const sec=s.section, jobs=(s.jobs||[]).filter(o=>!o.__quote);
+  const by={}; PIP_STAGES.forEach(st=>by[st]=[]); const other=[];
+  jobs.forEach(o=>{ const st=o.stage||''; (by[st]?by[st]:other).push(o); });
+  const cols=PIP_STAGES.slice(); if(other.length){ by['(No stage)']=other; cols.push('(No stage)'); }
+  const totalVal=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
+  const colHTML=cols.map(st=>{
+    const list=(by[st]||[]).slice().sort((a,b)=>(Number(b.val)||0)-(Number(a.val)||0));
+    const val=list.reduce((a,o)=>a+(Number(o.val)||0),0);
+    const color=PIP_STAGE_COLORS[st]||'#8a8f98';
+    const cards=list.length ? list.map(o=>`
+      <div class="pzs-card" style="--c:${color}" onclick="presoJumpToId('${qattr(o.id)}')" title="Open ${qattr(o.acct||'')}">
+        <div class="pzs-a">${starredIds.has(o.id)?'★ ':''}${qesc(o.acct||'—')}</div>
+        ${o.type?`<div class="pzs-t">${qesc(o.type)}</div>`:''}
+        <div class="pzs-m"><span class="pz-money">${o.val!=null?presoMoney(o.val):'TBD'}</span><span>${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</span></div>
+      </div>`).join('') : `<div class="pzs-empty">—</div>`;
+    return `<div class="pzs-col" style="--c:${color}">
+      <div class="pzs-col-h"><span class="pzs-dot"></span><span class="pzs-nm">${qesc(st)}</span><span class="pzs-ct">${list.length}${val?' · '+presoMoney(val):''}</span></div>
+      <div class="pzs-body">${cards}</div></div>`;
+  }).join('');
+  return `<div class="pz-slide pz-slide-stages" style="--acc:${sec.acc}">
+    <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="pz-eye-link ${x.key===sec.key?'on':''}" onclick="presoJumpToSection('${qattr(x.key)}')" title="Go to ${qattr(x.label)}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">Stage snapshot</span></div>
+    <div class="pz-sec-big">${qesc(sec.label)} — pipeline stages</div>
+    <div class="pz-sec-blurb">${jobs.length} opportunit${jobs.length===1?'y':'ies'} under review${totalVal?` · ${presoMoney(totalVal)} combined`:''}</div>
+    <div class="pzs-board">${colHTML}</div></div>`;
+}
+
 function presoJobHTML(s){
   const o=s.job, sec=s.section;
   return o.__quote ? presoQuoteSlide(o,sec,s) : presoOppSlide(o,sec,s);
@@ -19054,11 +19103,15 @@ function presoRenderRail(){
   _presoSectionsActive.forEach(sec=>{
     html+=`<span class="pz-rdash"></span>`;
     const secIdx=_presoDeck.findIndex(d=>d.type==='section'&&d.section.key===sec.key);
-    const onSec=cur&&((cur.type==='section'&&cur.section.key===sec.key)||(cur.type==='job'&&cur.section.key===sec.key));
+    const onSec=cur&&cur.section&&cur.section.key===sec.key&&(cur.type==='section'||cur.type==='stages'||cur.type==='job');
     html+=`<span class="pz-rseg"><span class="pz-rname ${onSec?'cur':''}" style="${onSec?'color:'+sec.acc:''}" onclick="presoJump(${secIdx})">${qesc(sec.label)}</span>`;
-    _presoDeck.forEach((d,di)=>{ if(d.type==='job'&&d.section.key===sec.key){
-      html+=`<span class="pz-rnode ${di===_presoIdx?'on':''}" style="--c:${sec.acc}" title="${qattr(d.job.acct||'')}" onclick="presoJump(${di})"></span>`;
-    }});
+    _presoDeck.forEach((d,di)=>{
+      if(d.type==='stages'&&d.section.key===sec.key){
+        html+=`<span class="pz-rnode pz-rnode-sq ${di===_presoIdx?'on':''}" style="--c:${sec.acc}" title="Stage snapshot" onclick="presoJump(${di})"></span>`;
+      } else if(d.type==='job'&&d.section.key===sec.key){
+        html+=`<span class="pz-rnode ${di===_presoIdx?'on':''}" style="--c:${sec.acc}" title="${qattr(d.job.acct||'')}" onclick="presoJump(${di})"></span>`;
+      }
+    });
     html+=`</span>`;
   });
   rail.innerHTML=html;
