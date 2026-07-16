@@ -585,6 +585,38 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 thead th.col-filtered { background:rgb(0,90,100)!important; }
 thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacity:.8; }
 
+/* ── DATE-RANGE COLUMN FILTER ─────────────────────────── */
+/* Popover for date columns: mode (all/before/after/between) + a
+   dual-thumb slider whose scale is the column's own date domain. */
+.drf-panel { width:250px; padding:12px; }
+.drf-modes { display:inline-flex; width:100%; padding:2px; margin-bottom:12px;
+  border-radius:var(--radius-md); background:color-mix(in srgb, var(--tsi-charcoal) 8%, transparent); }
+[data-theme="dark"] .drf-modes { background:rgba(255,255,255,0.08); }
+.drf-mode { flex:1; padding:5px 0; border:none; background:transparent; border-radius:var(--radius-sm);
+  font:500 10px var(--font-ui); color:var(--color-text-secondary); cursor:pointer; transition:all var(--transition); }
+.drf-mode:hover:not(.active) { color:var(--color-heading); }
+.drf-mode.active { background:var(--tsi-teal); color:#fff; }
+[data-theme="dark"] .drf-mode.active { background:var(--tsi-teal-dark); color:#0a1420; }
+.drf-scale { display:flex; justify-content:space-between; margin-bottom:6px;
+  font:400 9px var(--font-mono); color:var(--color-text-muted); }
+.drf-slider { position:relative; height:13px; margin:0 6px 10px; }
+.drf-rail { position:absolute; top:50%; left:-6px; right:-6px; height:3px; transform:translateY(-50%);
+  border-radius:2px; background:var(--color-border-mid); }
+.drf-range { position:absolute; top:50%; height:3px; transform:translateY(-50%);
+  border-radius:2px; background:var(--tsi-teal); }
+.drf-thumb { position:absolute; top:50%; width:13px; height:13px; margin-left:-6.5px; transform:translateY(-50%);
+  border-radius:50%; background:var(--color-surface); border:2px solid var(--tsi-teal); cursor:grab; touch-action:none; }
+.drf-thumb:active { cursor:grabbing; }
+.drf-thumb:focus-visible { outline:2px solid var(--tsi-teal); outline-offset:2px; }
+.drf-thumb.pinned { border-color:var(--color-border-mid); cursor:default; opacity:.55; }
+.drf-readout { text-align:center; margin-bottom:12px; font:500 12px var(--font-mono); color:var(--color-heading); }
+.drf-readout .drf-dash { color:var(--color-text-muted); margin:0 4px; }
+.drf-empty { text-align:center; font:400 11px var(--font-ui); color:var(--color-text-muted);
+  padding:8px 0 12px; }
+/* date-filtered header indicator (reuses the col-filtered look) */
+thead th.date-filtered { background:rgb(0,90,100)!important; }
+thead th.date-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacity:.8; }
+
 
 /* ── BUG REGISTER ────────────────────────────────────── */
 .bug-layout { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-3); }
@@ -3620,7 +3652,8 @@ function initColInteractions(tableId) {
           fi.innerHTML = ' <span style="font-size:9px;opacity:0.5;cursor:pointer" title="Filter column">▾▾</span>';
           fi.querySelector('span').addEventListener('click', e => {
             e.stopPropagation();
-            openColFilter(th, th.dataset.col);
+            if (DATE_COLS.has(th.dataset.col)) openDateFilter(th, th.dataset.col);
+            else openColFilter(th, th.dataset.col);
           });
           th.appendChild(fi);
         }
@@ -4144,10 +4177,142 @@ function exportXLSX() {
 // ── MULTI-SELECT COLUMN FILTER STATE ─────────────────────────
 // colFilters[col] = Set of allowed values (null = all allowed)
 const colFilters = {};
+// Columns that hold dates → filtered with a before/after/between range
+// slider instead of a value checklist. Each value is normalized to a
+// JS Date via parseCloseDate() (handles ISO, YYYY-MM, quarters, etc.).
+const DATE_COLS = new Set(['close']);
+// colDateFilters[col] = { mode:'before'|'after'|'between', from:Date|null, to:Date|null }
+const colDateFilters = {};
 let activeCFP = null; // currently open filter panel
 
 function closeFilterPanel() {
   if (activeCFP) { activeCFP.remove(); activeCFP = null; }
+}
+
+// The raw date string for a given date column on an opportunity.
+function colDateStr(o, col) { return col === 'close' ? o.close : o[col]; }
+
+// Build a date-range filter popover anchored under the header cell.
+function openDateFilter(th, col) {
+  closeFilterPanel();
+  const rect = th.getBoundingClientRect();
+  const panel = document.createElement('div');
+  panel.className = 'col-filter-panel drf-panel';
+
+  // Domain = span of all parseable dates in this column.
+  const dates = open().map(o => parseCloseDate(colDateStr(o, col)))
+                       .filter(d => d && !isNaN(d.getTime()))
+                       .sort((a, b) => a - b);
+  if (!dates.length) {
+    panel.innerHTML = '<div class="drf-empty">No dated rows to filter.</div>';
+    positionPanel(panel, rect);
+    return;
+  }
+  const min = dates[0], max = dates[dates.length - 1];
+  const minMs = +min, maxMs = +max, span = Math.max(1, maxMs - minMs);
+  const fmtD = d => d.toISOString().slice(0, 10);
+
+  const active = colDateFilters[col];
+  let mode = active ? active.mode : 'between';
+  // normalized thumb positions 0..1
+  let lo = active && active.from ? (Math.max(minMs, +active.from) - minMs) / span : 0;
+  let hi = active && active.to   ? (Math.min(maxMs, +active.to)   - minMs) / span : 1;
+  const clamp = v => Math.max(0, Math.min(1, v));
+  const posDate = p => new Date(minMs + p * span);
+
+  panel.innerHTML =
+    '<div class="drf-modes">' +
+      ['all','before','after','between'].map(m =>
+        `<button type="button" class="drf-mode${m===mode?' active':''}" data-mode="${m}">${m[0].toUpperCase()+m.slice(1)}</button>`
+      ).join('') +
+    '</div>' +
+    `<div class="drf-scale"><span>${fmtD(min)}</span><span>${fmtD(max)}</span></div>` +
+    '<div class="drf-slider">' +
+      '<div class="drf-rail"></div><div class="drf-range"></div>' +
+      '<div class="drf-thumb lo" tabindex="0" role="slider" aria-label="Window start"></div>' +
+      '<div class="drf-thumb hi" tabindex="0" role="slider" aria-label="Window end"></div>' +
+    '</div>' +
+    '<div class="drf-readout"></div>' +
+    '<div class="cfp-actions"><button type="button" class="cfp-btn" data-act="clear">Clear</button>' +
+      '<button type="button" class="cfp-btn apply" data-act="apply">Apply</button></div>';
+
+  const slider  = panel.querySelector('.drf-slider');
+  const loEl    = panel.querySelector('.drf-thumb.lo');
+  const hiEl    = panel.querySelector('.drf-thumb.hi');
+  const rangeEl = panel.querySelector('.drf-range');
+  const readout = panel.querySelector('.drf-readout');
+
+  function stateFrom() { return mode === 'before' || mode === 'all' ? null : posDate(lo); }
+  function stateTo()   { return mode === 'after'  || mode === 'all' ? null : posDate(hi); }
+  function describe() {
+    if (mode === 'all')    return 'All dates';
+    if (mode === 'before') return 'Before ' + fmtD(posDate(hi));
+    if (mode === 'after')  return 'After '  + fmtD(posDate(lo));
+    return fmtD(posDate(lo)) + '<span class="drf-dash">–</span>' + fmtD(posDate(hi));
+  }
+  function layout() {
+    loEl.style.left = (lo*100) + '%';
+    hiEl.style.left = (hi*100) + '%';
+    rangeEl.style.left = (lo*100) + '%';
+    rangeEl.style.width = ((hi-lo)*100) + '%';
+    loEl.classList.toggle('pinned', mode === 'before');
+    hiEl.classList.toggle('pinned', mode === 'after');
+    readout.innerHTML = describe();
+  }
+  function setMode(m) {
+    mode = m;
+    if (m === 'all')    { lo = 0; hi = 1; }
+    if (m === 'before') { lo = 0; }
+    if (m === 'after')  { hi = 1; }
+    panel.querySelectorAll('.drf-mode').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+    layout();
+  }
+  function wireThumb(el, isLo) {
+    el.addEventListener('pointerdown', e => {
+      if (el.classList.contains('pinned')) return;
+      el.setPointerCapture(e.pointerId);
+      const rail = slider.getBoundingClientRect();
+      const move = ev => {
+        const p = clamp((ev.clientX - rail.left) / rail.width);
+        if (isLo) lo = Math.min(p, hi); else hi = Math.max(p, lo);
+        layout();
+      };
+      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+    });
+    el.addEventListener('keydown', e => {
+      if (el.classList.contains('pinned')) return;
+      const step = e.shiftKey ? 0.1 : 0.02;
+      if (e.key === 'ArrowLeft')  { if (isLo) lo = clamp(lo-step); else hi = clamp(Math.max(hi-step, lo)); layout(); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { if (isLo) lo = clamp(Math.min(lo+step, hi)); else hi = clamp(hi+step); layout(); e.preventDefault(); }
+    });
+  }
+  wireThumb(loEl, true); wireThumb(hiEl, false);
+
+  panel.querySelectorAll('.drf-mode').forEach(btn =>
+    btn.addEventListener('click', () => setMode(btn.dataset.mode)));
+  panel.querySelector('[data-act="clear"]').addEventListener('click', () => {
+    delete colDateFilters[col];
+    updateColFilterIndicators(); closeFilterPanel(); renderPipeline();
+  });
+  panel.querySelector('[data-act="apply"]').addEventListener('click', () => {
+    if (mode === 'all') delete colDateFilters[col];
+    else colDateFilters[col] = { mode, from: stateFrom(), to: stateTo() };
+    updateColFilterIndicators(); closeFilterPanel(); renderPipeline();
+  });
+
+  layout();
+  positionPanel(panel, rect);
+}
+
+// Shared panel placement + registration used by both filter popovers.
+function positionPanel(panel, rect) {
+  const panelH = 260;
+  const top = rect.bottom + panelH > window.innerHeight ? Math.max(4, rect.top - panelH) : rect.bottom;
+  panel.style.cssText += `;top:${top}px;left:${Math.min(rect.left, window.innerWidth-260)}px`;
+  document.body.appendChild(panel);
+  activeCFP = panel;
 }
 
 // Get all unique values for a column from full open pipeline
@@ -4237,15 +4402,24 @@ function openColFilter(th, col) {
 
 function updateColFilterIndicators() {
   document.querySelectorAll('thead th[data-col]').forEach(th => {
-    th.classList.toggle('col-filtered', !!colFilters[th.dataset.col]);
+    const col = th.dataset.col;
+    th.classList.toggle('col-filtered', !!colFilters[col]);
+    th.classList.toggle('date-filtered', !!colDateFilters[col]);
   });
-  const hasAny = Object.keys(colFilters).length > 0;
+  const hasAny = Object.keys(colFilters).length > 0 || Object.keys(colDateFilters).length > 0;
   const btn = document.getElementById('clear-col-filters-btn');
   if (btn) btn.style.display = hasAny ? '' : 'none';
 }
 
 function applyColFilters(rows) {
   return rows.filter(o => {
+    // Date-range filters (before / after / between)
+    for (const [col, r] of Object.entries(colDateFilters)) {
+      const d = parseCloseDate(colDateStr(o, col));
+      if (!d || isNaN(d.getTime())) return false;   // undated rows drop out of a date window
+      if (r.from && d < r.from) return false;
+      if (r.to && d > r.to) return false;
+    }
     for (const [col, allowed] of Object.entries(colFilters)) {
       if (!allowed || allowed.size === 0) continue;
       let v;
@@ -4267,6 +4441,7 @@ function applyColFilters(rows) {
 // Clear all col filters button
 function clearAllColFilters() {
   Object.keys(colFilters).forEach(k=>delete colFilters[k]);
+  Object.keys(colDateFilters).forEach(k=>delete colDateFilters[k]);
   updateColFilterIndicators();
   const _ccf=document.getElementById('clear-col-filters-btn'); if(_ccf) _ccf.style.display='none';
   renderPipeline();
