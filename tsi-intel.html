@@ -83,7 +83,7 @@ body{font-family:var(--font-ui);background:var(--color-bg);color:var(--color-tex
 }
 .header-left{display:flex;align-items:center;gap:var(--sp-3)}
 .header-logo{height:40px;width:auto;opacity:1;display:block;flex-shrink:0;margin-left:14px;pointer-events:none;position:relative;z-index:1} /* sized to sit inside the 48px header-top row. The viewBox (2 -6 308 134) tightly frames the wordmark art — the old 80 40 2280 1000 box framed empty space, so the logo rendered invisible. */
-.header-title{font-family:var(--font-ui);font-size:13px;font-weight:500;color:rgba(255,255,255,0.85);letter-spacing:.01em}
+.header-title{font-family:var(--font-ui);font-size:19px;font-weight:500;color:rgba(255,255,255,0.92);letter-spacing:.01em;line-height:1;white-space:nowrap}
 .header-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px}
 .header-right{display:flex;align-items:center;gap:var(--sp-3)}
 .header-badge{font-size:11px;font-weight:500;color:rgba(255,255,255,0.55);background:rgba(255,255,255,0.08);padding:3px 10px;border-radius:99px;border:1px solid rgba(255,255,255,0.12)}
@@ -455,21 +455,43 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 .pip-view-toggle{display:inline-flex;border:1px solid var(--color-border-mid);border-radius:var(--radius-md);overflow:hidden}
 .pip-view-toggle .pvt-btn{border:none;background:var(--color-surface);color:var(--color-text-secondary);font-size:12px;padding:0 12px;height:34px;cursor:pointer;font-family:var(--font-ui)}
 .pip-view-toggle .pvt-btn.active{background:var(--tsi-teal);color:#fff}
+/* Bulk edit (table view) */
+#pip-bulk-btn.active{background:var(--tsi-teal);color:#fff;border-color:var(--tsi-teal)}
+.bulk-cb{display:none;accent-color:var(--tsi-teal);width:14px;height:14px;cursor:pointer;vertical-align:middle}
+#pip-table-wrap.bulk-mode .bulk-cb{display:inline-block}
+#pip-table tr.bulk-selected td{background:color-mix(in srgb,var(--tsi-teal) 12%,transparent)!important}
+.pip-bulk-bar{display:flex;align-items:center;gap:14px;padding:8px 12px;margin-bottom:8px;
+  background:color-mix(in srgb,var(--tsi-teal) 8%,transparent);border:1px solid var(--color-border-mid);
+  border-radius:var(--radius-md);font-size:12px;color:var(--color-text-primary)}
+.pip-bulk-bar .pbb-all{display:flex;align-items:center;gap:6px;cursor:pointer}
+.pip-bulk-bar .pbb-all input{accent-color:var(--tsi-teal)}
+.pip-bulk-bar .pbb-count{font-weight:600;color:var(--color-heading)}
+.pip-bulk-bar .pbb-del{padding:5px 12px;border:1px solid var(--tsi-coral);background:var(--tsi-coral);color:#fff;
+  border-radius:var(--radius-sm);font-size:12px;cursor:pointer}
+.pip-bulk-bar .pbb-del:disabled{opacity:.4;cursor:default}
+.pip-bulk-bar .pbb-clear{padding:5px 10px;border:1px solid var(--color-border-mid);background:var(--color-surface);
+  color:var(--color-text-secondary);border-radius:var(--radius-sm);font-size:12px;cursor:pointer}
+.pip-bulk-bar .pbb-hint{margin-left:auto;font-size:11px;color:var(--color-text-muted)}
 /* Pipeline tree (by parent account) */
-.pip-tree td{padding:6px 10px;font-size:12px}
-.pip-tree .num{font-family:var(--font-mono);text-align:right}
-.pip-tree tr.pt-group{cursor:pointer;background:color-mix(in srgb,var(--tsi-deep-blue) 6%,transparent);border-top:1px solid var(--color-border)}
-.pip-tree tr.pt-group:hover{background:color-mix(in srgb,var(--tsi-teal) 9%,transparent)}
-.pip-tree .pt-caret{text-align:center;color:var(--tsi-teal);transition:transform .15s ease;width:34px}
-.pip-tree tr.pt-group.collapsed .pt-caret{transform:rotate(-90deg)}
-.pip-tree .pt-parent{font-weight:600;color:var(--color-heading)}
-.pip-tree .pt-roll{font-weight:600;color:var(--color-heading)}
-.pip-tree .pt-dim{color:var(--color-text-secondary)}
-.pip-tree tr.pt-child{cursor:pointer;border-top:0.5px solid var(--color-border)}
-.pip-tree tr.pt-child:hover{background:var(--row-hover-bg,rgba(0,146,159,0.05))}
-.pip-tree .pt-opp{padding-left:22px}
-.pip-tree .pt-opp-acct{color:var(--color-text-primary)}
-.pip-tree .pt-opp-type{color:var(--color-text-muted);font-size:11px}
+/* Pipeline TREE roll-up rows (rendered into the main #pip-table) */
+#pip-table tr.pt-group,#pip-table tr.pt-subgroup{cursor:pointer}
+#pip-table tr.pt-group td{background:color-mix(in srgb,var(--tsi-deep-blue) 7%,transparent);border-top:1px solid var(--color-border);padding-top:7px;padding-bottom:7px}
+#pip-table tr.pt-group:hover td{background:color-mix(in srgb,var(--tsi-teal) 10%,transparent)}
+#pip-table tr.pt-subgroup td{background:color-mix(in srgb,var(--tsi-teal) 5%,transparent);border-top:0.5px solid var(--color-border)}
+#pip-table tr.pt-subgroup:hover td{background:color-mix(in srgb,var(--tsi-teal) 11%,transparent)}
+#pip-table .pt-caret{text-align:center;color:var(--tsi-teal);display:inline-block;transition:transform .15s ease}
+#pip-table .pt-caret-sub{font-size:10px;opacity:.85}
+#pip-table tr.collapsed .pt-caret{transform:rotate(-90deg)}
+#pip-table .pt-parent{font-weight:600;color:var(--color-heading)}
+#pip-table .pt-site{font-weight:500;color:var(--color-heading);padding-left:16px}
+#pip-table .pt-site-n{color:var(--color-text-muted);font-size:10px;font-weight:400}
+#pip-table .pt-roll{font-weight:600;color:var(--color-heading);font-family:var(--font-mono)}
+#pip-table .pt-roll-sub{color:var(--color-text-primary);font-family:var(--font-mono)}
+#pip-table .pt-group .num,#pip-table .pt-subgroup .num{text-align:right}
+#pip-table .pt-dim{color:var(--color-text-secondary)}
+/* nested child rows keep the full editable columns; a left accent shows depth */
+#pip-table tr.pt-tree-child.pt-lvl2 td:nth-child(2){box-shadow:inset 6px 0 0 -3px var(--tsi-teal)}
+#pip-table tr.pt-tree-child.pt-lvl1 td:nth-child(2){box-shadow:inset 3px 0 0 -1px var(--color-border-mid)}
 .pip-stage-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;align-items:flex-start}
 .psb-col{flex:0 0 262px;max-width:262px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 300px)}
 .psb-col.drag-over{outline:2px dashed var(--tsi-teal);outline-offset:-3px}
@@ -1339,7 +1361,7 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   /* Header — compact. Keep the logo inside the bar so it doesn't shove the
      title + dark-mode toggle off-screen on phones. */
   .header-logo  { height:34px; margin-left:8px; }
-  .header-title { font-size:12px; }
+  .header-title { font-size:16px; }
   .header-sub   { font-size:10px; }
   .header-top   { padding-left:10px; gap:8px; }
   .header-badge { display:none; }
@@ -3060,7 +3082,6 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     </svg>
     <div>
       <div class="header-title">Pipeline Dashboard</div>
-      <div class="header-sub">Operations Review · June 11, 2026</div>
     </div>
   </div>
   <div class="header-right">
@@ -3282,6 +3303,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <div class="views-wrap">
       <button class="select views-btn" id="tk-cols-btn-pip-table" onclick="TableKit.toggleCols(event,'pip-table')" title="Show / hide columns">▦ Columns ▾</button>
     </div>
+    <button class="select views-btn" id="pip-bulk-btn" onclick="togglePipBulk()" title="Select multiple rows to act on them at once">☑ Bulk edit</button>
     <div class="pip-view-toggle" id="pip-view-toggle">
       <button class="pvt-btn active" data-v="table" onclick="setPipView('table')" title="Table view">▤ Table</button>
       <button class="pvt-btn" data-v="tree" onclick="setPipView('tree')" title="Group by parent account, with rolled-up totals">▧ By parent</button>
@@ -3315,6 +3337,13 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <span class="chip" id="chip-needsloc" onclick="toggleNeedsLocFilter(this)" title="Only deals whose location has no coordinates yet — the ones to go verify">⚠ Needs location</span>
     </div>
   </div>
+  <div class="pip-bulk-bar" id="pip-bulk-bar" style="display:none">
+    <label class="pbb-all"><input type="checkbox" id="pip-bulk-all" onchange="togglePipSelectAll(this.checked)"> Select all shown</label>
+    <span class="pbb-count" id="pip-bulk-count">0 selected</span>
+    <button class="pbb-del" id="pip-bulk-del" onclick="bulkDeleteSelected()" disabled>🗑 Delete selected</button>
+    <button class="pbb-clear" onclick="clearPipSelection()">Clear</button>
+    <span class="pbb-hint">Bulk edit — deletes are in-memory until synced/exported</span>
+  </div>
   <div class="tbl-wrap" id="pip-table-wrap">
     <table class="tbl-editable" id="pip-table">
       <thead><tr>
@@ -3324,7 +3353,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th class="sortable" data-col="lob" style="width:120px" title="Line of Business — groups the deal in the presentation">Line of Business<span class="sort-icon"></span></th>
         <th class="sortable" data-col="acct" style="width:130px">Account<span class="sort-icon"></span></th>
         <th class="sortable" data-col="loc" style="width:110px">Location<span class="sort-icon"></span></th>
-        <th style="width:180px">Project</th>
+        <th class="sortable" data-col="type" style="width:180px">Project<span class="sort-icon"></span></th>
         <th style="width:180px">Scope Tags</th>
         <th class="sortable" data-col="val" style="width:90px">Value<span class="sort-icon"></span></th>
         <th class="sortable" data-col="prob" style="width:55px">Prob<span class="sort-icon"></span></th>
@@ -3341,22 +3370,6 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     </table>
   </div>
   <div class="pip-stage-board" id="pip-stage-board" style="display:none"></div>
-  <div class="tbl-wrap" id="pip-tree-wrap" style="display:none">
-    <table class="tbl-editable pip-tree" id="pip-tree-table">
-      <thead><tr>
-        <th style="width:34px"></th>
-        <th>Parent account / opportunity</th>
-        <th class="num" style="width:120px">Total value</th>
-        <th class="num" style="width:120px" title="Expected value = Σ value × probability">Expected value</th>
-        <th class="num" style="width:60px">Prob</th>
-        <th style="width:96px">Close</th>
-        <th style="width:96px">Stage</th>
-        <th style="width:54px">Lead</th>
-        <th class="num" style="width:52px">Opps</th>
-      </tr></thead>
-      <tbody id="pip-tree-body"></tbody>
-    </table>
-  </div>
 </div>
 
 <!-- ══ IMMINENT ══ -->
@@ -3383,7 +3396,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th class="sortable" data-col="close" style="width:90px">PO Target<span class="sort-icon"></span></th>
         <th class="sortable" data-col="acct" style="width:130px">Account<span class="sort-icon"></span></th>
         <th style="width:110px">Location</th>
-        <th style="width:200px">Project</th>
+        <th class="sortable" data-col="type" style="width:200px">Project<span class="sort-icon"></span></th>
         <th style="width:180px">Scope Tags</th>
         <th class="sortable" data-col="val" style="width:90px">Value<span class="sort-icon"></span></th>
         <th class="sortable" data-col="prob" style="width:55px">Prob<span class="sort-icon"></span></th>
@@ -3530,7 +3543,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#140 · 2026-07-16 · pipeline tree by parent account';
+const APP_BUILD = '#142 · 2026-07-16 · by-parent tree uses full table columns';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3942,12 +3955,14 @@ const PIP_STAGE_COLORS = {Lead:'#8a8f98',Qualified:'#00929F',Proposal:'#19446C',
 function setPipView(v){
   _pipView=v;
   document.querySelectorAll('#pip-view-toggle .pvt-btn').forEach(b=>b.classList.toggle('active', b.dataset.v===v));
-  const tbl=document.getElementById('pip-table-wrap'), board=document.getElementById('pip-stage-board'), tree=document.getElementById('pip-tree-wrap');
-  if(tbl)   tbl.style.display   = (v==='table')  ? '' : 'none';
+  const tbl=document.getElementById('pip-table-wrap'), board=document.getElementById('pip-stage-board');
+  // Table and Tree share the same #pip-table (so columns, resize, show/hide and
+  // sort all apply); tree mode just groups the rows. Only the stage board is separate.
+  if(tbl)   tbl.style.display   = (v==='stages') ? 'none' : '';
   if(board) board.style.display = (v==='stages') ? 'flex' : 'none';
-  if(tree)  tree.style.display  = (v==='tree')   ? '' : 'none';
+  const wrap=document.getElementById('pip-table-wrap'); if(wrap) wrap.classList.toggle('tree-mode', v==='tree');
   if(v==='stages') renderStageBoard();
-  if(v==='tree')   renderPipTree();
+  else renderPipeline();
 }
 function renderStageBoard(){
   const board=document.getElementById('pip-stage-board'); if(!board) return;
@@ -3963,9 +3978,10 @@ function renderStageBoard(){
       <div class="psb-body">${cards}</div></div>`;
   }).join('');
 }
-// ── PIPELINE TREE (grouped by parent account, rolled-up totals) ─────────────
-const _pipTreeCollapsed = new Set();   // parent-group names the user has collapsed
-let _pipTreeOrder = [];                 // parallel parent-name list for index-based toggling
+// ── PIPELINE TREE (parent account → site → opportunities, rolled-up totals) ──
+const _pipTreeCollapsed = new Set();      // collapsed parent-group names
+const _pipTreeSiteCollapsed = new Set();  // collapsed "parent site" sub-groups
+let _pipTreeToggles = [];                 // index → { level, key } for safe onclick toggling
 // Resolve an opportunity to its top-level (parent) account name. Opps carry the
 // account as a name string; the accounts registry maps that to an account, and
 // each account's parentId chains up to the group. Falls back to the opp's own
@@ -3995,56 +4011,75 @@ function oppParentAccount(o){
   for(const [k,v] of _acctParentCache){ if(k && (key.includes(k) || k.includes(key))) return v; }
   return nm;   // no registry match — group under its own account name
 }
-function renderPipTree(){
-  _acctParentCache = null;   // rebuild each render so account edits are reflected
-  const body = document.getElementById('pip-tree-body'); if(!body) return;
-  const rows = currentFilteredRows();
-  const groups = new Map();  // parent → { opps:[], val, wtd }
-  rows.forEach(o=>{
-    const p = oppParentAccount(o);
-    let g = groups.get(p); if(!g){ g={ opps:[], val:0, wtd:0 }; groups.set(p,g); }
-    g.opps.push(o);
-    const v = Number(o.val)||0; g.val += v; g.wtd += v * (o.prob!=null?o.prob:0);
+// Build a roll-up header row that aligns to the LIVE #pip-table columns, so the
+// tree inherits the table's column set, show/hide, resize and widths. Roll-up
+// numbers land under the Value / Wtd / Prob headers; the name sits in Account.
+function pipTreeGroupRow(o){
+  // o: { level:'parent'|'site', label, val, wtd, count, idx, collapsed }
+  const ths = [...document.querySelectorAll('#pip-table thead th')];
+  const tr = document.createElement('tr');
+  tr.className = (o.level==='parent' ? 'pt-group' : 'pt-subgroup') + (o.collapsed ? ' collapsed' : '');
+  tr.onclick = () => togglePipTreeNode(o.idx);
+  const blended = o.val ? Math.round(o.wtd/o.val*100)+'%' : '—';
+  ths.forEach((th,i)=>{
+    const td = document.createElement('td');
+    const col = th.dataset.col;
+    if(i===0){ td.className = 'pt-caret' + (o.level==='site'?' pt-caret-sub':''); td.textContent = '▾'; }
+    else if(col==='acct'){
+      td.className = (o.level==='parent'?'pt-parent':'pt-site');
+      td.innerHTML = qesc(o.label) + ` <span class="pt-site-n">${o.count} opp${o.count===1?'':'s'}</span>`;
+    }
+    else if(col==='val'){  td.className = 'num ' + (o.level==='parent'?'pt-roll':'pt-roll-sub'); td.textContent = fmt(o.val); }
+    else if(col==='wtd'){  td.className = 'num ' + (o.level==='parent'?'pt-roll':'pt-roll-sub'); td.textContent = fmt(o.wtd); }
+    else if(col==='prob'){ td.className = 'num pt-dim'; td.textContent = blended; }
+    tr.appendChild(td);
   });
-  // Order groups by expected value (weighted), highest first.
-  const order = [...groups.entries()].sort((a,b)=> b[1].wtd - a[1].wtd || b[1].val - a[1].val);
-  if(!order.length){ body.innerHTML = '<tr><td colspan="9" style="padding:22px;text-align:center;color:var(--color-text-muted)">No opportunities match the current filters.</td></tr>'; return; }
-  _pipTreeOrder = order.map(([p])=>p);
-  let html = '';
-  order.forEach(([parent, g], i)=>{
-    const collapsed = _pipTreeCollapsed.has(parent);
-    html += `<tr class="pt-group${collapsed?' collapsed':''}" onclick="togglePipTreeGroup(${i})">
-      <td class="pt-caret">▾</td>
-      <td class="pt-parent">${qesc(parent)}</td>
-      <td class="num pt-roll">${fmt(g.val)}</td>
-      <td class="num pt-roll">${fmt(g.wtd)}</td>
-      <td class="num pt-dim">${g.val?Math.round(g.wtd/g.val*100)+'%':'—'}</td>
-      <td></td><td></td><td></td>
-      <td class="num pt-dim">${g.opps.length}</td>
-    </tr>`;
-    // child opportunities (most-weighted first)
-    const kids = g.opps.slice().sort((a,b)=> ((b.val||0)*(b.prob||0)) - ((a.val||0)*(a.prob||0)));
-    kids.forEach(o=>{
-      const wtd = (Number(o.val)||0) * (o.prob!=null?o.prob:0);
-      html += `<tr class="pt-child" ${collapsed?'style="display:none"':''} onclick="openOppDrawer('${qattr(o.id)}')">
-        <td></td>
-        <td class="pt-opp">${starredIds.has(o.id)?'⭐ ':''}<span class="pt-opp-acct">${qesc(o.acct||'—')}</span> <span class="pt-opp-type">${qesc(o.type||'')}</span></td>
-        <td class="num">${o.val!=null?fmt(o.val):'—'}</td>
-        <td class="num">${o.val!=null&&o.prob!=null?fmt(wtd):'—'}</td>
-        <td class="num pt-dim">${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</td>
-        <td class="pt-dim">${qesc(o.close||'TBD')}</td>
-        <td class="pt-dim">${qesc(o.stage||'—')}</td>
-        <td class="pt-dim">${qesc(o.lead||'—')}</td>
-        <td></td>
-      </tr>`;
+  return tr;
+}
+// Render the pipeline as a parent-account → site → opportunity tree INTO the
+// main #pip-table body. `f` is the already-sorted+filtered opp list; child rows
+// are real editable rows (buildOppRow), so every column/behaviour is identical.
+function renderPipTreeRows(tbody, f, buildOppRow){
+  _acctParentCache = null;
+  _pipTreeToggles = [];
+  const wtdOf = o => (Number(o.val)||0) * (o.prob!=null?o.prob:0);
+  // group by parent, preserving the incoming (sorted) order of opps
+  const groups = new Map();
+  f.forEach(o=>{ const p=oppParentAccount(o); let g=groups.get(p); if(!g){ g={opps:[],val:0,wtd:0}; groups.set(p,g); }
+    g.opps.push(o); const v=Number(o.val)||0; g.val+=v; g.wtd+=v*(o.prob!=null?o.prob:0); });
+  const order = [...groups.entries()].sort((a,b)=> b[1].wtd-a[1].wtd || b[1].val-a[1].val);
+  if(!order.length){ const tr=document.createElement('tr'); const td=document.createElement('td');
+    td.colSpan=40; td.style.cssText='padding:22px;text-align:center;color:var(--color-text-muted)';
+    td.textContent='No opportunities match the current filters.'; tr.appendChild(td); tbody.appendChild(tr); return; }
+  const childRow = (o, lvl) => { const tr=buildOppRow(o); tr.classList.add('pt-tree-child', lvl); return tr; };
+  order.forEach(([parent, g])=>{
+    const pCollapsed = _pipTreeCollapsed.has(parent);
+    const pIdx = _pipTreeToggles.push({level:'parent', key:parent}) - 1;
+    tbody.appendChild(pipTreeGroupRow({level:'parent', label:parent, val:g.val, wtd:g.wtd, count:g.opps.length, idx:pIdx, collapsed:pCollapsed}));
+    if(pCollapsed) return;
+    // sub-group by site (location, falling back to account name)
+    const sites = new Map();
+    g.opps.forEach(o=>{ const k=((o.loc||'').trim() || (o.acct||'').trim() || '—'); let s=sites.get(k); if(!s){ s={name:k,opps:[],val:0,wtd:0}; sites.set(k,s); }
+      s.opps.push(o); const v=Number(o.val)||0; s.val+=v; s.wtd+=v*(o.prob!=null?o.prob:0); });
+    const nodes = [];
+    sites.forEach(s=>{ if(s.opps.length>1) nodes.push({type:'site', s, wtd:s.wtd, val:s.val});
+      else s.opps.forEach(o=>nodes.push({type:'opp', o, wtd:wtdOf(o), val:Number(o.val)||0})); });
+    nodes.sort((a,b)=> b.wtd-a.wtd || b.val-a.val);
+    nodes.forEach(n=>{
+      if(n.type==='opp'){ tbody.appendChild(childRow(n.o, 'pt-lvl1')); return; }
+      const s=n.s, sKey=parent+' '+s.name, sCollapsed=_pipTreeSiteCollapsed.has(sKey);
+      const sIdx = _pipTreeToggles.push({level:'site', key:sKey}) - 1;
+      tbody.appendChild(pipTreeGroupRow({level:'site', label:s.name, val:s.val, wtd:s.wtd, count:s.opps.length, idx:sIdx, collapsed:sCollapsed}));
+      if(sCollapsed) return;
+      s.opps.forEach(o=> tbody.appendChild(childRow(o, 'pt-lvl2')));
     });
   });
-  body.innerHTML = html;
 }
-function togglePipTreeGroup(i){
-  const parent = _pipTreeOrder[i]; if(parent==null) return;
-  if(_pipTreeCollapsed.has(parent)) _pipTreeCollapsed.delete(parent); else _pipTreeCollapsed.add(parent);
-  renderPipTree();
+function togglePipTreeNode(i){
+  const n = _pipTreeToggles[i]; if(!n) return;
+  const set = n.level==='parent' ? _pipTreeCollapsed : _pipTreeSiteCollapsed;
+  if(set.has(n.key)) set.delete(n.key); else set.add(n.key);
+  renderPipeline();
 }
 
 function psbCard(o,color){
@@ -4279,6 +4314,59 @@ function markDirty(id) {
 }
 
 
+// ── BULK EDIT (table view) ───────────────────────────────────
+let _bulkMode = false;
+const _pipSelected = new Set();
+function togglePipBulk(){
+  _bulkMode = !_bulkMode;
+  const wrap = document.getElementById('pip-table-wrap');
+  if(wrap) wrap.classList.toggle('bulk-mode', _bulkMode);
+  const btn = document.getElementById('pip-bulk-btn'); if(btn) btn.classList.toggle('active', _bulkMode);
+  const bar = document.getElementById('pip-bulk-bar'); if(bar) bar.style.display = _bulkMode ? '' : 'none';
+  if(!_bulkMode) clearPipSelection();
+}
+function setPipSelected(id, on){
+  if(on) _pipSelected.add(id); else _pipSelected.delete(id);
+  document.querySelectorAll(`#pip-table tr[data-row-id="${id}"]`).forEach(tr=>tr.classList.toggle('bulk-selected', on));
+  updatePipBulkBar();
+}
+function togglePipSelectAll(on){
+  currentFilteredRows().forEach(o=>{ if(on) _pipSelected.add(o.id); else _pipSelected.delete(o.id); });
+  document.querySelectorAll('#pip-table tbody .bulk-cb').forEach(cb=>{ cb.checked = on; });
+  document.querySelectorAll('#pip-table tbody tr[data-row-id]').forEach(tr=>tr.classList.toggle('bulk-selected', on));
+  updatePipBulkBar();
+}
+function clearPipSelection(){
+  _pipSelected.clear();
+  document.querySelectorAll('#pip-table .bulk-cb').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('#pip-table tr.bulk-selected').forEach(tr=>tr.classList.remove('bulk-selected'));
+  const all=document.getElementById('pip-bulk-all'); if(all) all.checked=false;
+  updatePipBulkBar();
+}
+function updatePipBulkBar(){
+  const n=_pipSelected.size;
+  const c=document.getElementById('pip-bulk-count'); if(c) c.textContent = n+' selected';
+  const d=document.getElementById('pip-bulk-del'); if(d) d.disabled = n===0;
+  const shown=currentFilteredRows(); const all=document.getElementById('pip-bulk-all');
+  if(all) all.checked = shown.length>0 && shown.every(o=>_pipSelected.has(o.id));
+}
+function bulkDeleteSelected(){
+  const ids=[..._pipSelected]; if(!ids.length) return;
+  showConfirm(`Delete ${ids.length} opportunit${ids.length===1?'y':'ies'}?`,
+    `${ids.length} selected record${ids.length===1?'':'s'} will be removed from the dashboard. Sync/export to save permanently.`,
+    ()=>{
+      const idset=new Set(ids);
+      DATA = DATA.filter(r=>!idset.has(r.id));
+      ids.forEach(id=>{ starredIds.delete(id); dirtyIds.delete(id); markDirty('_deleted_'+id);
+        try{ oppRemove(id); }catch(_){} try{ usageLog('opp_delete', id); }catch(_){} });
+      _pipSelected.clear();
+      renderPipeline(); renderImminent(); if(typeof renderTorr==='function') renderTorr(); populateFilters();
+      try{ initGeoFilter(); }catch(_){}
+      updatePipBulkBar();
+      showToast(`Deleted ${ids.length} opportunit${ids.length===1?'y':'ies'}`, 'var(--tsi-coral)');
+    });
+}
+
 function toggleStar(id) {
   if(starredIds.has(id)) starredIds.delete(id);
   else starredIds.add(id);
@@ -4315,6 +4403,12 @@ function discardChanges() {
 function makeStarCell(o) {
   const td = document.createElement("td");
   td.style.cssText = "width:44px;padding:0 4px;text-align:center;white-space:nowrap;";
+  // Bulk-select checkbox (revealed only in bulk-edit mode via CSS).
+  const cb = document.createElement("input");
+  cb.type = "checkbox"; cb.className = "bulk-cb"; cb.checked = _pipSelected.has(o.id);
+  cb.onclick = (e) => { e.stopPropagation(); };
+  cb.onchange = () => setPipSelected(o.id, cb.checked);
+  td.appendChild(cb);
   const btn = document.createElement("button");
   btn.className = "star-btn";
   btn.title = "Star to highlight (team)";
@@ -4468,7 +4562,6 @@ function populateFilters() {
 // ── RENDER: PIPELINE ─────────────────────────────────────────
 function renderPipeline() {
   if(typeof _pipView!=='undefined' && _pipView==='stages'){ try{ renderStageBoard(); }catch(_){} }
-  if(typeof _pipView!=='undefined' && _pipView==='tree'){ try{ renderPipTree(); }catch(_){} }
   const q    =document.getElementById("search").value.toLowerCase();
   const cat  =document.getElementById("fcat").value;
   const loc  =document.getElementById("floc").value;
@@ -4490,7 +4583,7 @@ function renderPipeline() {
   f=getSortedRows(f,"pip-table");
   document.getElementById("pip-count").textContent=`${f.length} of ${open().length} opportunities`;
   const tbody=document.getElementById("pipeline-body"); tbody.innerHTML="";
-  f.forEach(o=>{
+  const buildOppRow = (o) => {
     const tr=document.createElement("tr");
     tr.dataset.rowId=o.id;
     if(starredIds.has(o.id)) tr.classList.add("tr-starred");
@@ -4574,8 +4667,10 @@ function renderPipeline() {
     tdDet.appendChild(detBtn);
     tr.appendChild(tdDet);
     tr.appendChild(makeDelCell(o));
-    tbody.appendChild(tr);
-  });
+    return tr;
+  };
+  if(_pipView==='tree'){ renderPipTreeRows(tbody, f, buildOppRow); }
+  else { f.forEach(o=>tbody.appendChild(buildOppRow(o))); }
   initColInteractions("pip-table");
   updateCharts(f);
   updateMap(f);
@@ -14045,7 +14140,7 @@ TableKit.register('pip-table', {
       filterVal:o=>(PRESO_SECT[presoHeuristic(o)]||{}).label||'—' },
     { i:5,  label:'Account',          col:'acct', sortable:true },
     { i:6,  label:'Location',         col:'loc',  sortable:true },
-    { i:7,  label:'Project',          col:'type' },
+    { i:7,  label:'Project',          col:'type', sortable:true, sortVal:o=>(o.type||'').toLowerCase() },
     { i:8,  label:'Scope Tags' },
     { i:9,  label:'Value',            col:'val',  sortable:true, sortVal:o=>o.val??-1, filterVal:o=>o.val!=null?fmt(o.val):'TBD' },
     { i:10, label:'Prob',             col:'prob', sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
@@ -14081,7 +14176,7 @@ TableKit.register('imm-table', {
     { i:2,  label:'PO Target',    col:'close', sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD', dateRange:true, dateVal:o=>parseCloseDate(o.close) },
     { i:3,  label:'Account',      col:'acct',  sortable:true },
     { i:4,  label:'Location',     col:'loc' },
-    { i:5,  label:'Project',      col:'type' },
+    { i:5,  label:'Project',      col:'type', sortable:true, sortVal:o=>(o.type||'').toLowerCase() },
     { i:6,  label:'Scope Tags' },
     { i:7,  label:'Value',        col:'val',   sortable:true, sortVal:o=>o.val??-1, filterVal:o=>o.val!=null?fmt(o.val):'TBD' },
     { i:8,  label:'Prob',         col:'prob',  sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
