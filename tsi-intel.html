@@ -2302,6 +2302,38 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .history-user { color:var(--tsi-teal); font-weight:500;
   min-width:24px; flex-shrink:0; }
 .history-action { color:var(--color-text-secondary); flex:1; }
+/* Structured field-change entries (from → to) */
+.history-action .hist-from { font-family:var(--font-mono); color:var(--color-text-muted); }
+.history-action .hist-to   { font-family:var(--font-mono); color:var(--color-heading); }
+.history-action .hist-arrow { margin:0 5px; color:var(--color-text-muted); }
+.history-action .hist-up   { color:var(--tsi-succ-green); }
+.history-action .hist-down { color:var(--tsi-coral); }
+
+/* ── HISTORY / ESTIMATE-DRIFT VIEW ────────────────────── */
+.hist-kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.hist-kpi { border:0.5px solid var(--color-border); border-radius:var(--radius-lg);
+  background:var(--color-surface); padding:12px 14px; }
+.hist-kpi .k-val { font:500 24px var(--font-mono); color:var(--color-heading); line-height:1.1; }
+.hist-kpi .k-lbl { font:400 10px var(--font-ui); color:var(--color-text-muted);
+  text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+.hist-kpi.stale { border-left:3px solid var(--tsi-coral); }
+.hist-section-title { font:400 15px var(--font-display); color:var(--color-heading); margin:20px 0 4px; }
+.hist-section-sub { font:400 11px var(--font-ui); color:var(--color-text-muted); margin-bottom:12px; }
+.hist-dot { display:inline-block; width:8px; height:8px; border-radius:50%; vertical-align:middle; }
+.hist-dot.fresh { background:var(--tsi-succ-green); }
+.hist-dot.aging { background:var(--tsi-amber); }
+.hist-dot.stale { background:var(--tsi-coral); }
+.hist-days { font-family:var(--font-mono); }
+#hist-coverage-table tr.row-stale td { background:color-mix(in srgb, var(--tsi-coral) 7%, transparent); }
+.drift-feed { display:flex; flex-direction:column; }
+.drift-row { display:grid; grid-template-columns:118px 30px 1fr; gap:10px; align-items:baseline;
+  padding:8px 0; border-bottom:0.5px solid var(--color-border); }
+.drift-row .d-time { font:400 10px var(--font-mono); color:var(--color-text-muted); }
+.drift-row .d-by   { font:500 11px var(--font-ui); color:var(--tsi-teal); }
+.drift-row .d-body { font-size:12px; color:var(--color-text-secondary); }
+.drift-row .d-opp  { color:var(--color-heading); font-weight:500; }
+.drift-empty { padding:24px; text-align:center; font-size:12px; color:var(--color-text-muted);
+  border:0.5px dashed var(--color-border-mid); border-radius:var(--radius-lg); }
 
 /* Detail icon in table */
 .btn-detail-icon {
@@ -3041,6 +3073,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <div class="tab" data-tab="quotes" onclick="showTab('quotes')">🧾 Quotes</div>
   <div class="tab" data-tab="won" onclick="showTab('won')">📁 Closed</div>
   <div class="tab" data-tab="summary" onclick="showTab('summary')">📊 Summary</div>
+  <div class="tab" data-tab="history" onclick="showTab('history')">📈 History</div>
   <div class="tab" data-tab="tools" onclick="showTab('tools')">🤖 AI + Parse</div>
   <div class="tab" data-tab="usage" onclick="showTab('usage')">📊 Usage</div>
   <div class="tab" data-tab="bugs" onclick="showTab('bugs')">🐛 Bug Register</div>
@@ -3461,7 +3494,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#137 · 2026-07-16 · date-range column filter';
+const APP_BUILD = '#138 · 2026-07-16 · date-range filter + estimate history';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3598,6 +3631,7 @@ async function loadFromWorker() {
     if (items.length) {
       const ids = new Set(items.map(r => r.id));
       DATA = [...items, ...DATA.filter(r => !ids.has(r.id))];
+      if (typeof seedAllSnaps === 'function') seedAllSnaps();   // baseline estimate-change tracking
       return true;
     }
     return false;
@@ -4127,6 +4161,7 @@ function exportJSON() {
 
 function discardChanges() {
   DATA=JSON.parse(JSON.stringify(_PIPELINE)); dirtyIds.clear();
+  if (typeof seedAllSnaps === 'function') seedAllSnaps();
   document.getElementById("export-bar").classList.add("hidden");
   document.getElementById("pip-dirty").classList.add("hidden");
   renderPipeline(); renderImminent(); renderTorr();
@@ -4160,10 +4195,10 @@ function makeTextCell(o,field,acList=null,allowCreate=false) {
   inp.value=o[field]||""; inp.placeholder="—";
   inp.oninput=()=>{ if(acList) showAC(inp,acList,val=>{inp.value=val;saveF();},allowCreate); saveF(); };
   inp.onfocus=()=>{ if(acList) showAC(inp,acList,val=>{inp.value=val;saveF();},allowCreate); };
-  inp.onblur=()=>{ setTimeout(closeAC,150); saveF(); };
+  inp.onblur=()=>{ setTimeout(closeAC,150); saveF(); const rec=DATA.find(r=>r.id===o.id); if(rec) captureChanges(rec); };
   function saveF() {
     const rec=DATA.find(r=>r.id===o.id);
-    if(rec) { rec[field]=inp.value; markDirty(o.id); }
+    if(rec && rec[field]!==inp.value) { rec[field]=inp.value; markDirty(o.id); }
     if(field==="prob") refreshWtdCells();
   }
   td.appendChild(inp); return td;
@@ -4205,7 +4240,7 @@ function makeValCell(o) {
     refreshWtdCells();
   };
   // Reformat with thousands separators when leaving the field (typing stays raw).
-  inp.onblur=()=>{ const rec=DATA.find(r=>r.id===o.id); inp.value=rec&&rec.val!=null?Number(rec.val).toLocaleString('en-US'):""; };
+  inp.onblur=()=>{ const rec=DATA.find(r=>r.id===o.id); inp.value=rec&&rec.val!=null?Number(rec.val).toLocaleString('en-US'):""; if(rec) captureChanges(rec); };
   td.appendChild(inp); return td;
 }
 
@@ -4216,7 +4251,7 @@ function makeProbCell(o) {
   inp.value=pct(o.prob); inp.placeholder="—";
   inp.onfocus=()=>showAC(inp,PROBS,val=>{inp.value=val;saveP();});
   inp.oninput=()=>saveP();
-  inp.onblur=()=>{ setTimeout(closeAC,150); };
+  inp.onblur=()=>{ setTimeout(closeAC,150); const rec=DATA.find(r=>r.id===o.id); if(rec) captureChanges(rec); };
   function saveP() {
     const rec=DATA.find(r=>r.id===o.id);
     if(rec) {
@@ -4537,7 +4572,7 @@ function showTab(name) {
   document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
   // Views — 'tools' owns no view; it hosts ai + parser via showToolsSub(). Imminent
   // has no tab anymore (it's a pipeline filter), so its view stays hidden.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes"].forEach(t=>{
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history"].forEach(t=>{
     const viewEl = document.getElementById("view-"+t);
     if (viewEl) viewEl.classList.toggle("active", t===name);
   });
@@ -4580,6 +4615,7 @@ function showTab(name) {
   if(name==='summary')   renderSummary();
   if(name==='products' && typeof renderProducts==='function') renderProducts();
   if(name==='quotes'   && typeof renderQuotesTab==='function') renderQuotesTab();
+  if(name==='history'  && typeof renderHistoryView==='function') renderHistoryView();
 
   // Mobile hamburger: reflect the active tab in the collapsed label + close the menu.
   const curEl = document.getElementById('tab-current');
@@ -6406,18 +6442,20 @@ function saveOppDrawer() {
     ...w,
   };
 
+  const _isNew=!_drawerEditId;
   if (_drawerEditId) {
     const idx = DATA.findIndex(r => r.id === _drawerEditId);
-    if (idx !== -1) DATA[idx] = { ...DATA[idx], ...opp };
+    if (idx !== -1) {
+      const rec = DATA[idx] = { ...DATA[idx], ...opp };
+      // Log field-level deltas (value/prob/close/stage/lead); fall back to a
+      // generic entry if only untracked fields changed.
+      if(!captureChanges(rec, getUserInitials())) addHistoryEntry(rec, 'Record updated');
+    }
   } else {
     DATA.unshift(opp);
+    opp.history = [{at:new Date().toISOString(),by:getUserInitials()||'?',action:'Opportunity created'}];
+    _lastSnap.set(opp.id, snapOf(opp));
   }
-
-  // Log history entry
-  if(!opp.history) opp.history=[];
-  const _isNew=!_drawerEditId;
-  opp.history.unshift({at:new Date().toISOString(),by:getUserInitials()||'?',action:_isNew?'Opportunity created':'Record updated'});
-  if(opp.history.length>50) opp.history.splice(50);
   markDirty(opp.id);
   syncOppLinks(opp.id, opp.linkedIds || []);   // keep the relationship symmetric on both opps
   window._drawerWeather = null;
@@ -10248,9 +10286,126 @@ function renderHistory(o) {
     return `<div class="history-entry">
       <span class="history-time">${time}</span>
       <span class="history-user">${h.by}</span>
-      <span class="history-action">${h.action}</span>
+      <span class="history-action">${describeHistory(h)}</span>
     </div>`;
   }).join('');
+}
+
+// ── ESTIMATE CHANGE TRACKING ─────────────────────────────────
+// Log how the key estimate fields move over time as structured history
+// entries { at, by, field, from, to }, so drift can be reconstructed. The
+// entries ride on o.history, which persists with the record via oppPersist.
+const TRACKED_FIELDS = [
+  { key:'val',   label:'Value',          fmt:v => v!=null ? fmt(v) : '—' },
+  { key:'prob',  label:'Probability',    fmt:v => v!=null ? pct(v) : '—' },
+  { key:'close', label:'Expected close', fmt:v => v || '—' },
+  { key:'stage', label:'Stage',          fmt:v => v || '—' },
+  { key:'lead',  label:'Lead',           fmt:v => v || '—' },
+];
+const _lastSnap = new Map();
+function snapOf(o){ const s={}; TRACKED_FIELDS.forEach(f=>s[f.key]=o[f.key]); return s; }
+function seedAllSnaps(){ DATA.forEach(o=>_lastSnap.set(o.id, snapOf(o))); }
+seedAllSnaps();  // initial baseline from the in-page pipeline
+
+// Diff an opp vs its last snapshot; log a from→to entry per changed field,
+// refresh the update stamp, and persist. Returns true if anything changed.
+function captureChanges(o, by){
+  const prev = _lastSnap.get(o.id) || snapOf(o);
+  if(!o.history) o.history=[];
+  let changed=false;
+  TRACKED_FIELDS.forEach(f=>{
+    const a=prev[f.key], b=o[f.key];
+    if(a===b) return;
+    if(a==null && b==null) return;
+    o.history.unshift({ at:new Date().toISOString(), by:by||getUserInitials()||'?', field:f.key, from:a==null?null:a, to:b==null?null:b });
+    changed=true;
+  });
+  if(o.history.length>80) o.history.splice(80);
+  _lastSnap.set(o.id, snapOf(o));
+  if(changed){
+    o.updatedAt=new Date().toISOString(); o.updatedBy=by||getUserInitials()||'?';
+    if(typeof oppPersist==='function') oppPersist(o);   // push the change + its history to the cloud
+  }
+  return changed;
+}
+
+// Render one history entry: a structured field change (from → to, tinted by
+// direction for value/probability) or a plain action string.
+function describeHistory(h){
+  if(!h.field) return h.action || 'Updated';
+  const f = TRACKED_FIELDS.find(x=>x.key===h.field);
+  const label = f ? f.label : h.field;
+  const from = f ? f.fmt(h.from) : (h.from ?? '—');
+  const to   = f ? f.fmt(h.to)   : (h.to ?? '—');
+  let cls='hist-neutral';
+  if(h.field==='val' || h.field==='prob'){
+    const a=h.from==null?null:+h.from, b=h.to==null?null:+h.to;
+    if(a!=null && b!=null && b!==a) cls = b>a ? 'hist-up' : 'hist-down';
+  }
+  return `${label} <span class="hist-from">${from}</span><span class="hist-arrow ${cls}">→</span><span class="hist-to ${cls}">${to}</span>`;
+}
+
+// ── HISTORY / ESTIMATE-DRIFT VIEW ────────────────────────────
+const _histEsc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function _closeSlipDir(from, to){
+  const a=parseCloseDate(from), b=parseCloseDate(to);
+  if(!a||!b||isNaN(a)||isNaN(b)) return 0;
+  return b>a ? 1 : (b<a ? -1 : 0);
+}
+// Open an opportunity's detail drawer straight to its change timeline.
+function openOppHistory(id){
+  if(typeof openDetail==='function'){ openDetail(id); if(typeof showDetailTab==='function') showDetailTab('notes');
+    const o=DATA.find(r=>r.id===id); if(o && typeof renderHistory==='function') renderHistory(o); }
+  else if(typeof openOppDrawer==='function') openOppDrawer(id);
+}
+function renderHistoryView(){
+  const rows = (typeof open==='function') ? open() : DATA.filter(o=>o.status==='O');
+  const now = Date.now(), DAY = 86400000;
+  const staleOnly = document.getElementById('hist-stale-only')?.checked;
+  const meta = rows.map(o=>{
+    const t = o.updatedAt ? +new Date(o.updatedAt) : (o.createdAt ? +new Date(o.createdAt) : now);
+    const days = Math.max(0, Math.round((now-t)/DAY));
+    const edits = (o.history||[]).filter(h=>h.field).length;
+    return { o, t, days, edits };
+  });
+  const total=meta.length, fresh=meta.filter(m=>m.days<=14).length, stale=meta.filter(m=>m.days>30).length;
+  const changes = rows.flatMap(o=>(o.history||[]).filter(h=>h.field).map(h=>({o,h})));
+  const slips = changes.filter(c=>c.h.field==='close' && _closeSlipDir(c.h.from,c.h.to)>0).length;
+  const kEl=document.getElementById('hist-kpis');
+  if(kEl) kEl.innerHTML=[
+    {v:total,l:'Open opportunities',c:''},
+    {v:fresh,l:'Refreshed ≤ 14 days',c:''},
+    {v:stale,l:'Stale > 30 days',c:stale?'stale':''},
+    {v:changes.length,l:'Estimate changes logged'+(slips?` · ${slips} close slips`:''),c:''},
+  ].map(k=>`<div class="hist-kpi ${k.c}"><div class="k-val">${k.v}</div><div class="k-lbl">${k.l}</div></div>`).join('');
+
+  let cov = meta.slice().sort((a,b)=>b.days-a.days);
+  if(staleOnly) cov = cov.filter(m=>m.days>30);
+  const dotCls = d=> d>30?'stale':(d>14?'aging':'fresh');
+  const body=document.getElementById('hist-coverage-body');
+  if(body) body.innerHTML = cov.length ? cov.map(({o,days,edits,t})=>{
+    const upd=new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    return `<tr class="${days>30?'row-stale':''}" style="cursor:pointer" onclick="openOppHistory('${o.id}')">
+      <td style="text-align:center"><span class="hist-dot ${dotCls(days)}"></span></td>
+      <td><span style="color:var(--color-heading);font-weight:500">${_histEsc(o.acct||o.id)}</span>
+        <div style="font-size:10px;color:var(--color-text-muted)">${_histEsc(o.type||'')}</div></td>
+      <td>${_histEsc(o.lead||'—')}</td>
+      <td class="num">${o.val!=null?fmt(o.val):'—'}</td>
+      <td class="num">${o.prob!=null?pct(o.prob):'—'}</td>
+      <td>${_histEsc(o.close||'TBD')}</td>
+      <td class="num">${edits}</td><td>${upd}</td><td class="num hist-days">${days}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:12px">No opportunities${staleOnly?' older than 30 days':''}.</td></tr>`;
+
+  const feed = changes.map(c=>({...c, ts:+new Date(c.h.at)})).sort((a,b)=>b.ts-a.ts).slice(0,80);
+  const drift=document.getElementById('hist-drift');
+  if(drift) drift.innerHTML = feed.length ? '<div class="drift-feed">'+feed.map(({o,h})=>{
+    const dt=new Date(h.at);
+    const time=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    return `<div class="drift-row"><span class="d-time">${time}</span><span class="d-by">${_histEsc(h.by||'?')}</span>
+      <span class="d-body"><span class="d-opp" style="cursor:pointer" onclick="openOppHistory('${o.id}')">${_histEsc(o.acct||o.id)}</span> — ${describeHistory(h)}</span></div>`;
+  }).join('')+'</div>'
+  : '<div class="drift-empty">No estimate changes recorded yet. As the team edits value, probability, or expected close, each movement lands here — with who changed it and by how much.</div>';
 }
 
 // ── AUTO-SAVE HELPER ─────────────────────────────────────────
@@ -14790,6 +14945,35 @@ startAdminPoll();
     </div>
   </div>
 
+</div>
+
+<!-- ══ HISTORY / ESTIMATE-DRIFT TAB ══ -->
+<div id="view-history" class="view" style="padding:16px 20px">
+  <h2 style="font:400 22px var(--font-display);color:var(--color-heading);margin:0 0 2px">Estimate history</h2>
+  <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 16px;max-width:720px">
+    How value, probability, and expected close move over time — and which opportunities are getting
+    refreshed versus going stale. Field-level changes are captured as the team edits the pipeline;
+    trajectories fill in from there.</p>
+  <div class="hist-kpi-row" id="hist-kpis"></div>
+  <div style="display:flex;align-items:baseline;gap:12px">
+    <h3 class="hist-section-title">Update coverage</h3>
+    <label style="font-size:11px;color:var(--color-text-secondary);cursor:pointer;margin-left:auto">
+      <input type="checkbox" id="hist-stale-only" onchange="renderHistoryView()" style="vertical-align:middle"> Stale only (&gt;30 days)</label>
+  </div>
+  <p class="hist-section-sub">Sorted by longest time since last update — the top rows are what nobody has touched.</p>
+  <div class="tbl-wrap">
+    <table class="tbl-editable" id="hist-coverage-table">
+      <thead><tr>
+        <th style="width:22px"></th><th>Opportunity</th><th>Lead</th>
+        <th class="num">Value</th><th class="num">Prob</th><th>Close</th>
+        <th class="num">Edits</th><th>Last update</th><th class="num">Days idle</th>
+      </tr></thead>
+      <tbody id="hist-coverage-body"></tbody>
+    </table>
+  </div>
+  <h3 class="hist-section-title">Estimate drift</h3>
+  <p class="hist-section-sub">Recent value / probability / expected-close changes across the book, newest first.</p>
+  <div id="hist-drift"></div>
 </div>
 
 <!-- ══ ACCOUNTS MODULE ══ -->
