@@ -475,15 +475,18 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 /* Pipeline tree (by parent account) */
 /* Pipeline TREE roll-up rows (rendered into the main #pip-table) */
 #pip-table tr.pt-group,#pip-table tr.pt-subgroup{cursor:pointer}
-#pip-table tr.pt-group td{background:color-mix(in srgb,var(--tsi-deep-blue) 7%,transparent);border-top:1px solid var(--color-border);padding-top:7px;padding-bottom:7px}
-#pip-table tr.pt-group:hover td{background:color-mix(in srgb,var(--tsi-teal) 10%,transparent)}
-#pip-table tr.pt-subgroup td{background:color-mix(in srgb,var(--tsi-teal) 5%,transparent);border-top:0.5px solid var(--color-border)}
-#pip-table tr.pt-subgroup:hover td{background:color-mix(in srgb,var(--tsi-teal) 11%,transparent)}
-#pip-table .pt-caret{text-align:center;color:var(--tsi-teal);display:inline-block;transition:transform .15s ease}
-#pip-table .pt-caret-sub{font-size:10px;opacity:.85}
+#pip-table tr.pt-group{background:color-mix(in srgb,var(--tsi-deep-blue) 7%,transparent)}
+#pip-table tr.pt-group:hover{background:color-mix(in srgb,var(--tsi-teal) 10%,transparent)}
+#pip-table tr.pt-subgroup{background:color-mix(in srgb,var(--tsi-teal) 5%,transparent)}
+#pip-table tr.pt-subgroup:hover{background:color-mix(in srgb,var(--tsi-teal) 11%,transparent)}
+/* transparent cells so the row background shows and the label can overflow */
+#pip-table tr.pt-group td,#pip-table tr.pt-subgroup td{background:transparent;border-top:1px solid var(--color-border);padding-top:6px;padding-bottom:6px;vertical-align:middle}
+#pip-table .pt-namecell{text-align:left;white-space:nowrap;overflow:visible;position:relative;z-index:1}
+#pip-table .pt-caret{color:var(--tsi-teal);display:inline-block;font-size:19px;line-height:1;vertical-align:middle;margin-right:6px;transition:transform .15s ease}
+#pip-table .pt-caret-sub{font-size:15px;opacity:.85;margin-left:14px}
 #pip-table tr.collapsed .pt-caret{transform:rotate(-90deg)}
-#pip-table .pt-parent{font-weight:600;color:var(--color-heading)}
-#pip-table .pt-site{font-weight:500;color:var(--color-heading);padding-left:16px}
+#pip-table .pt-parent{font-weight:600;color:var(--color-heading);vertical-align:middle}
+#pip-table .pt-site{font-weight:500;color:var(--color-heading);vertical-align:middle}
 #pip-table .pt-site-n{color:var(--color-text-muted);font-size:10px;font-weight:400}
 #pip-table .pt-roll{font-weight:600;color:var(--color-heading);font-family:var(--font-mono)}
 #pip-table .pt-roll-sub{color:var(--color-text-primary);font-family:var(--font-mono)}
@@ -538,10 +541,13 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 .tr-starred td .p-vlo { color:rgba(255,255,255,0.9)!important; }
 .star-btn {
   background:none; border:none; cursor:pointer;
-  font-size:15px; padding:0 2px; line-height:1;
+  font-size:18px; padding:0 2px; line-height:1;
   color:var(--color-text-muted); transition:transform 0.15s, color 0.15s;
   vertical-align:middle;
 }
+/* Vertically center the star/bell and the ID code within each row */
+#pip-table tbody td:nth-child(1),
+#pip-table tbody td:nth-child(2) { vertical-align:middle; }
 .star-btn:hover { transform:scale(1.25); }
 .tr-starred .star-btn { color:white; }
 
@@ -2943,7 +2949,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 }
 .views-menu-empty { padding:8px 9px; font-size:11px; color:var(--color-text-muted); font-style:italic; }
 .views-menu-user { padding:4px 9px 7px; font-size:10px; color:var(--color-text-muted); border-bottom:1px solid var(--color-border); margin-bottom:4px; }
-.follow-btn { background:none; border:none; cursor:pointer; font-size:11px; padding:0 1px; margin-left:2px; opacity:.45; line-height:1; transition:opacity var(--transition); vertical-align:middle; }
+.follow-btn { background:none; border:none; cursor:pointer; font-size:14px; padding:0 1px; margin-left:2px; opacity:.45; line-height:1; transition:opacity var(--transition); vertical-align:middle; }
 .follow-btn:hover { opacity:.85; }
 .follow-btn.on { opacity:1; }
 
@@ -3543,7 +3549,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#142 · 2026-07-16 · by-parent tree uses full table columns';
+const APP_BUILD = '#143 · 2026-07-16 · star persists + centered/larger row icons';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3701,6 +3707,7 @@ async function loadFromWorker() {
       const ids = new Set(items.map(r => r.id));
       DATA = [...items, ...DATA.filter(r => !ids.has(r.id))];
       if (typeof seedAllSnaps === 'function') seedAllSnaps();   // baseline estimate-change tracking
+      if (typeof syncStarredFromData === 'function') syncStarredFromData();   // light up saved stars
       return true;
     }
     return false;
@@ -4021,13 +4028,18 @@ function pipTreeGroupRow(o){
   tr.className = (o.level==='parent' ? 'pt-group' : 'pt-subgroup') + (o.collapsed ? ' collapsed' : '');
   tr.onclick = () => togglePipTreeNode(o.idx);
   const blended = o.val ? Math.round(o.wtd/o.val*100)+'%' : '—';
+  const nameCls = o.level==='parent' ? 'pt-parent' : 'pt-site';
   ths.forEach((th,i)=>{
     const td = document.createElement('td');
     const col = th.dataset.col;
-    if(i===0){ td.className = 'pt-caret' + (o.level==='site'?' pt-caret-sub':''); td.textContent = '▾'; }
-    else if(col==='acct'){
-      td.className = (o.level==='parent'?'pt-parent':'pt-site');
-      td.innerHTML = qesc(o.label) + ` <span class="pt-site-n">${o.count} opp${o.count===1?'':'s'}</span>`;
+    if(i===0){
+      // Caret + roll-up label live together in the first cell, left-justified;
+      // the label overflows over the (transparent) empty cells to its right, so
+      // the roll-up numbers still sit under Value / Prob / Wtd.
+      td.className = 'pt-namecell';
+      td.innerHTML = `<span class="pt-caret${o.level==='site'?' pt-caret-sub':''}">▾</span>`
+        + `<span class="${nameCls}">${qesc(o.label)}</span>`
+        + ` <span class="pt-site-n">${o.count} opp${o.count===1?'':'s'}</span>`;
     }
     else if(col==='val'){  td.className = 'num ' + (o.level==='parent'?'pt-roll':'pt-roll-sub'); td.textContent = fmt(o.val); }
     else if(col==='wtd'){  td.className = 'num ' + (o.level==='parent'?'pt-roll':'pt-roll-sub'); td.textContent = fmt(o.wtd); }
@@ -4377,9 +4389,18 @@ function toggleStar(id) {
       b.textContent = starredIds.has(id) ? '★' : '☆';
     });
   });
-  // Also persist to DATA so export includes it
+  // Persist: update the record and push it to the D1 store so the star
+  // survives a reload (and shows for teammates), not just an export.
   const rec = DATA.find(r=>r.id===id);
-  if(rec) { rec.starred = starredIds.has(id); markDirty(id); }
+  if(rec) { rec.starred = starredIds.has(id); markDirty(id);
+    if(typeof oppPersist==='function') oppPersist(rec); }
+}
+// Rebuild the starred set from the records' own `starred` flag. Without this a
+// star saved to the cloud never lights up again after a reload, because
+// starredIds starts empty and is only mutated by clicks this session.
+function syncStarredFromData(){
+  starredIds.clear();
+  DATA.forEach(o=>{ if(o.starred) starredIds.add(o.id); });
 }
 
 function exportJSON() {
@@ -14260,6 +14281,7 @@ if(API_WORKER_URL) {
   startSyncAudit();                            // ~60s: flag opps others changed
 }
 usageLog('session_start');
+if (typeof syncStarredFromData === 'function') syncStarredFromData();
 renderHotCards();
 renderPipeline();
 renderImminent();
