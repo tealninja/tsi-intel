@@ -1,0 +1,44 @@
+# Cloudflare Worker config for tsi-intel-api.
+# Deploy:  wrangler deploy
+# Secrets (NOT stored here — set once per environment):
+#   wrangler secret put TSI_API_KEY        # required; Worker fails closed without it
+#   wrangler secret put ANTHROPIC_API_KEY  # for the /api/ai proxy
+name = "tsi-intel-api"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+# Existing pipeline/bugs/usage store (env.TSI_DATA)
+[[kv_namespaces]]
+binding = "TSI_DATA"
+id = "e1b7efd464b647909e526903f52dc01f"   # namespace: tsi-pipeline-data
+
+# CRM database (env.DB) — bound now; endpoints wired during the KV→D1 cutover.
+[[d1_databases]]
+binding = "DB"
+database_name = "tsi-intel"
+database_id = "e18ad8cb-ce35-42b2-ba01-8a1d31551398"
+
+# ── Staging environment ─────────────────────────────────────────────────────
+# A SEPARATE Worker (tsi-intel-api-staging) for testing the keyed auth end-to-end
+# WITHOUT touching the live Worker (IMPLEMENTATION_PLAN §4.3). Deploy with:
+#     wrangler deploy --env staging
+#     wrangler secret put TSI_API_KEY --env staging       # set a STAGING key
+# then point a throwaway copy of the HTML at the staging URL and verify:
+#     no key  -> 401 · with key -> 200 · /api/ai without key -> 401 · /api/health -> 200
+#
+# ⚠️ This binds the SAME live KV + D1 by default so reads return real data. That is
+#    fine for GET/health/401 auth tests, but do NOT run POST/PUT/DELETE tests against
+#    it or you will mutate live pipeline data. To test writes safely, create a
+#    separate staging KV namespace and replace the id below first:
+#        wrangler kv namespace create TSI_DATA_STAGING
+[env.staging]
+name = "tsi-intel-api-staging"
+
+[[env.staging.kv_namespaces]]
+binding = "TSI_DATA"
+id = "e1b7efd464b647909e526903f52dc01f"   # live KV (reads only — see warning above)
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "tsi-intel"
+database_id = "e18ad8cb-ce35-42b2-ba01-8a1d31551398"

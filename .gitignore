@@ -1,0 +1,12 @@
+tsi-intel.db
+*.db
+__pycache__/
+d1_load.sql
+d1_data.sql
+
+# Wrangler local state (miniflare D1/KV) — never commit
+.wrangler/
+# Local dev secrets — never commit
+.dev.vars
+# scratch dev logs
+_dev_*.log
