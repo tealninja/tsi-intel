@@ -3580,7 +3580,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#147 · 2026-07-16 · preso group-by account/parent + bar-chart job segments';
+const APP_BUILD = '#148 · 2026-07-16 · preso section-header logo + hide capacity/port on HQ locations';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -9473,9 +9473,9 @@ function renderAcctMain(siteId) {
           <div class="acct-site-meta">
             <span class="acct-loctype ${site.locType==='corporate'?'corp':'prod'}">${site.locType==='corporate'?'🏢 Corporate':'🏭 Production'}</span>
             ${(site.plantTags&&site.plantTags.length?site.plantTags:(site.plantType?[site.plantType]:[])).map(t=>`<span class="acct-ptag">${qesc(t)}</span>`).join('')}
-            ${fmtCapacity(site)?`<span class="acct-cap" title="Nameplate capacity">⚙ ${qesc(fmtCapacity(site))}</span>`:''}
+            ${site.locType!=='corporate'&&fmtCapacity(site)?`<span class="acct-cap" title="Nameplate capacity">⚙ ${qesc(fmtCapacity(site))}</span>`:''}
             <span>📍 ${site.loc||'—'}</span>
-            ${site.shippingPort?`<span class="acct-port" title="Shipping port">🚢 ${qesc(site.shippingPort)}</span>`:''}
+            ${site.locType!=='corporate'&&site.shippingPort?`<span class="acct-port" title="Shipping port">🚢 ${qesc(site.shippingPort)}</span>`:''}
             ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
             ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
           </div>
@@ -13314,6 +13314,7 @@ function openSiteDrawer(accountId, opts) {
   renderSiteAssociatedContactTags();
   siteAddrPopulate(existing, data, accountId);
   updateSiteDrawerNavUI();
+  siteLocTypeChanged();   // hide capacity/port for corporate/HQ locations
 
   // Delete + Reassign only make sense when editing an existing record.
   const _delBtn = document.getElementById('site-drawer-delete');
@@ -13324,6 +13325,14 @@ function openSiteDrawer(accountId, opts) {
   document.getElementById('site-drawer-overlay')?.classList.add('open');
   document.getElementById('site-drawer').classList.add('open');
   setTimeout(() => document.getElementById('s-name').focus(), 280);
+}
+
+// Capacity + shipping port are production-facility attributes; hide the row for
+// corporate / HQ locations so an office isn't tagged with a nameplate or export port.
+function siteLocTypeChanged() {
+  const lt = document.getElementById('s-loctype')?.value || 'production';
+  const row = document.getElementById('s-prod-fields');
+  if (row) row.style.display = (lt === 'corporate') ? 'none' : '';
 }
 
 function addSiteAssociatedContactByName(name) {
@@ -14768,7 +14777,7 @@ startAdminPoll();
       <div class="drow-2">
         <div class="drow">
           <label>Location Type</label>
-          <select class="dselect" id="s-loctype">
+          <select class="dselect" id="s-loctype" onchange="siteLocTypeChanged()">
             <option value="production">Production / Plant</option>
             <option value="corporate">Corporate / HQ</option>
           </select>
@@ -14794,7 +14803,7 @@ startAdminPoll();
             <option value="Pellets"><option value="Torrefaction"><option value="Biomass"><option value="Forestry">
           </datalist>
       </div>
-      <div class="drow-2">
+      <div class="drow-2" id="s-prod-fields">
         <div class="drow">
           <label>Nameplate Capacity <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— annual, at full run</span></label>
           <div style="display:flex;gap:6px">
@@ -16390,6 +16399,9 @@ startAdminPoll();
 .pz-ag-job:hover{background:color-mix(in srgb,var(--acc,#00929f) 16%,var(--pz-panel2));border-color:var(--acc,#00929f)}
 .pz-ag-sample{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--pz-faint);font-weight:700}
 /* section divider */
+.pz-sec-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
+.pz-sec-headtext{min-width:0;flex:1}
+.pz-sec-logo{width:auto;height:72px;max-width:190px;object-fit:contain;border-radius:8px;background:#fff;padding:8px 10px;border:0.5px solid var(--pz-line);flex-shrink:0;margin-top:4px}
 .pz-sec-big{font-size:52px;font-weight:800;letter-spacing:-1px;margin:6px 0 8px}
 .pz-sec-blurb{font-size:17px;color:var(--pz-muted);margin-bottom:22px}
 .pz-sec-list{display:flex;flex-direction:column;gap:8px}
@@ -18865,6 +18877,9 @@ async function presoRenderClima(job){
 function presoSectionHTML(s){
   const sec=s.section, jobs=s.jobs;
   const val=jobs.reduce((a,o)=>a+(Number(o.val)||0),0);
+  // When every job in the section shares one customer logo (i.e. grouped by
+  // account / parent account), show that logo on the section header.
+  const secLogo=(()=>{ let lg=''; for(const o of jobs){ const l=(typeof oppAcctLogo==='function')?oppAcctLogo(o):''; if(!l) return ''; if(lg && lg!==l) return ''; lg=l; } return lg; })();
   const list=jobs.length ? jobs.map(o=>{
       const tg=presoScopeTags(o.tags);
       const tagHtml=tg.length?`<div class="pz-si-tags">${tg.map(t=>`<span class="pz-si-tag" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</div>`:'';
@@ -18875,8 +18890,13 @@ function presoSectionHTML(s){
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
     <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="pz-eye-link ${x.key===sec.key?'on':''}" onclick="presoJumpToSection('${qattr(x.key)}')" title="Go to ${qattr(x.label)}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}</div>
-    <div class="pz-sec-big">${qesc(sec.label)}</div>
-    <div class="pz-sec-blurb">${qesc(sec.blurb)}</div>
+    <div class="pz-sec-head">
+      <div class="pz-sec-headtext">
+        <div class="pz-sec-big">${qesc(sec.label)}</div>
+        <div class="pz-sec-blurb">${qesc(sec.blurb)}</div>
+      </div>
+      ${secLogo?`<img class="pz-sec-logo" src="${qattr(secLogo)}" alt="" onerror="this.style.display='none'">`:''}
+    </div>
     <div style="display:flex;gap:22px;margin-bottom:20px">
       <div class="pz-cap"><div class="big" style="color:${sec.acc}">${jobs.length}</div><div class="csub">${jobs.length===1?'Opportunity':'Opportunities'}</div></div>
       ${val?`<div class="pz-cap pz-money"><div class="big" style="color:${sec.acc}">${presoMoney(val)}</div><div class="csub">Combined value</div></div>`:''}
