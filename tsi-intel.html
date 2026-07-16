@@ -1538,6 +1538,7 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .upm-signout:hover{border-color:var(--tsi-coral);color:var(--tsi-coral)}
 .upm-quick{font-size:11px;color:var(--tsi-teal);cursor:pointer;margin-top:11px;display:inline-block}
 .upm-quick:hover{text-decoration:underline}
+.upm-build{margin-top:14px;padding-top:10px;border-top:0.5px solid var(--color-border);font-family:var(--font-mono);font-size:10px;color:var(--color-text-muted);letter-spacing:.02em;word-break:break-word}
 
 
 /* ── COLLAPSIBLE DRAWER SECTIONS ────────────────────── */
@@ -3248,6 +3249,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <button class="upm-signout" onclick="signOutProfile()" title="Clear this identity on this browser">Sign out</button>
   </div>
   <span class="upm-quick" id="upm-john-quick" onclick="imJohnTeal()">I'm John Teal</span>
+  <div class="upm-build" id="upm-build" title="Deployed build — bumps every deploy; confirm this matches after redeploying"></div>
 </div>
 
 <!-- ══ CHARTS SECTION ══ -->
@@ -3587,8 +3589,14 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#149 · 2026-07-16 · industry as tags + capacity/port alignment + white logo backing + 2× slide logos';
-try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
+const APP_BUILD = '#150 · 2026-07-16 · slim header build stamp (full build info moved to profile menu)';
+try {
+  // Header shows only the short build number (bumps every deploy → still a quick
+  // confirm). The full stamp lives in the profile menu; hover the header for it too.
+  const _num=(APP_BUILD||'').split('·')[0].trim()||'build';
+  const _b=document.getElementById('app-build'); if(_b){ _b.textContent=_num; _b.title='Build '+APP_BUILD+' — bumps every deploy; confirm this matches after redeploying'; }
+  const _bf=document.getElementById('upm-build'); if(_bf) _bf.textContent=APP_BUILD;
+} catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
 
