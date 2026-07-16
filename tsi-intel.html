@@ -3580,7 +3580,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#145 · 2026-07-16 · stage board group-by + sort-by';
+const APP_BUILD = '#146 · 2026-07-16 · deck builder ctrl/shift multiselect + multidrag';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -16474,6 +16474,9 @@ startAdminPoll();
   padding:9px 11px;cursor:grab;user-select:none}
 .pb-card:hover{background:var(--pb-card2)}
 .pb-card.dragging{opacity:.4}
+.pb-card.selected{outline:2px solid var(--c,#00929f);outline-offset:-1px;
+  background:color-mix(in srgb, var(--c,#00929f) 16%, var(--pb-card))}
+.pb-sel-count{font:600 11px var(--font-ui);color:var(--tsi-teal);margin-left:8px}
 /* Shared drop-position indicator line (deck builder + pipeline stage board). */
 .drop-line{height:0;margin:1px 2px;border-top:2px solid var(--c,#00929f);border-radius:2px;
   box-shadow:0 0 7px color-mix(in srgb,var(--c,#00929f) 65%,transparent);pointer-events:none}
@@ -16488,7 +16491,8 @@ startAdminPoll();
 <div id="presob-overlay" role="dialog" aria-label="Project Track deck builder">
   <div class="pb-top">
     <span class="pb-title">🗂 Build the deck</span>
-    <span class="pb-hint">Drag cards between lines to re-file · drag within a line to reorder · drop in <b>Not in deck</b> to hide.</span>
+    <span class="pb-hint"><b>Ctrl/⌘-click</b> or <b>Shift-click</b> to multi-select, then drag them together · drop in <b>Not in deck</b> to hide.</span>
+    <span class="pb-sel-count" id="pb-sel-count"></span>
     <span class="pb-save" id="pb-save-state" title="Where this arrangement is saved"></span>
     <span class="sp"></span>
     <button class="pb-btn" id="pb-theme-btn" onclick="presoBuilderToggleTheme()" title="Light / dark">🌙 Dark</button>
@@ -16496,7 +16500,7 @@ startAdminPoll();
     <button class="pb-btn" onclick="closePresoBuilder()">Close</button>
     <button class="pb-btn primary" onclick="presoPresentFromBuilder()">▶ Present</button>
   </div>
-  <div class="pb-board" id="pb-board"></div>
+  <div class="pb-board" id="pb-board" onclick="if(!event.target.closest('.pb-card')) pbClearSelection()"></div>
 </div>
 
 <!-- ══ WHAT TO PRESENT — settings modal ══ -->
@@ -19008,15 +19012,41 @@ async function presoAiBuildRules(){
 /* ─────────────── DECK BUILDER (drag & drop) ─────────────── */
 let _presoBoard = null;   // {biomass:[ids], engwood:[...], torref:[...], samples:[...], excluded:[...]}
 let _presoItemMap = {};   // id → item
-let _pbDrag = null;       // id being dragged
+let _pbDrag = null;       // id being dragged (the primary card under the pointer)
+const _pbSelected = new Set();   // ctrl/shift multi-selection of card ids
+let _pbAnchor = null;            // anchor card for shift-range selection
 const PB_COLS = [...PRESO_SECTIONS.map(s=>({key:s.key,label:s.label,acc:s.acc})),
                  {key:'excluded',label:'Not in deck',acc:'#8a5a4a'}];
+// Flat list of card ids in visual (column, then row) order — for shift-range.
+function pbVisualOrder(){ const o=[]; PB_COLS.forEach(c=>{ (_presoBoard&&_presoBoard[c.key]||[]).forEach(id=>o.push(id)); }); return o; }
+function pbUpdateSelectionUI(){
+  document.querySelectorAll('#pb-board .pb-card').forEach(el=>el.classList.toggle('selected', _pbSelected.has(el.getAttribute('data-id'))));
+  const n=_pbSelected.size, badge=document.getElementById('pb-sel-count');
+  if(badge) badge.textContent = n>1 ? n+' selected' : '';
+}
+function pbCardClick(e,id){
+  e.stopPropagation();
+  const order=pbVisualOrder();
+  if(e.shiftKey && _pbAnchor!=null && order.includes(_pbAnchor)){
+    if(!(e.ctrlKey||e.metaKey)) _pbSelected.clear();
+    const a=order.indexOf(_pbAnchor), b=order.indexOf(id);
+    const [lo,hi]=a<b?[a,b]:[b,a];
+    for(let i=lo;i<=hi;i++) _pbSelected.add(order[i]);
+  } else if(e.ctrlKey||e.metaKey){
+    _pbSelected.has(id) ? _pbSelected.delete(id) : _pbSelected.add(id); _pbAnchor=id;
+  } else {
+    _pbSelected.clear(); _pbSelected.add(id); _pbAnchor=id;
+  }
+  pbUpdateSelectionUI();
+}
+function pbClearSelection(){ _pbSelected.clear(); _pbAnchor=null; pbUpdateSelectionUI(); }
 
 async function openPresoBuilder(){
   const ov=document.getElementById('presob-overlay'); ov.classList.add('open');
   presoBuilderApplyTheme();                       // share the presentation's light/dark choice
   document.getElementById('pb-board').innerHTML='<div style="margin:auto;color:var(--pb-faint)">Loading opportunities…</div>';
   await presoBuildBoard();                       // presoLoadOverrides() pulls the authoritative copy from D1
+  _pbSelected.clear(); _pbAnchor=null;            // fresh selection each open
   pbSetSaveState(presoSectStore ? presoSectStore.mode() : 'local');
   pbRender();
 }
@@ -19057,6 +19087,8 @@ async function presoBuildBoard(){
 
 function pbRender(){
   const board=document.getElementById('pb-board'); if(!board||!_presoBoard) return;
+  // prune selection to ids still on the board
+  const live=new Set(pbVisualOrder()); [..._pbSelected].forEach(id=>{ if(!live.has(id)) _pbSelected.delete(id); });
   board.innerHTML=PB_COLS.map(c=>{
     const ids=_presoBoard[c.key]||[];
     const cards=ids.map(id=>pbCard(id,c)).join('') || `<div class="pb-empty">${c.key==='excluded'?'Everything is in the deck':'Drop opportunities here'}</div>`;
@@ -19068,6 +19100,7 @@ function pbRender(){
         <span class="pb-col-ct">${ids.length}${val?' · '+presoMoney(val):''}</span></div>
       <div class="pb-col-body">${cards}</div></div>`;
   }).join('');
+  pbUpdateSelectionUI();   // re-apply multi-select highlight after re-render
 }
 function pbCard(id,col){
   const it=_presoItemMap[id]; if(!it) return '';
@@ -19075,15 +19108,20 @@ function pbCard(id,col){
   const meta=it.__quote
     ? `${it.status?qesc(it.status):'Quote'}${it.val?' · '+presoMoney(it.val):''}`
     : `${qesc(it.stage||'—')}${it.val?' · '+presoMoney(it.val):''}${it.close?' · '+qesc(it.close):''}`;
-  return `<div class="pb-card" draggable="true" data-id="${qattr(id)}" style="--c:${acc}"
-      ondragstart="pbDragStart(event,'${qattr(id)}')" ondragend="pbDragEnd(event)">
+  return `<div class="pb-card${_pbSelected.has(id)?' selected':''}" draggable="true" data-id="${qattr(id)}" style="--c:${acc}"
+      onclick="pbCardClick(event,'${qattr(id)}')" ondragstart="pbDragStart(event,'${qattr(id)}')" ondragend="pbDragEnd(event)">
     <div class="a"><span class="grip">⠿</span>${qesc(it.acct)}${it.__quote?' <span class="pb-badge">SAMPLE</span>':''}</div>
     <div class="t">${qesc(it.type||'')}</div>
     <div class="m">${meta}</div></div>`;
 }
-function pbDragStart(e,id){ _pbDrag=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',id);}catch{}
-  const el=e.target.closest('.pb-card'); if(el) el.classList.add('dragging'); }
-function pbDragEnd(e){ const el=e.target.closest('.pb-card'); if(el) el.classList.remove('dragging'); _pbDrag=null;
+function pbDragStart(e,id){
+  // If the grabbed card isn't part of the current multi-selection, it becomes
+  // the selection (single) so a normal drag still works; otherwise drag them all.
+  if(!_pbSelected.has(id)){ _pbSelected.clear(); _pbSelected.add(id); _pbAnchor=id; pbUpdateSelectionUI(); }
+  _pbDrag=id; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',id);}catch{}
+  document.querySelectorAll('#pb-board .pb-card').forEach(el=>{ if(_pbSelected.has(el.getAttribute('data-id'))) el.classList.add('dragging'); });
+}
+function pbDragEnd(e){ document.querySelectorAll('#pb-board .pb-card.dragging').forEach(el=>el.classList.remove('dragging')); _pbDrag=null;
   DropLine.hide();
   document.querySelectorAll('.pb-col.drag-over').forEach(c=>c.classList.remove('drag-over')); }
 function pbColOver(e,col){ e.preventDefault(); e.dataTransfer.dropEffect='move';
@@ -19095,14 +19133,21 @@ function pbDrop(e,col){
   DropLine.hide();
   const id=_pbDrag||(()=>{try{return e.dataTransfer.getData('text/plain');}catch{return null;}})();
   if(!id||!_presoBoard) return;
-  // remove from every column
-  Object.keys(_presoBoard).forEach(k=>{ _presoBoard[k]=_presoBoard[k].filter(x=>x!==id); });
+  // Move the whole selection (which always includes the grabbed card), keeping
+  // their current relative order. A single-card drag is just a selection of one.
+  const order=pbVisualOrder();
+  const moving=(_pbSelected.size?[..._pbSelected]:[id]).sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  const movingSet=new Set(moving);
   // insert position within the target column, based on the card under the pointer
-  let idx=_presoBoard[col].length;
+  // (resolve BEFORE removing, then skip any moving cards)
+  let anchorId=null, after=false;
   const overCard=e.target.closest('.pb-card');
-  if(overCard){ const bid=overCard.getAttribute('data-id'); const bi=_presoBoard[col].indexOf(bid);
-    if(bi>=0){ const r=overCard.getBoundingClientRect(); idx=(e.clientY<r.top+r.height/2)?bi:bi+1; } }
-  _presoBoard[col].splice(idx,0,id);
+  if(overCard){ anchorId=overCard.getAttribute('data-id'); const r=overCard.getBoundingClientRect(); after=(e.clientY>=r.top+r.height/2); }
+  // remove the moving cards from every column
+  Object.keys(_presoBoard).forEach(k=>{ _presoBoard[k]=_presoBoard[k].filter(x=>!movingSet.has(x)); });
+  let idx=_presoBoard[col].length;
+  if(anchorId && !movingSet.has(anchorId)){ const bi=_presoBoard[col].indexOf(anchorId); if(bi>=0) idx=after?bi+1:bi; }
+  _presoBoard[col].splice(idx,0,...moving);
   pbRender(); presoSaveBoard();
 }
 // serialize the board → config records
