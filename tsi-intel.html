@@ -498,6 +498,12 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 /* nested child rows keep the full editable columns; a left accent shows depth */
 #pip-table tr.pt-tree-child.pt-lvl2 td:nth-child(2){box-shadow:inset 6px 0 0 -3px var(--tsi-teal)}
 #pip-table tr.pt-tree-child.pt-lvl1 td:nth-child(2){box-shadow:inset 3px 0 0 -1px var(--color-border-mid)}
+.psb-controls{display:flex;gap:18px;align-items:center;padding:4px 2px 10px;flex-wrap:wrap}
+.psb-controls label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary)}
+.psb-group{margin-bottom:10px}
+.psb-group-h{display:flex;align-items:baseline;justify-content:space-between;gap:6px;padding:2px 2px 5px;
+  font:600 11px var(--font-ui);color:var(--color-heading);border-bottom:0.5px solid var(--color-border);margin-bottom:6px}
+.psb-group-n{font:400 10px var(--font-mono);color:var(--color-text-muted)}
 .pip-stage-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;align-items:flex-start}
 .psb-col{flex:0 0 262px;max-width:262px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 300px)}
 .psb-col.drag-over{outline:2px dashed var(--tsi-teal);outline-offset:-3px}
@@ -3380,6 +3386,26 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <tbody id="pipeline-body"></tbody>
     </table>
   </div>
+  <div class="psb-controls" id="psb-controls" style="display:none">
+    <label>Group by
+      <select class="gap-sort-select" onchange="setPsbGroupBy(this.value)">
+        <option value="none">None</option>
+        <option value="acct">Company</option>
+        <option value="parent">Parent account</option>
+        <option value="lob">Line of business</option>
+        <option value="cat">Category</option>
+        <option value="lead">Lead</option>
+      </select></label>
+    <label>Sort by
+      <select class="gap-sort-select" onchange="setPsbSortBy(this.value)">
+        <option value="val">Value (high→low)</option>
+        <option value="wtd">Weighted (high→low)</option>
+        <option value="prob">Probability (high→low)</option>
+        <option value="close">Close (soonest)</option>
+        <option value="acct">Company (A→Z)</option>
+        <option value="type">Project (A→Z)</option>
+      </select></label>
+  </div>
   <div class="pip-stage-board" id="pip-stage-board" style="display:none"></div>
 </div>
 
@@ -3554,7 +3580,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#144 · 2026-07-16 · delete-resurrect fix, parent column, contrast';
+const APP_BUILD = '#145 · 2026-07-16 · stage board group-by + sort-by';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3977,9 +4003,36 @@ function setPipView(v){
   // sort all apply); tree mode just groups the rows. Only the stage board is separate.
   if(tbl)   tbl.style.display   = (v==='stages') ? 'none' : '';
   if(board) board.style.display = (v==='stages') ? 'flex' : 'none';
+  const psbCtrl=document.getElementById('psb-controls'); if(psbCtrl) psbCtrl.style.display = (v==='stages') ? 'flex' : 'none';
   const wrap=document.getElementById('pip-table-wrap'); if(wrap) wrap.classList.toggle('tree-mode', v==='tree');
   if(v==='stages') renderStageBoard();
   else renderPipeline();
+}
+// Stage-board grouping/sorting (within each stage column).
+let _psbGroupBy = 'none';
+let _psbSortBy  = 'val';
+function setPsbGroupBy(v){ _psbGroupBy = v; renderStageBoard(); }
+function setPsbSortBy(v){ _psbSortBy = v; renderStageBoard(); }
+function psbGroupVal(o){
+  switch(_psbGroupBy){
+    case 'acct':   return o.acct || '—';
+    case 'parent': return (typeof oppParentAccount==='function') ? oppParentAccount(o) : (o.acct||'—');
+    case 'lob':    return (PRESO_SECT[presoHeuristic(o)]||{}).label || '—';
+    case 'cat':    return o.cat || '—';
+    case 'lead':   return o.lead || '—';
+    default:       return null;
+  }
+}
+function psbSortCmp(a,b){
+  switch(_psbSortBy){
+    case 'prob':  return (b.prob||0)-(a.prob||0);
+    case 'wtd':   return ((b.val||0)*(b.prob||0))-((a.val||0)*(a.prob||0));
+    case 'close': { const da=parseCloseDate(a.close), db=parseCloseDate(b.close);
+      return (da?da.getTime():Infinity)-(db?db.getTime():Infinity); }
+    case 'acct':  return (a.acct||'').localeCompare(b.acct||'');
+    case 'type':  return (a.type||'').localeCompare(b.type||'');
+    default:      return (b.val||0)-(a.val||0);   // value high→low
+  }
 }
 function renderStageBoard(){
   const board=document.getElementById('pip-stage-board'); if(!board) return;
@@ -3988,8 +4041,19 @@ function renderStageBoard(){
   rows.forEach(o=>{ const s=o.stage||''; (by[s]?by[s]:other).push(o); });
   const cols=PIP_STAGES.slice(); if(other.length){ by['(No stage)']=other; cols.push('(No stage)'); }
   board.innerHTML=cols.map(s=>{
-    const list=by[s]||[]; const val=list.reduce((a,o)=>a+(Number(o.val)||0),0); const color=PIP_STAGE_COLORS[s]||'#8a8f98';
-    const cards=list.map(o=>psbCard(o,color)).join('')||'<div class="psb-empty">—</div>';
+    const list=(by[s]||[]).slice().sort(psbSortCmp);
+    const val=list.reduce((a,o)=>a+(Number(o.val)||0),0); const color=PIP_STAGE_COLORS[s]||'#8a8f98';
+    let cards;
+    if(_psbGroupBy==='none' || !list.length){
+      cards=list.map(o=>psbCard(o,color)).join('')||'<div class="psb-empty">—</div>';
+    } else {
+      const groups=new Map();
+      list.forEach(o=>{ const k=psbGroupVal(o); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(o); });
+      cards=[...groups.keys()].sort((a,b)=>String(a).localeCompare(String(b))).map(k=>{
+        const items=groups.get(k), gv=items.reduce((a,o)=>a+(Number(o.val)||0),0);
+        return `<div class="psb-group"><div class="psb-group-h">${qesc(k)}<span class="psb-group-n">${items.length}${gv?' · '+fmt(gv):''}</span></div>${items.map(o=>psbCard(o,color)).join('')}</div>`;
+      }).join('');
+    }
     return `<div class="psb-col" data-stage="${qattr(s)}" style="--c:${color}" ondragover="psbOver(event)" ondragleave="psbLeave(event)" ondrop="psbDrop(event,'${qattr(s)}')">
       <div class="psb-col-h"><span class="psb-dot" style="background:${color}"></span><span class="psb-nm">${qesc(s)}</span><span class="psb-ct">${list.length}${val?' · '+fmt(val):''}</span></div>
       <div class="psb-body">${cards}</div></div>`;
