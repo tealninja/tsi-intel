@@ -455,6 +455,21 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 .pip-view-toggle{display:inline-flex;border:1px solid var(--color-border-mid);border-radius:var(--radius-md);overflow:hidden}
 .pip-view-toggle .pvt-btn{border:none;background:var(--color-surface);color:var(--color-text-secondary);font-size:12px;padding:0 12px;height:34px;cursor:pointer;font-family:var(--font-ui)}
 .pip-view-toggle .pvt-btn.active{background:var(--tsi-teal);color:#fff}
+/* Pipeline tree (by parent account) */
+.pip-tree td{padding:6px 10px;font-size:12px}
+.pip-tree .num{font-family:var(--font-mono);text-align:right}
+.pip-tree tr.pt-group{cursor:pointer;background:color-mix(in srgb,var(--tsi-deep-blue) 6%,transparent);border-top:1px solid var(--color-border)}
+.pip-tree tr.pt-group:hover{background:color-mix(in srgb,var(--tsi-teal) 9%,transparent)}
+.pip-tree .pt-caret{text-align:center;color:var(--tsi-teal);transition:transform .15s ease;width:34px}
+.pip-tree tr.pt-group.collapsed .pt-caret{transform:rotate(-90deg)}
+.pip-tree .pt-parent{font-weight:600;color:var(--color-heading)}
+.pip-tree .pt-roll{font-weight:600;color:var(--color-heading)}
+.pip-tree .pt-dim{color:var(--color-text-secondary)}
+.pip-tree tr.pt-child{cursor:pointer;border-top:0.5px solid var(--color-border)}
+.pip-tree tr.pt-child:hover{background:var(--row-hover-bg,rgba(0,146,159,0.05))}
+.pip-tree .pt-opp{padding-left:22px}
+.pip-tree .pt-opp-acct{color:var(--color-text-primary)}
+.pip-tree .pt-opp-type{color:var(--color-text-muted);font-size:11px}
 .pip-stage-board{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;align-items:flex-start}
 .psb-col{flex:0 0 262px;max-width:262px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 300px)}
 .psb-col.drag-over{outline:2px dashed var(--tsi-teal);outline-offset:-3px}
@@ -3269,6 +3284,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     </div>
     <div class="pip-view-toggle" id="pip-view-toggle">
       <button class="pvt-btn active" data-v="table" onclick="setPipView('table')" title="Table view">▤ Table</button>
+      <button class="pvt-btn" data-v="tree" onclick="setPipView('tree')" title="Group by parent account, with rolled-up totals">▧ By parent</button>
       <button class="pvt-btn" data-v="stages" onclick="setPipView('stages')" title="Stage board (kanban)">▦ Stages</button>
     </div>
     <span class="toolbar-count" id="pip-count"></span>
@@ -3325,6 +3341,22 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     </table>
   </div>
   <div class="pip-stage-board" id="pip-stage-board" style="display:none"></div>
+  <div class="tbl-wrap" id="pip-tree-wrap" style="display:none">
+    <table class="tbl-editable pip-tree" id="pip-tree-table">
+      <thead><tr>
+        <th style="width:34px"></th>
+        <th>Parent account / opportunity</th>
+        <th class="num" style="width:120px">Total value</th>
+        <th class="num" style="width:120px" title="Expected value = Σ value × probability">Expected value</th>
+        <th class="num" style="width:60px">Prob</th>
+        <th style="width:96px">Close</th>
+        <th style="width:96px">Stage</th>
+        <th style="width:54px">Lead</th>
+        <th class="num" style="width:52px">Opps</th>
+      </tr></thead>
+      <tbody id="pip-tree-body"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- ══ IMMINENT ══ -->
@@ -3498,7 +3530,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#139 · 2026-07-16 · gap-review order-by';
+const APP_BUILD = '#140 · 2026-07-16 · pipeline tree by parent account';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -3910,9 +3942,12 @@ const PIP_STAGE_COLORS = {Lead:'#8a8f98',Qualified:'#00929F',Proposal:'#19446C',
 function setPipView(v){
   _pipView=v;
   document.querySelectorAll('#pip-view-toggle .pvt-btn').forEach(b=>b.classList.toggle('active', b.dataset.v===v));
-  const tbl=document.getElementById('pip-table-wrap'), board=document.getElementById('pip-stage-board');
-  if(v==='stages'){ if(tbl)tbl.style.display='none'; if(board){ board.style.display='flex'; renderStageBoard(); } }
-  else { if(board)board.style.display='none'; if(tbl)tbl.style.display=''; }
+  const tbl=document.getElementById('pip-table-wrap'), board=document.getElementById('pip-stage-board'), tree=document.getElementById('pip-tree-wrap');
+  if(tbl)   tbl.style.display   = (v==='table')  ? '' : 'none';
+  if(board) board.style.display = (v==='stages') ? 'flex' : 'none';
+  if(tree)  tree.style.display  = (v==='tree')   ? '' : 'none';
+  if(v==='stages') renderStageBoard();
+  if(v==='tree')   renderPipTree();
 }
 function renderStageBoard(){
   const board=document.getElementById('pip-stage-board'); if(!board) return;
@@ -3928,6 +3963,90 @@ function renderStageBoard(){
       <div class="psb-body">${cards}</div></div>`;
   }).join('');
 }
+// ── PIPELINE TREE (grouped by parent account, rolled-up totals) ─────────────
+const _pipTreeCollapsed = new Set();   // parent-group names the user has collapsed
+let _pipTreeOrder = [];                 // parallel parent-name list for index-based toggling
+// Resolve an opportunity to its top-level (parent) account name. Opps carry the
+// account as a name string; the accounts registry maps that to an account, and
+// each account's parentId chains up to the group. Falls back to the opp's own
+// account name (or "Unassigned") when there's no match.
+let _acctParentCache = null;
+function _buildAcctParentMap(){
+  const map = new Map();  // lowercased acct name / acctMatch → parent display name
+  try {
+    const accts = getAccounts().accounts;
+    const byId = new Map(accts.map(a=>[a.id, a]));
+    const parentName = a => { const p = a.parentId ? byId.get(a.parentId) : a; return (p && p.name) || a.name; };
+    accts.forEach(a => {
+      const pn = parentName(a);
+      if (a.name)     map.set(a.name.toLowerCase(), pn);
+      if (a.acctMatch)map.set(a.acctMatch.toLowerCase(), pn);
+    });
+  } catch(_){}
+  return map;
+}
+function oppParentAccount(o){
+  if(!_acctParentCache) _acctParentCache = _buildAcctParentMap();
+  const nm = (o.acct||'').trim();
+  if(!nm) return '— Unassigned';
+  const key = nm.toLowerCase();
+  if(_acctParentCache.has(key)) return _acctParentCache.get(key);
+  // loose contains-match against known acctMatch keys
+  for(const [k,v] of _acctParentCache){ if(k && (key.includes(k) || k.includes(key))) return v; }
+  return nm;   // no registry match — group under its own account name
+}
+function renderPipTree(){
+  _acctParentCache = null;   // rebuild each render so account edits are reflected
+  const body = document.getElementById('pip-tree-body'); if(!body) return;
+  const rows = currentFilteredRows();
+  const groups = new Map();  // parent → { opps:[], val, wtd }
+  rows.forEach(o=>{
+    const p = oppParentAccount(o);
+    let g = groups.get(p); if(!g){ g={ opps:[], val:0, wtd:0 }; groups.set(p,g); }
+    g.opps.push(o);
+    const v = Number(o.val)||0; g.val += v; g.wtd += v * (o.prob!=null?o.prob:0);
+  });
+  // Order groups by expected value (weighted), highest first.
+  const order = [...groups.entries()].sort((a,b)=> b[1].wtd - a[1].wtd || b[1].val - a[1].val);
+  if(!order.length){ body.innerHTML = '<tr><td colspan="9" style="padding:22px;text-align:center;color:var(--color-text-muted)">No opportunities match the current filters.</td></tr>'; return; }
+  _pipTreeOrder = order.map(([p])=>p);
+  let html = '';
+  order.forEach(([parent, g], i)=>{
+    const collapsed = _pipTreeCollapsed.has(parent);
+    html += `<tr class="pt-group${collapsed?' collapsed':''}" onclick="togglePipTreeGroup(${i})">
+      <td class="pt-caret">▾</td>
+      <td class="pt-parent">${qesc(parent)}</td>
+      <td class="num pt-roll">${fmt(g.val)}</td>
+      <td class="num pt-roll">${fmt(g.wtd)}</td>
+      <td class="num pt-dim">${g.val?Math.round(g.wtd/g.val*100)+'%':'—'}</td>
+      <td></td><td></td><td></td>
+      <td class="num pt-dim">${g.opps.length}</td>
+    </tr>`;
+    // child opportunities (most-weighted first)
+    const kids = g.opps.slice().sort((a,b)=> ((b.val||0)*(b.prob||0)) - ((a.val||0)*(a.prob||0)));
+    kids.forEach(o=>{
+      const wtd = (Number(o.val)||0) * (o.prob!=null?o.prob:0);
+      html += `<tr class="pt-child" ${collapsed?'style="display:none"':''} onclick="openOppDrawer('${qattr(o.id)}')">
+        <td></td>
+        <td class="pt-opp">${starredIds.has(o.id)?'⭐ ':''}<span class="pt-opp-acct">${qesc(o.acct||'—')}</span> <span class="pt-opp-type">${qesc(o.type||'')}</span></td>
+        <td class="num">${o.val!=null?fmt(o.val):'—'}</td>
+        <td class="num">${o.val!=null&&o.prob!=null?fmt(wtd):'—'}</td>
+        <td class="num pt-dim">${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</td>
+        <td class="pt-dim">${qesc(o.close||'TBD')}</td>
+        <td class="pt-dim">${qesc(o.stage||'—')}</td>
+        <td class="pt-dim">${qesc(o.lead||'—')}</td>
+        <td></td>
+      </tr>`;
+    });
+  });
+  body.innerHTML = html;
+}
+function togglePipTreeGroup(i){
+  const parent = _pipTreeOrder[i]; if(parent==null) return;
+  if(_pipTreeCollapsed.has(parent)) _pipTreeCollapsed.delete(parent); else _pipTreeCollapsed.add(parent);
+  renderPipTree();
+}
+
 function psbCard(o,color){
   return `<div class="psb-card" draggable="true" data-id="${qattr(o.id)}" style="--c:${color}"
       ondragstart="psbDragStart(event,'${qattr(o.id)}')" ondragend="psbDragEnd(event)" onclick="openOppDrawer('${qattr(o.id)}')" title="Drag to change stage · click to edit">
@@ -4349,6 +4468,7 @@ function populateFilters() {
 // ── RENDER: PIPELINE ─────────────────────────────────────────
 function renderPipeline() {
   if(typeof _pipView!=='undefined' && _pipView==='stages'){ try{ renderStageBoard(); }catch(_){} }
+  if(typeof _pipView!=='undefined' && _pipView==='tree'){ try{ renderPipTree(); }catch(_){} }
   const q    =document.getElementById("search").value.toLowerCase();
   const cat  =document.getElementById("fcat").value;
   const loc  =document.getElementById("floc").value;
