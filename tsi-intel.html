@@ -1989,6 +1989,20 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .acct-modal input:focus, .acct-modal textarea:focus { border-color:var(--tsi-teal); }
 .acct-modal textarea { resize:vertical; min-height:60px; line-height:1.5; }
 .acct-modal-footer { display:flex; gap:8px; margin-top:16px; }
+/* visit modal extras */
+.acct-modal .am-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.acct-modal .vf-hint { text-transform:none; letter-spacing:0; font-weight:400; color:var(--color-text-muted); }
+.vf-people { display:flex; flex-wrap:wrap; gap:6px; }
+.vf-person { display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:28px; padding:0 8px;
+  border:1px solid var(--color-border-mid); border-radius:6px; font:600 12px var(--font-mono); color:var(--color-text-secondary);
+  background:var(--color-surface); cursor:pointer; user-select:none; transition:.12s; }
+.vf-person:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+.vf-person.on { background:var(--tsi-deep-blue); border-color:var(--tsi-deep-blue); color:#fff; }
+/* visits table cells */
+.vst-type { font-size:11px; white-space:nowrap; }
+.vst-who { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:20px; padding:0 4px; margin-right:2px;
+  border-radius:4px; background:var(--tsi-deep-blue); color:#fff; font:600 10px var(--font-mono); }
+.vst-notes { color:var(--color-text-secondary); max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .btn-am-save {
   flex:1; padding:9px; background:var(--tsi-deep-blue); color:white;
   border:none; border-radius:var(--radius-md); font-size:13px;
@@ -3167,6 +3181,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <div class="tab" data-tab="summary" onclick="showTab('summary')">📊 Summary</div>
   <div class="tab" data-tab="history" onclick="showTab('history')">📈 History</div>
   <div class="tab" data-tab="traffic" onclick="showTab('traffic')">🚦 Traffic</div>
+  <div class="tab" data-tab="visits" onclick="showTab('visits')">🚩 Visits</div>
   <div class="tab" data-tab="tools" onclick="showTab('tools')">🤖 AI + Parse</div>
   <div class="tab" data-tab="usage" onclick="showTab('usage')">📊 Usage</div>
   <div class="tab" data-tab="bugs" onclick="showTab('bugs')">🐛 Bug Register</div>
@@ -3618,7 +3633,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#153 · 2026-07-16 · Traffic board — stage-weighted workload + drag-to-assign';
+const APP_BUILD = '#154 · 2026-07-16 · Mill visits — activity log (who/where/when/what) + account-page section';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -4358,6 +4373,157 @@ function trafDrop(e,lead){
   showToast(qesc(rec.acct||'Opportunity')+' → '+(newLead?leadName(newLead):'Unassigned'),'var(--tsi-teal)');
 }
 
+// ── ACTIVITIES / MILL VISITS ────────────────────────────────────────────────
+// A generic activity log — type 'visit' now; call/meeting/sample slot in later.
+// Each record ties one or more people to a site/mill on a date, with the areas
+// reviewed + notes (+ a stubbed report link). Persisted in the D1 'activities'
+// collection (localStorage offline cache + cross-user sync via /api/store/*).
+let _activityStore=null;
+function activityStore(){ return _activityStore || (_activityStore = Store('activities')); }
+const ACTIVITY_TYPES = { visit:'🚩 Visit', call:'📞 Call', meeting:'👥 Meeting', sample:'🧪 Sample' };
+function activityTypeLabel(t){ return ACTIVITY_TYPES[t] || t || '—'; }
+function acctById(id){ try { return getAccounts().accounts.find(a=>a.id===id) || null; } catch(_){ return null; } }
+function visitParentName(site){ if(!site) return ''; return site.parentId ? (acctById(site.parentId)?.name || '') : site.name; }
+
+// areas tag editor (reuses the drawer-tag pattern) inside the visit modal
+let _visitAreas=[];
+function rebuildVisitAreas(){
+  const wrap=document.getElementById('vf-areas-wrap'), inp=document.getElementById('vf-areas-input'); if(!wrap||!inp) return;
+  wrap.querySelectorAll('.drawer-tag-item').forEach(el=>el.remove());
+  _visitAreas.forEach(t=>{ const sp=document.createElement('span'); sp.className='drawer-tag-item'; sp.style.background='var(--tsi-sage)';
+    sp.innerHTML=`${qesc(t)} <span class="dtag-x" onclick="event.stopPropagation();removeVisitArea('${qattr(t)}')">×</span>`; wrap.insertBefore(sp,inp); });
+}
+function addVisitArea(v){ v=(v||'').trim(); if(!v) return; if(!_visitAreas.some(t=>t.toLowerCase()===v.toLowerCase())) _visitAreas.push(v); rebuildVisitAreas(); }
+function removeVisitArea(t){ _visitAreas=_visitAreas.filter(x=>x!==t); rebuildVisitAreas(); }
+
+// people multi-select (roster chips)
+let _visitPeople=[];
+function toggleVisitPerson(init){ _visitPeople = _visitPeople.includes(init) ? _visitPeople.filter(p=>p!==init) : [..._visitPeople, init]; renderVisitPeopleChips(); }
+function renderVisitPeopleChips(){
+  const w=document.getElementById('vf-people'); if(!w) return;
+  w.innerHTML=LEADS.map(init=>`<span class="vf-person ${_visitPeople.includes(init)?'on':''}" onclick="toggleVisitPerson('${qattr(init)}')" title="${qattr(leadName(init))}">${qesc(init)}</span>`).join('');
+}
+function populateVisitSiteOptions(){
+  const sel=document.getElementById('vf-site'); if(!sel) return;
+  const data=getAccounts();
+  const groups=data.groups.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  let html='<option value="">— select a mill / site —</option>';
+  groups.forEach(g=>{
+    const sites=data.sites.filter(s=>s.parentId===g.id).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    if(!sites.length) return;
+    html+=`<optgroup label="${qattr(g.name)}">`+sites.map(s=>`<option value="${qattr(s.id)}">${qesc(s.name)}${s.loc?` — ${qesc(s.loc)}`:''}</option>`).join('')+`</optgroup>`;
+  });
+  const childless=data.groups.filter(g=>!data.sites.some(s=>s.parentId===g.id)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(childless.length) html+=`<optgroup label="Accounts (no sites)">`+childless.map(g=>`<option value="${qattr(g.id)}">${qesc(g.name)}</option>`).join('')+`</optgroup>`;
+  sel.innerHTML=html;
+}
+let _visitEditId=null;
+function openVisitModal(presetSiteId){
+  _visitEditId=null; _visitAreas=[];
+  const me=(typeof getUserInitials==='function'?getUserInitials():'')||'';
+  _visitPeople = (me && LEADS.includes(me)) ? [me] : [];
+  const t=document.getElementById('vf-title'); if(t) t.textContent='Log a visit';
+  document.getElementById('vf-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('vf-type').value='visit';
+  document.getElementById('vf-notes').value='';
+  document.getElementById('vf-report').value='';
+  populateVisitSiteOptions();
+  document.getElementById('vf-site').value=presetSiteId||'';
+  document.getElementById('vf-delete').style.display='none';
+  renderVisitPeopleChips(); rebuildVisitAreas();
+  document.getElementById('visit-modal-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('vf-site').focus(),50);
+}
+function editVisitModal(id){
+  const rec=activityStore().all().find(a=>a.id===id); if(!rec){ openVisitModal(); return; }
+  _visitEditId=id; _visitPeople=[...(rec.people||[])]; _visitAreas=[...(rec.areas||[])];
+  const t=document.getElementById('vf-title'); if(t) t.textContent='Edit visit';
+  document.getElementById('vf-date').value=rec.date||'';
+  document.getElementById('vf-type').value=rec.type||'visit';
+  document.getElementById('vf-notes').value=rec.notes||'';
+  document.getElementById('vf-report').value=rec.reportUrl||'';
+  populateVisitSiteOptions(); document.getElementById('vf-site').value=rec.siteId||'';
+  const del=document.getElementById('vf-delete'); del.style.display=''; del.onclick=()=>deleteVisit(id);
+  renderVisitPeopleChips(); rebuildVisitAreas();
+  document.getElementById('visit-modal-overlay').style.display='flex';
+}
+function closeVisitModal(){ document.getElementById('visit-modal-overlay').style.display='none'; }
+async function saveVisit(){
+  const siteId=document.getElementById('vf-site').value;
+  const date=document.getElementById('vf-date').value;
+  const type=document.getElementById('vf-type').value||'visit';
+  if(!siteId){ showToast('Pick a mill / site','var(--tsi-amber)'); return; }
+  if(!date){ showToast('Pick a date','var(--tsi-amber)'); return; }
+  if(!_visitPeople.length){ showToast('Add at least one person','var(--tsi-amber)'); return; }
+  const site=acctById(siteId);
+  const now=new Date().toISOString(); const me=(typeof getUserInitials==='function'?getUserInitials():'')||'?';
+  let rec;
+  if(_visitEditId){ rec={...(activityStore().all().find(a=>a.id===_visitEditId)||{})}; }
+  else { rec={ id:'ACT-'+(site?site.id.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase():'X')+'-'+Date.now().toString(36).slice(-5).toUpperCase(), createdAt:now, createdBy:me }; }
+  rec.type=type; rec.siteId=siteId; rec.date=date;
+  rec.people=[..._visitPeople]; rec.areas=[..._visitAreas];
+  rec.notes=document.getElementById('vf-notes').value.trim();
+  rec.reportUrl=document.getElementById('vf-report').value.trim();
+  rec.updatedAt=now; rec.updatedBy=me;
+  await activityStore().put(rec);
+  if(typeof usageLog==='function') usageLog('visit_'+(_visitEditId?'edit':'add'), rec.id+' · '+(site?site.name:siteId));
+  closeVisitModal(); renderVisits();
+  if(typeof renderAcctMain==='function' && _acctSelectedSite) renderAcctMain(_acctSelectedSite);
+  showToast('✓ Visit '+(_visitEditId?'updated':'logged'),'var(--tsi-teal)');
+}
+function deleteVisit(id){
+  showConfirm('Delete this visit?','This removes the visit log entry.', async ()=>{
+    await activityStore().remove(id); closeVisitModal(); renderVisits();
+    if(typeof renderAcctMain==='function' && _acctSelectedSite) renderAcctMain(_acctSelectedSite);
+    showToast('Visit deleted','var(--tsi-coral)');
+  });
+}
+function visitRows(){
+  let acc; try { acc=getAccounts(); } catch(_){ acc={accounts:[]}; }
+  const byId=new Map((acc.accounts||[]).map(a=>[a.id,a]));
+  return activityStore().all().map(a=>{
+    const site=byId.get(a.siteId);
+    const parent=site ? (site.parentId ? (byId.get(site.parentId)?.name||'') : site.name) : '';
+    return { ...a,
+      _site: site?site.name:(a.siteId||'—'),
+      _parent: parent||'—',
+      _people:(a.people||[]).map(p=>leadName(p)).join(', '),
+      _areas:(a.areas||[]).join(', '),
+      _typeLabel: activityTypeLabel(a.type),
+      _ts: a.date ? new Date(a.date+'T00:00:00').getTime() : 0,
+    };
+  });
+}
+function renderVisits(){
+  const tbody=document.getElementById('visits-table-body'); if(!tbody) return;
+  const whoSel=document.getElementById('visits-who');   // lazy-populate the roster filter (markup parses after the register block)
+  if(whoSel && whoSel.options.length<=1) whoSel.innerHTML='<option value="">All people</option>'+LEADS.map(i=>`<option value="${qattr(i)}">${qesc(leadName(i))}</option>`).join('');
+  let rows=visitRows();
+  const q=(document.getElementById('visits-search')?.value||'').trim().toLowerCase();
+  const who=(document.getElementById('visits-who')?.value||'');
+  if(q) rows=rows.filter(r=>[r._site,r._parent,r._people,r._areas,r.notes].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(who) rows=rows.filter(r=>(r.people||[]).includes(who));
+  rows=TableKit.filterRows('visits-table', rows);
+  rows=getSortedRows(rows,'visits-table');
+  TableKit.updateFilterIndicators('visits-table');
+  const cnt=document.getElementById('visits-count'); if(cnt) cnt.textContent=rows.length+' visit'+(rows.length===1?'':'s');
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:22px">No visits logged yet — click “＋ Log a visit”.</td></tr>`; initColInteractions('visits-table'); return; }
+  tbody.innerHTML=rows.map(r=>{
+    const dt=r.date?new Date(r.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):'—';
+    return `<tr onclick="editVisitModal('${qattr(r.id)}')">
+      <td>${qesc(dt)}</td>
+      <td><span class="vst-type">${qesc(r._typeLabel)}</span></td>
+      <td>${(r.people||[]).map(p=>`<span class="vst-who" title="${qattr(leadName(p))}">${qesc(p)}</span>`).join(' ')}</td>
+      <td><strong>${qesc(r._site)}</strong></td>
+      <td>${qesc(r._parent)}</td>
+      <td title="${qattr(r._areas)}">${qesc(r._areas)}</td>
+      <td class="vst-notes" title="${qattr(r.notes||'')}">${qesc(r.notes||'')}</td>
+      <td style="text-align:center"><button class="del-btn" title="Delete visit" onclick="event.stopPropagation();deleteVisit('${qattr(r.id)}')">✕</button></td>
+    </tr>`;
+  }).join('');
+  initColInteractions('visits-table');
+}
+
 function toggleCloseChip(el) {
   if(el.classList.contains("active")) {
     el.classList.remove("active");
@@ -5028,7 +5194,7 @@ function showTab(name) {
   document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
   // Views — 'tools' owns no view; it hosts ai + parser via showToolsSub(). Imminent
   // has no tab anymore (it's a pipeline filter), so its view stays hidden.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history","traffic"].forEach(t=>{
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history","traffic","visits"].forEach(t=>{
     const viewEl = document.getElementById("view-"+t);
     if (viewEl) viewEl.classList.toggle("active", t===name);
   });
@@ -5073,6 +5239,7 @@ function showTab(name) {
   if(name==='quotes'   && typeof renderQuotesTab==='function') renderQuotesTab();
   if(name==='history'  && typeof renderHistoryView==='function') renderHistoryView();
   if(name==='traffic'  && typeof renderTrafficBoard==='function') renderTrafficBoard();
+  if(name==='visits'   && typeof renderVisits==='function') renderVisits();
 
   // Mobile hamburger: reflect the active tab in the collapsed label + close the menu.
   const curEl = document.getElementById('tab-current');
@@ -9570,6 +9737,9 @@ function renderAcctMain(siteId) {
     .sort((a,b) => a.start.localeCompare(b.start));
   const events   = data.events.filter(e => e.siteId === siteId)
     .sort((a,b) => b.date.localeCompare(a.date));
+  const visits   = (typeof activityStore==='function' ? activityStore().all() : [])
+    .filter(a => a.siteId === siteId)
+    .sort((a,b) => (b.date||'').localeCompare(a.date||''));
 
   // Linked opportunities — STRICT match by account key (acctId === this site),
   // not the old company-name substring match that attached every "West Fraser"
@@ -9723,6 +9893,26 @@ function renderAcctMain(siteId) {
           <button onclick="deleteAcctItem('events','${e.id}','${siteId}')"
             style="background:none;border:none;cursor:pointer;color:var(--color-text-muted)">×</button>
         </div>`).join('') : '<div style="font-size:11px;color:var(--color-text-muted);padding:4px 0">No events recorded</div>'}
+    </div>
+
+    <!-- FIELD VISITS -->
+    <div class="acct-section">
+      <div class="acct-section-header">
+        <span class="acct-section-title">Field visits (${visits.length})</span>
+        <button class="btn-acct-add" onclick="openVisitModal('${siteId}')">+ Log visit</button>
+      </div>
+      ${visits.length ? visits.map(v => `
+        <div class="event-item" style="cursor:pointer" onclick="editVisitModal('${qattr(v.id)}')">
+          <div class="event-date">${qesc(v.date||'—')}</div>
+          <div style="flex:1">
+            <div class="event-type">${(v.people||[]).map(p=>qesc(p)).join(', ')||'—'}${v.type&&v.type!=='visit'?` · ${qesc(activityTypeLabel(v.type))}`:''}</div>
+            ${(v.areas&&v.areas.length)?`<div class="event-notes">Looked at: ${qesc(v.areas.join(', '))}</div>`:''}
+            ${v.notes?`<div class="event-notes">${qesc(v.notes)}</div>`:''}
+            ${v.reportUrl?`<div class="event-notes"><a href="${qattr(v.reportUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--tsi-teal)">📄 Report</a></div>`:''}
+          </div>
+          <button onclick="event.stopPropagation();deleteVisit('${qattr(v.id)}')"
+            style="background:none;border:none;cursor:pointer;color:var(--color-text-muted)">×</button>
+        </div>`).join('') : '<div style="font-size:11px;color:var(--color-text-muted);padding:4px 0">No visits logged</div>'}
     </div>
 
     <!-- LINKED OPPORTUNITIES -->
@@ -14468,6 +14658,28 @@ TableKit.register('acct-table', {
   apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
     setv('acct-tbl-search',st.search); setv('acct-tbl-type',st.type); setv('acct-tbl-cust',st.cust); renderAcctTable(); },
 });
+TableKit.register('visits-table', {
+  colsVersion: 1,
+  data: () => (typeof visitRows === 'function' ? visitRows() : []),
+  render: () => renderVisits(),
+  columns: [
+    { i:1, label:'Date',       col:'date',   sortable:true, sortVal:r=>r._ts||0, filterVal:r=>r.date||'—', dateRange:true, dateVal:r=>r.date?new Date(r.date+'T00:00:00'):null },
+    { i:2, label:'Type',       col:'type',   sortable:true, sortVal:r=>r._typeLabel||'', filterVal:r=>r._typeLabel||'—' },
+    { i:3, label:'People',     col:'people', sortable:true, sortVal:r=>(r._people||'').toLowerCase(), filterMulti:r=>((r.people&&r.people.length)?r.people.map(p=>leadName(p)):['—']) },
+    { i:4, label:'Mill / site',col:'site',   sortable:true, sortVal:r=>(r._site||'').toLowerCase(), filterVal:r=>r._site||'—' },
+    { i:5, label:'Account',    col:'parent', sortable:true, sortVal:r=>(r._parent||'').toLowerCase(), filterVal:r=>r._parent||'—' },
+    { i:6, label:'Looked at',  col:'areas',  sortable:true, sortVal:r=>(r._areas||'').toLowerCase(), filterMulti:r=>((r.areas&&r.areas.length)?r.areas:['—']) },
+    { i:7, label:'Notes',      col:'notes',  sortable:true, sortVal:r=>(r.notes||'').toLowerCase() },
+  ],
+  capture: () => ({ search:document.getElementById('visits-search')?.value||'', who:document.getElementById('visits-who')?.value||'' }),
+  apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+    setv('visits-search',st.search); setv('visits-who',st.who); renderVisits(); },
+});
+// (People filter is populated lazily in renderVisits — its <select> parses after this block.)
+initSortHeaders('visits-table');
+initColInteractions('visits-table');
+activityStore().pull().then(()=>{ renderVisits(); if(typeof renderAcctMain==='function' && _acctSelectedSite) renderAcctMain(_acctSelectedSite); }).catch(()=>{});
+
 viewStore.pull().then(() => { const p=_tkPopEl; if(p && p.id==='tk-views-pop') TableKit.renderViewsMenu(p.dataset.table); });
 followStore.pull().then(() => renderPipeline());
 
@@ -15520,6 +15732,85 @@ startAdminPoll();
     work it represents (Lead ×1 · Qualified ×2 · Proposal ×3 · Negotiation ×4 · Verbal ×5 · PO Received ×6).
     Drag a card from <b>Unassigned</b> — or from anyone — onto a person to direct it. Changes save immediately.</p>
   <div class="trf-board" id="traffic-board"></div>
+</div>
+
+<!-- ══ VISITS — mill visit log ══ -->
+<div id="view-visits" class="view" style="padding:16px 20px">
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+    <h2 style="font:400 22px var(--font-display);color:var(--color-heading);margin:0">Mill visits</h2>
+    <button class="btn-acct-add" style="margin-left:auto" onclick="openVisitModal()">＋ Log a visit</button>
+  </div>
+  <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 14px;max-width:840px">
+    Who has been to which mill, when, and what they looked at. Click a row to edit; use the header ▾ on
+    Date to filter a range. (Attached visit reports come later — the link field is ready for them.)</p>
+  <div class="acct-tbl-toolbar">
+    <input class="acct-tbl-search" id="visits-search" placeholder="Search mill, account, person, notes…" oninput="renderVisits()">
+    <select class="filter-select" id="visits-who" onchange="renderVisits()">
+      <option value="">All people</option>
+    </select>
+    <div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'visits-table')" title="Your saved views">⭐ Views ▾</button></div>
+    <div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-visits-table" onclick="TableKit.toggleCols(event,'visits-table')" title="Show / hide columns">▦ Columns ▾</button></div>
+    <span style="flex:1"></span>
+    <span class="acct-tbl-count" id="visits-count"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table class="tbl-editable" id="visits-table">
+      <thead><tr>
+        <th class="sortable" data-col="date"   style="width:100px">Date<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="type"   style="width:90px">Type<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="people" style="width:110px">People<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="site"   style="width:180px">Mill / site<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="parent" style="width:150px">Account<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="areas"  style="width:180px">Looked at<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="notes"  style="width:220px">Notes<span class="sort-icon"></span></th>
+        <th style="width:34px"></th>
+      </tr></thead>
+      <tbody id="visits-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Log-a-visit modal -->
+<div class="acct-modal-overlay" id="visit-modal-overlay" style="display:none">
+  <div class="acct-modal" style="max-width:520px">
+    <h3 id="vf-title">Log a visit</h3>
+    <div class="am-row am-row-2">
+      <div><label class="am-label">Date</label><input id="vf-date" type="date"></div>
+      <div><label class="am-label">Type</label>
+        <select id="vf-type" class="dselect">
+          <option value="visit">🚩 Visit</option>
+          <option value="call">📞 Call</option>
+          <option value="meeting">👥 Meeting</option>
+          <option value="sample">🧪 Sample</option>
+        </select>
+      </div>
+    </div>
+    <div class="am-row"><label class="am-label">Mill / site</label>
+      <select id="vf-site" class="dselect"><option value="">— select a mill / site —</option></select>
+    </div>
+    <div class="am-row"><label class="am-label">People <span class="vf-hint">— tap everyone who went</span></label>
+      <div class="vf-people" id="vf-people"></div>
+    </div>
+    <div class="am-row"><label class="am-label">Looked at <span class="vf-hint">— areas / systems reviewed</span></label>
+      <div class="drawer-tag-editor" id="vf-areas-wrap" onclick="const _a=document.getElementById('vf-areas-input');if(_a)_a.focus()">
+        <input class="drawer-tag-input" id="vf-areas-input" list="visit-area-options" placeholder="Type & Enter — Dryer, WESP, Burner…" autocomplete="off"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();addVisitArea(this.value);this.value=''}">
+      </div>
+      <datalist id="visit-area-options">
+        <option value="Dryer"><option value="Dryer island"><option value="Burner"><option value="WESP"><option value="RTO/RCO">
+        <option value="Emissions"><option value="Torreactor"><option value="Pellet mill"><option value="Press"><option value="Refiner">
+        <option value="Controls"><option value="Safety / NFPA"><option value="Material handling"><option value="General walkthrough">
+      </datalist>
+    </div>
+    <div class="am-row"><label class="am-label">Notes</label><textarea id="vf-notes" placeholder="What was discussed / observed…"></textarea></div>
+    <div class="am-row"><label class="am-label">Report link <span class="vf-hint">— optional; paste a URL to a trip report</span></label>
+      <input id="vf-report" class="dinput" placeholder="https://… (attachments coming later)"></div>
+    <div class="acct-modal-footer">
+      <button class="btn-am-cancel" id="vf-delete" style="display:none;margin-right:auto;color:var(--tsi-coral)">Delete</button>
+      <button class="btn-am-cancel" onclick="closeVisitModal()">Cancel</button>
+      <button class="btn-am-save" onclick="saveVisit()">Save visit</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ ACCOUNTS MODULE ══ -->
