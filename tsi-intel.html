@@ -3589,7 +3589,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#150 · 2026-07-16 · slim header build stamp (full build info moved to profile menu)';
+const APP_BUILD = '#151 · 2026-07-16 · logos upload as PNG (keep transparency, no black background)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -9405,7 +9405,10 @@ async function saveAcctLogoUrl(gid, url){
   showToast(m.logoUrl?'✓ Logo URL saved':'Logo URL cleared','var(--tsi-teal)');
 }
 function acctPrimePhoto(gid){ const m=getAcctMedia(gid); return (m.photos&&m.photos.length)?m.photos[Math.min(m.prime||0,m.photos.length-1)]:''; }
-function compressImage(file, maxDim, quality){
+// mime defaults to JPEG (small, opaque — right for photos). Pass 'image/png' for
+// logos so transparency is preserved — JPEG has no alpha, so a transparent PNG/SVG
+// logo would flatten its transparent pixels to BLACK.
+function compressImage(file, maxDim, quality, mime){
   return new Promise((resolve,reject)=>{
     const fr=new FileReader();
     fr.onload=()=>{ const img=new Image();
@@ -9413,14 +9416,15 @@ function compressImage(file, maxDim, quality){
         w=Math.max(1,Math.round(w*s)); h=Math.max(1,Math.round(h*s));
         const c=document.createElement('canvas'); c.width=w; c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
-        try{ resolve(c.toDataURL('image/jpeg', quality||0.82)); }catch(e){ reject(e); } };
+        const fmt = mime || 'image/jpeg';
+        try{ resolve(fmt==='image/png' ? c.toDataURL('image/png') : c.toDataURL(fmt, quality||0.82)); }catch(e){ reject(e); } };
       img.onerror=reject; img.src=fr.result; };
     fr.onerror=reject; fr.readAsDataURL(file);
   });
 }
 async function uploadAcctLogo(input, gid){
   const f=input.files&&input.files[0]; if(!f) return;
-  try{ const url=await compressImage(f,256,0.9); const m=getAcctMedia(gid); m.logo=url; await saveAcctMedia(m);
+  try{ const url=await compressImage(f,256,0.9,'image/png'); const m=getAcctMedia(gid); m.logo=url; await saveAcctMedia(m);
     renderAcctMain(_acctSelectedSite); renderAcctSidebar();
     showToast('✓ Logo updated'+(mediaStore&&mediaStore.mode()==='db'?'':' (this browser)'),'var(--tsi-teal)'); }
   catch(e){ showToast('Image error: '+(e.message||e),'var(--tsi-coral)'); }
@@ -17557,7 +17561,7 @@ function saveCompanyFromForm(id){
 }
 async function companyLogoUpload(id, file){
   if(!file) return;
-  try{ const dataUrl=await compressImage(file, 420, 0.85); const c=companyById(id); if(c){ c.logo=dataUrl; saveCompany(c); renderCompanies(); showToast('✓ Logo updated','var(--tsi-succ-green)'); } }
+  try{ const dataUrl=await compressImage(file, 420, 0.85,'image/png'); const c=companyById(id); if(c){ c.logo=dataUrl; saveCompany(c); renderCompanies(); showToast('✓ Logo updated','var(--tsi-succ-green)'); } }
   catch(e){ showToast('Logo upload failed','var(--tsi-coral)'); }
 }
 function setDefaultCompany(id){ getCompanies().forEach(c=>{ c.isDefault=(c.id===id); saveCompany(c); }); }
