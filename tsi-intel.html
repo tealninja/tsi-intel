@@ -2575,7 +2575,7 @@ table.prod-grid td.editable:focus-within::after { content:none; }
   <strong id="dirty-count">0 unsaved changes</strong>
   <button class="btn-export" onclick="exportJSON()">⬇ Download updated JSON</button>
   <button class="btn-discard" onclick="discardChanges()">✕ Discard</button>
-  <span style="margin-left:auto;font-size:11px;opacity:.6">Changes are in-memory until exported</span>
+  <span style="margin-left:auto;font-size:11px;opacity:.6">Auto-saved to cloud · download a JSON backup anytime</span>
 </div>
 
 
@@ -3125,10 +3125,37 @@ const won =()=>DATA.filter(o=>o.status==="W");
 // ── DIRTY TRACKING ────────────────────────────────────────────
 function markDirty(id) {
   dirtyIds.add(id);
-  const _eb=document.getElementById("export-bar"); if(_eb) _eb.classList.remove("hidden");
-  const _dc=document.getElementById("dirty-count"); if(_dc) _dc.textContent=dirtyIds.size+" unsaved change"+(dirtyIds.size!==1?"s":"");
-  const dot=document.getElementById("pip-dirty"); if(dot) dot.classList.remove("hidden");
+  refreshDirtyBar();
   if(id && !id.startsWith('_')) stampUpdate(id);
+  queueAutoSave(id);   // debounced push to the Worker (see below)
+}
+
+// Sync the export bar + header dot to the current dirty set.
+function refreshDirtyBar() {
+  const _eb=document.getElementById("export-bar");
+  const _dc=document.getElementById("dirty-count");
+  const dot=document.getElementById("pip-dirty");
+  if(_dc) _dc.textContent=dirtyIds.size+" unsaved change"+(dirtyIds.size!==1?"s":"");
+  if(_eb) _eb.classList.toggle("hidden", dirtyIds.size===0);
+  if(dot) dot.classList.toggle("hidden", dirtyIds.size===0);
+}
+
+// ── DEBOUNCED CLOUD AUTO-SAVE ─────────────────────────────────
+// Inline cell edits and star toggles now persist to the Worker the same
+// way the drawer form does. Rapid keystrokes coalesce into one PUT ~800ms
+// after typing stops; pass immediate=true to flush now (stars, on blur).
+const _saveTimers = new Map();
+function queueAutoSave(id, immediate) {
+  if (!API_WORKER_URL || !id || id.startsWith('_')) return;
+  const prev = _saveTimers.get(id);
+  if (prev) clearTimeout(prev);
+  const flush = () => {
+    _saveTimers.delete(id);
+    const rec = DATA.find(r => r.id === id);
+    if (rec) autoSaveRecord(rec);
+  };
+  if (immediate) { flush(); return; }
+  _saveTimers.set(id, setTimeout(flush, 800));
 }
 
 
@@ -3144,7 +3171,7 @@ function toggleStar(id) {
   });
   // Also persist to DATA so export includes it
   const rec = DATA.find(r=>r.id===id);
-  if(rec) { rec.starred = starredIds.has(id); markDirty(id); }
+  if(rec) { rec.starred = starredIds.has(id); markDirty(id); queueAutoSave(id, true); }
 }
 
 function exportJSON() {
@@ -3183,10 +3210,10 @@ function makeTextCell(o,field,acList=null,allowCreate=false) {
   inp.value=o[field]||""; inp.placeholder="—";
   inp.oninput=()=>{ if(acList) showAC(inp,acList,val=>{inp.value=val;saveF();},allowCreate); saveF(); };
   inp.onfocus=()=>{ if(acList) showAC(inp,acList,val=>{inp.value=val;saveF();},allowCreate); };
-  inp.onblur=()=>{ setTimeout(closeAC,150); saveF(); const rec=DATA.find(r=>r.id===o.id); if(rec) captureChanges(rec); };
+  inp.onblur=()=>{ setTimeout(closeAC,150); saveF(); const rec=DATA.find(r=>r.id===o.id); if(rec && captureChanges(rec)) queueAutoSave(o.id, true); };
   function saveF() {
     const rec=DATA.find(r=>r.id===o.id);
-    if(rec) { rec[field]=inp.value; markDirty(o.id); }
+    if(rec && rec[field]!==inp.value) { rec[field]=inp.value; markDirty(o.id); }  // only on real change — avoids spurious saves when tabbing through
     if(field==="prob") refreshWtdCells();
   }
   td.appendChild(inp); return td;
@@ -3207,7 +3234,7 @@ function makeValCell(o) {
     }
     refreshWtdCells();
   };
-  inp.onblur=()=>{ const rec=DATA.find(r=>r.id===o.id); inp.value=rec&&rec.val!=null?rec.val:""; if(rec) captureChanges(rec); };
+  inp.onblur=()=>{ const rec=DATA.find(r=>r.id===o.id); inp.value=rec&&rec.val!=null?rec.val:""; if(rec && captureChanges(rec)) queueAutoSave(o.id, true); };
   td.appendChild(inp); return td;
 }
 
@@ -3218,7 +3245,7 @@ function makeProbCell(o) {
   inp.value=pct(o.prob); inp.placeholder="—";
   inp.onfocus=()=>showAC(inp,PROBS,val=>{inp.value=val;saveP();});
   inp.oninput=()=>saveP();
-  inp.onblur=()=>{ setTimeout(closeAC,150); const rec=DATA.find(r=>r.id===o.id); if(rec) captureChanges(rec); };
+  inp.onblur=()=>{ setTimeout(closeAC,150); const rec=DATA.find(r=>r.id===o.id); if(rec && captureChanges(rec)) queueAutoSave(o.id, true); };
   function saveP() {
     const rec=DATA.find(r=>r.id===o.id);
     if(rec) {
@@ -7799,6 +7826,11 @@ function autoSaveRecord(o) {
   fetch(API_WORKER_URL + '/api/pipeline/' + encodeURIComponent(o.id), {
     method: 'PUT', headers: workerHeaders(), body: JSON.stringify(o)
   }).then(async res => {
+    if (res.ok) {
+      // Cloud has it now — clear the local dirty flag so the export bar
+      // reflects reality (it stays as an offline/backup affordance).
+      if (dirtyIds.delete(o.id)) refreshDirtyBar();
+    }
     if (res.status === 409) {
       // Server has newer version — fetch it, merge our changes, retry once
       try {
