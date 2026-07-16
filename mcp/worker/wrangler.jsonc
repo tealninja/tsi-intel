@@ -1,0 +1,17 @@
+{
+  // Remote MCP server for TSI-Intel. Deploy with `npx wrangler deploy`.
+  // This is a separate Worker from tsi-intel (the static site) and
+  // tsi-intel-api (the data backend it calls).
+  "name": "tsi-intel-mcp",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Config. Prefer setting the auth token as a SECRET, not here:
+  //   npx wrangler secret put MCP_AUTH_TOKEN
+  // (Leave MCP_AUTH_TOKEN unset only if you want an open, unauthenticated endpoint.)
+  "vars": {
+    "TSI_WORKER_URL": "https://tsi-intel-api.teal-john.workers.dev",
+    "TSI_USER": "JT"
+  }
+}
