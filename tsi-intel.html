@@ -967,6 +967,11 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
    attached to its own input. No-op for rows whose labels are the same height. */
 .drow-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; align-items:end; }
 .drow-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px; align-items:end; }
+/* Capacity/port row: the port cell carries a trailing status line, so bottom-aligning
+   the cells would push its input above the capacity input. Top-align instead and give
+   both labels a two-line reservation so the two inputs start on the same baseline. */
+#s-prod-fields { align-items:start; }
+#s-prod-fields > .drow > label { min-height:34px; }
 
 /* location geocode row */
 .dloc-wrap { position:relative; }
@@ -1985,8 +1990,10 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 /* Account detail: map + climatogram — even split on desktop, stacked on mobile */
 .am-mapclima{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 /* Account media (logo + photos) */
-.acct-logo-img{width:52px;height:52px;object-fit:contain;border-radius:8px;background:var(--color-surface);border:1px solid var(--color-border);flex-shrink:0}
-.acct-group-logo{width:18px;height:18px;object-fit:contain;border-radius:3px;flex-shrink:0}
+/* Logos are often transparent SVG/PNG — always back them with white so they read on
+   any surface (incl. dark mode) instead of disappearing into a dark/transparent field. */
+.acct-logo-img{width:52px;height:52px;object-fit:contain;border-radius:8px;background:#fff;padding:3px;border:1px solid var(--color-border);flex-shrink:0}
+.acct-group-logo{width:18px;height:18px;object-fit:contain;border-radius:3px;background:#fff;padding:1px;flex-shrink:0}
 .acct-prime-photo img{width:100%;max-height:230px;object-fit:cover;border-radius:var(--radius-md);display:block;margin:2px 0 12px}
 .acct-media{margin:0 0 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);padding:8px 12px;background:var(--color-surface)}
 .acct-media>summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--color-text-secondary)}
@@ -2010,7 +2017,7 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .acct-loctype.prod{background:rgba(0,146,159,.12);color:var(--tsi-teal)}
 .am-logo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .am-logo-url{flex:1;min-width:200px;font-size:11px;padding:5px 8px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-text)}
-.am-logo-preview{width:46px;height:46px;object-fit:contain;border:1px solid var(--color-border);border-radius:6px}
+.am-logo-preview{width:46px;height:46px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--color-border);border-radius:6px}
 .am-upload,.am-add-photo{display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding:6px 12px;border:1px dashed var(--color-border-mid);border-radius:var(--radius-sm);cursor:pointer;color:var(--tsi-teal)}
 .am-upload:hover,.am-add-photo:hover{border-color:var(--tsi-teal);background:rgba(0,146,159,.05)}
 .am-photos-grid{display:flex;flex-wrap:wrap;gap:8px}
@@ -3580,7 +3587,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#148 · 2026-07-16 · preso section-header logo + hide capacity/port on HQ locations';
+const APP_BUILD = '#149 · 2026-07-16 · industry as tags + capacity/port alignment + white logo backing + 2× slide logos';
 try { const _b=document.getElementById('app-build'); if(_b) _b.textContent='build '+APP_BUILD; } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
@@ -13155,6 +13162,24 @@ function addSitePlantTag(v){
 }
 function removeSitePlantTag(t){ _sitePlantTags=_sitePlantTags.filter(x=>x!==t); rebuildSitePlantTags(); }
 
+let _siteIndustryTags         = [];   // industry tags for the site editor (a site can span several)
+function rebuildSiteIndustryTags(){
+  const wrap=document.getElementById('s-industry-wrap'), inp=document.getElementById('s-industry-input');
+  if(!wrap||!inp) return;
+  wrap.querySelectorAll('.drawer-tag-item').forEach(el=>el.remove());
+  _siteIndustryTags.forEach(t=>{
+    const sp=document.createElement('span'); sp.className='drawer-tag-item'; sp.style.background='var(--tsi-deep-blue)';
+    sp.innerHTML=`${qesc(t)} <span class="dtag-x" onclick="event.stopPropagation();removeSiteIndustryTag('${qattr(t)}')">×</span>`;
+    wrap.insertBefore(sp, inp);
+  });
+}
+function addSiteIndustryTag(v){
+  v=(v||'').trim(); if(!v) return;
+  if(!_siteIndustryTags.some(t=>t.toLowerCase()===v.toLowerCase())) _siteIndustryTags.push(v);
+  rebuildSiteIndustryTags();
+}
+function removeSiteIndustryTag(t){ _siteIndustryTags=_siteIndustryTags.filter(x=>x!==t); rebuildSiteIndustryTags(); }
+
 // ── Site-drawer prev/next paging (same component as the opportunity drawer) ──
 let _siteDrawerNavList = [];   // ordered account/site ids the drawer pages through
 let _siteDrawerDirty   = false;
@@ -13267,7 +13292,7 @@ function openSiteDrawer(accountId, opts) {
   _sitePlantTags = []; rebuildSitePlantTags();
   document.getElementById('s-group').value = '';
   document.getElementById('s-group-id').value = '';
-  const indEl = document.getElementById('s-industry'); if (indEl) indEl.value = '';
+  _siteIndustryTags = []; rebuildSiteIndustryTags();
   document.getElementById('s-map-wrap').style.display = 'none';
   document.getElementById('s-loc-status').textContent = 'Enter a location to set coordinates';
 
@@ -13279,7 +13304,10 @@ function openSiteDrawer(accountId, opts) {
     }
     document.getElementById('s-name').value      = existing.name || '';
     document.getElementById('s-acctmatch').value = existing.acctMatch || '';
-    document.getElementById('s-industry').value  = existing.industry || '';
+    _siteIndustryTags = (existing.industryTags && existing.industryTags.length)
+      ? [...existing.industryTags]
+      : (existing.industry || '').split(/[\/,]/).map(s=>s.trim()).filter(Boolean);
+    rebuildSiteIndustryTags();
     const _lt=document.getElementById('s-loctype'); if(_lt) _lt.value = existing.locType || (existing.parentId?'production':'corporate');
     const _cs=document.getElementById('s-custstatus'); if(_cs) _cs.value = existing.customerStatus || '';
     const _np=document.getElementById('s-nameplate'); if(_np) _np.value = (existing.nameplate!=null?existing.nameplate:'');
@@ -13450,7 +13478,8 @@ function saveSiteDrawer() {
                 ),
     parentId:   parentId,
     name:       name,
-    industry:   document.getElementById('s-industry')?.value.trim() || '',
+    industryTags: [..._siteIndustryTags],
+    industry:   _siteIndustryTags.join(' / '),   // legacy string kept in sync for table/filter/card
     locType:    document.getElementById('s-loctype')?.value || 'production',
     customerStatus: document.getElementById('s-custstatus')?.value || '',
     plantTags:  [..._sitePlantTags],
@@ -14770,8 +14799,16 @@ startAdminPoll();
           <input class="dinput" id="s-acctmatch" placeholder="e.g. LP — matches pipeline deals to this account">
         </div>
         <div class="drow">
-          <label>Industry</label>
-          <input class="dinput" id="s-industry" placeholder="e.g. OSB/LVL, Torrefaction/SAF">
+          <label>Industry <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— tag one or more</span></label>
+          <div class="drawer-tag-editor" id="s-industry-wrap" onclick="const _ii=document.getElementById('s-industry-input');if(_ii)_ii.focus()">
+            <input class="drawer-tag-input" id="s-industry-input" list="industry-options" placeholder="Type & Enter — OSB, Pellets, SAF…" autocomplete="off"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addSiteIndustryTag(this.value);this.value=''}">
+          </div>
+          <datalist id="industry-options">
+            <option value="OSB"><option value="LVL"><option value="Siding"><option value="EWP">
+            <option value="MDF"><option value="Particle Board"><option value="Plywood">
+            <option value="Biomass Pellets"><option value="Torrefaction"><option value="SAF"><option value="Biomass"><option value="Forestry">
+          </datalist>
         </div>
       </div>
       <div class="drow-2">
@@ -16338,7 +16375,7 @@ startAdminPoll();
 .pz-eye-link.on:hover{color:var(--acc,#00929f);text-decoration:underline;text-underline-offset:3px}
 .pz-eyebrow .sep{opacity:.35}.pz-eyebrow .pos{margin-left:auto;color:var(--pz-faint);letter-spacing:.05em}
 .pz-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:12px}
-.pz-logo{width:auto;height:56px;max-width:150px;object-fit:contain;border-radius:8px;background:#fff;padding:6px 8px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.pz-logo{width:auto;height:104px;max-width:280px;object-fit:contain;border-radius:8px;background:#fff;padding:10px 12px;flex-shrink:0;border:0.5px solid var(--pz-line)}
 .pz-acct{font-size:38px;font-weight:800;line-height:1.03;letter-spacing:-.5px}
 .pz-ptype{font-size:18px;color:var(--pz-muted);margin-top:6px;font-weight:500}
 .pz-loc{font-size:14px;color:var(--pz-faint);margin-top:9px}
