@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#166 · 2026-07-17 · fix quote line-item column alignment (wider unit-price field)';
+const APP_BUILD = '#167 · 2026-07-17 · quote/budgetary-estimate toggle (budgetary default: no T&Cs / acceptance)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -16767,6 +16767,13 @@ startAdminPoll();
         <div><label>Issue PO to — Name <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— who at the customer can cut the PO</span></label><input class="dinput" id="q-po-name" placeholder="PO contact name"></div>
         <div><label>Issue PO to — Email</label><input class="dinput" id="q-po-email" placeholder="po-contact@…"></div>
       </div>
+      <div class="drow">
+        <label>Document type</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer"><input type="radio" name="q-doctype" value="budgetary" checked onchange="qDocTypeChange()"> Budgetary estimate <span style="color:var(--color-text-muted);font-size:10px">— no T&amp;Cs / signature; for planning</span></label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer"><input type="radio" name="q-doctype" value="quote" onchange="qDocTypeChange()"> Quotation <span style="color:var(--color-text-muted);font-size:10px">— actionable; full T&amp;Cs + acceptance</span></label>
+        </div>
+      </div>
       <div class="drow-2">
         <div><label>Project / Title</label><input class="dinput" id="q-project" placeholder="e.g. EFB Pilot Study — TAP"></div>
         <div><label>Revision <span style="text-transform:none;letter-spacing:0;color:var(--color-text-muted);font-weight:400">— R0, R1… freeze on publish; letters (R0A, R0B) while editing</span></label><input class="dinput" id="q-rev" value="R0" readonly title="Auto-managed. Publishing freezes a numbered version (R0, R1…). Editing a published quote rolls a working draft by letter (R0A, R0B…); publishing it freezes the next number." style="background:var(--color-bg-subtle);cursor:not-allowed"></div>
@@ -18750,6 +18757,7 @@ function fillQuoteForm(){
   _qBillAddr = { zip:q.bill_to_zip||'', country:q.bill_to_country||'' };
   ['billto','shipto'].forEach(w=>{ const t=document.getElementById('q-'+w+'-text'); if(t) t.removeAttribute('readonly'); });   // autofilled but editable
   S('q-project',q.project); S('q-rev',q.rev||'R0'); S('q-date',q.quote_date); S('q-valid',q.valid_until); S('q-preparer',q.prepared_by); S('q-preparer-email',q.prepared_by_email);
+  { const dt=(q.docType||'budgetary'); const r=document.querySelector('input[name="q-doctype"][value="'+dt+'"]'); if(r) r.checked=true; }
   qPopulateSellers(); S('q-seller', q.seller_id || (defaultCompany()&&defaultCompany().id) || '');
   S('q-status',q.status||'Draft'); S('q-currency',q.currency||'USD'); S('q-tax',q.tax_pct||0);
   S('q-discount',q.discount||0); S('q-discount-mode',q.discount_mode||'pct'); S('q-freight',q.freight||0);
@@ -18765,6 +18773,7 @@ function fillQuoteForm(){
   });
 }
 function onQuoteCurrencyChange(){ if(_qWorking){ _qWorking.currency=document.getElementById('q-currency').value; renderQuoteLines(); recalcQuoteTotals(); } }
+function qDocTypeChange(){ if(_qWorking) _qWorking.docType=document.querySelector('input[name="q-doctype"]:checked')?.value||'budgetary'; }
 function addQuoteLine(seedId){
   if(!_qWorking) return; const p=prodBySeed(seedId); if(!p) return;
   const pr=pbPrice(seedId);
@@ -18889,6 +18898,7 @@ function readQuoteForm(){
   q.contact_email=V('q-contact-email').trim(); q.contact_phone=V('q-contact-phone').trim();
   q.po_contact_name=V('q-po-name').trim(); q.po_contact_email=V('q-po-email').trim(); q.schedule=V('q-schedule').trim();
   q.project=V('q-project').trim(); q.rev=V('q-rev').trim()||'R0';
+  q.docType=document.querySelector('input[name="q-doctype"]:checked')?.value||'budgetary';
   q.seller_id=V('q-seller')||q.seller_id||((defaultCompany()&&defaultCompany().id)||'');
   q.quote_date=V('q-date'); q.valid_until=V('q-valid'); q.prepared_by=V('q-preparer').trim(); q.prepared_by_email=V('q-preparer-email').trim();
   q.status=V('q-status'); q.description=V('q-description').trim(); q.scope=V('q-scope').trim(); q.notes=V('q-notes').trim();
@@ -19107,7 +19117,7 @@ function printQuote(q){
       <div class="co">${seller.logo?`<img src="${seller.logo}" style="max-height:46px;max-width:230px;margin-bottom:7px;display:block">`:''}${qesc(seller.name)}<small>${qesc(seller.addr)} · EIN ${qesc(seller.ein)}</small></div>
       <div class="qt"><div class="qn">${qesc(q.id)}<span class="qrev">${qesc(q.rev||'R0')}</span></div><div class="qs">${qesc(q.status||'Draft')}</div></div>
     </div>
-    <div class="title">Quote${q.project?' — '+qesc(q.project):''}</div>
+    <div class="title">${(q.docType||'budgetary')==='budgetary'?'Budgetary Estimate':'Quotation'}${q.project?' — '+qesc(q.project):''}</div>
     <div class="grid2">
       <div><b>Issued to:</b> ${qesc(q.customer_name||'—')}</div><div><b>Quote Date:</b> ${qesc(q.quote_date||'—')}</div>
       <div><b>Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</div><div><b>Valid Until:</b> ${qesc(q.valid_until||'—')}</div>
@@ -19125,7 +19135,9 @@ function printQuote(q){
     ${vDel?`<h3>Delivery Terms</h3><div class="prose">${blk(vDel)}</div>`:''}
     ${vPay?`<h3>Payment Terms</h3><div class="prose">${blk(vPay)}</div>`:''}
     ${q.notes?`<h3>Notes</h3><div class="prose">${blk(q.notes)}</div>`:''}
-    <h3>Terms &amp; Conditions</h3><div class="terms">${blk(vTerms)}</div>
+    ${(q.docType||'budgetary')==='budgetary'
+      ? `<div class="prose" style="font-size:9.5pt;color:#777;margin-top:16px;border-top:1px solid #ddd;padding-top:8px">Budgetary estimate for planning purposes only — not a firm offer. Pricing is indicative and subject to change; a formal quotation with full Terms &amp; Conditions and an acceptance block is issued on request.</div>`
+      : `<h3>Terms &amp; Conditions</h3><div class="terms">${blk(vTerms)}</div>
     <div class="accept">
       <h3>Acceptance</h3>
       <div style="font-size:11.5px;color:#333;margin:2px 0 26px">Accepted and agreed by ${qesc(q.customer_name||'the Buyer')}, including the Terms &amp; Conditions above:</div>
@@ -19134,7 +19146,7 @@ function printQuote(q){
         <tr><td class="sp"></td><td></td><td></td></tr>
         <tr><td class="line">&nbsp;</td><td class="gap"></td><td class="line">&nbsp;</td></tr>
         <tr><td class="cap">Printed Name</td><td></td><td class="cap">Title</td></tr></table>
-    </div>
+    </div>`}
     </td></tr></tbody></table>
     <script>window.onload=function(){setTimeout(function(){window.print();},450);};<\/script>
   </body></html>`;
@@ -19176,7 +19188,7 @@ function exportQuoteWord(q){
       <td align="right" valign="top" style="padding-bottom:10px"><div style="font-size:16pt;font-weight:700;color:#00929F;font-family:Consolas,monospace">${qesc(q.id)} <span style="font-size:12pt;background:#00929F;color:#ffffff;padding:2pt 8pt;font-weight:700">${qesc(q.rev||'R0')}</span></div>
         <div style="font-size:9pt;color:#999;margin-top:3pt">${qesc(q.status||'Draft')}</div></td>
     </tr></table>
-    <div style="font-size:16pt;font-weight:700;color:#19446C;margin:8pt 0 6pt">Quote${q.project?' — '+qesc(q.project):''}</div>
+    <div style="font-size:16pt;font-weight:700;color:#19446C;margin:8pt 0 6pt">${(q.docType||'budgetary')==='budgetary'?'Budgetary Estimate':'Quotation'}${q.project?' — '+qesc(q.project):''}</div>
     <table style="width:100%;border-collapse:collapse">
       <tr><td ${metaTd}><b style="color:#19446C">Issued to:</b> ${qesc(q.customer_name||'—')}</td><td ${metaTd}><b style="color:#19446C">Quote Date:</b> ${qesc(q.quote_date||'—')}</td></tr>
       <tr><td ${metaTd}><b style="color:#19446C">Bill To:</b> ${qesc(q.bill_to||q.customer_address||'—').replace(/\n/g,'<br>')}</td><td ${metaTd}><b style="color:#19446C">Valid Until:</b> ${qesc(q.valid_until||'—')}</td></tr>
@@ -19195,7 +19207,9 @@ function exportQuoteWord(q){
     ${vDel?`<h3 ${h3}>Delivery Terms</h3><div ${prose}>${blk(vDel)}</div>`:''}
     ${vPay?`<h3 ${h3}>Payment Terms</h3><div ${prose}>${blk(vPay)}</div>`:''}
     ${q.notes?`<h3 ${h3}>Notes</h3><div ${prose}>${blk(q.notes)}</div>`:''}
-    <h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(vTerms)}</div>
+    ${(q.docType||'budgetary')==='budgetary'
+      ? `<div style="font-size:8.5pt;color:#777;line-height:1.5;border-top:1px solid #eee;padding-top:8pt;margin-top:10pt">Budgetary estimate for planning purposes only — not a firm offer. Pricing is indicative and subject to change; a formal quotation with full Terms &amp; Conditions and an acceptance block is issued on request.</div>`
+      : `<h3 ${h3}>Terms &amp; Conditions</h3><div style="font-size:8.5pt;color:#555;line-height:1.5;border-top:1px solid #eee;padding-top:8pt">${blk(vTerms)}</div>
     <div style="page-break-inside:avoid">
       <h3 ${h3}>Acceptance</h3>
       <div style="font-size:10pt;color:#333;margin:2pt 0 22pt">Accepted and agreed by ${qesc(q.customer_name||'the Buyer')}, including the Terms &amp; Conditions above:</div>
@@ -19206,7 +19220,7 @@ function exportQuoteWord(q){
         <tr><td style="border-bottom:1px solid #333;height:34pt">&nbsp;</td><td></td><td style="border-bottom:1px solid #333;height:34pt">&nbsp;</td></tr>
         <tr><td style="font-size:8.5pt;color:#777;padding-top:3pt">Printed Name</td><td></td><td style="font-size:8.5pt;color:#777;padding-top:3pt">Title</td></tr>
       </table>
-    </div>`;
+    </div>`}`;
   // Canonical Word page footer: a single MsoFooter paragraph with center/right
   // tab stops (a <table> in the footer can render inline in some Word versions;
   // one MsoFooter paragraph is what Word reliably extracts to the page foot).
