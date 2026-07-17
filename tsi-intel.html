@@ -3640,7 +3640,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#163 · 2026-07-17 · opp→site linker + one-click backfill (auto-link opps to sites)';
+const APP_BUILD = '#164 · 2026-07-17 · visits Excel export / import';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -4569,6 +4569,57 @@ function renderVisits(){
     </tr>`;
   }).join('');
   initColInteractions('visits-table');
+}
+
+// ── Visits Excel export / import ────────────────────────────────────────────
+function visitsExportXLSX(){
+  if(typeof XLSX==='undefined'){ showToast('Excel library still loading — try again','var(--tsi-amber)'); return; }
+  const rows=visitRows().slice().sort((a,b)=>(b._ts||0)-(a._ts||0));
+  const headers=['Date','Type','People','Mill / site','Account','Looked at','Notes','Report link','ID','Site ID'];
+  const data=[headers, ...rows.map(r=>[
+    r.date||'', (r.type||'visit'), (r.people||[]).join(', '), r._site, r._parent,
+    (r.areas||[]).join(', '), r.notes||'', r.reportUrl||'', r.id, r.siteId||'' ])];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[12,9,16,26,22,30,44,26,16,12].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Visits');
+  XLSX.writeFile(wb, `TSI_Visits_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+async function visitsImportFile(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  if(typeof XLSX==='undefined'){ showToast('Excel library still loading — try again','var(--tsi-amber)'); input.value=''; return; }
+  try{
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    const accts=getAccounts().accounts;
+    const now=new Date().toISOString(); const me=(typeof getUserInitials==='function'?getUserInitials():'')||'?';
+    const pick=(row,names)=>{ for(const n of names){ for(const k of Object.keys(row)){ if(String(k).trim().toLowerCase()===n) return row[k]; } } return ''; };
+    let created=0, updated=0, skipped=0;
+    for(const row of rows){
+      const date=String(pick(row,['date'])||'').trim();
+      let siteId=String(pick(row,['site id','siteid'])||'').trim();
+      const siteName=String(pick(row,['mill / site','mill/site','mill','site'])||'').trim();
+      if(!siteId && siteName){ const s=accts.find(a=>(a.name||'').toLowerCase()===siteName.toLowerCase()); if(s) siteId=s.id; }
+      if(!siteId || !date){ skipped++; continue; }
+      const people=String(pick(row,['people','person','visitors'])||'').split(/[,;/]/).map(s=>s.trim()).filter(Boolean);
+      const areas=String(pick(row,['looked at','areas','scope'])||'').split(/[,;/]/).map(s=>s.trim()).filter(Boolean);
+      const notes=String(pick(row,['notes','note'])||'').trim();
+      const report=String(pick(row,['report link','report','url'])||'').trim();
+      let type=String(pick(row,['type'])||'visit').trim().toLowerCase(); if(!ACTIVITY_TYPES[type]) type='visit';
+      const id=String(pick(row,['id'])||'').trim();
+      const existing=id ? activityStore().all().find(a=>a.id===id) : null;
+      let rec;
+      if(existing){ rec={...existing}; updated++; }
+      else { const site=acctById(siteId); rec={ id: id || ('ACT-'+(site?site.id.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase():'X')+'-'+Date.now().toString(36).slice(-5).toUpperCase()+created), createdAt:now, createdBy:me }; created++; }
+      rec.type=type; rec.siteId=siteId; rec.date=date; rec.people=people; rec.areas=areas; rec.notes=notes; rec.reportUrl=report; rec.updatedAt=now; rec.updatedBy=me;
+      await activityStore().put(rec);
+    }
+    renderVisits(); if(typeof renderAcctMain==='function' && _acctSelectedSite) renderAcctMain(_acctSelectedSite);
+    if(typeof usageLog==='function') usageLog('visits_import', created+' added, '+updated+' updated');
+    showToast(`✓ Import: ${created} added, ${updated} updated${skipped?', '+skipped+' skipped':''}`,'var(--tsi-succ-green)');
+  }catch(e){ showToast('Import failed: '+(e.message||e),'var(--tsi-coral)'); }
+  input.value='';
 }
 
 function toggleCloseChip(el) {
@@ -15840,6 +15891,8 @@ startAdminPoll();
     </select>
     <div class="views-wrap"><button class="select views-btn" onclick="TableKit.toggleViews(event,'visits-table')" title="Your saved views">⭐ Views ▾</button></div>
     <div class="views-wrap"><button class="select views-btn" id="tk-cols-btn-visits-table" onclick="TableKit.toggleCols(event,'visits-table')" title="Show / hide columns">▦ Columns ▾</button></div>
+    <button class="select" onclick="visitsExportXLSX()" title="Export the visit log to Excel">⬇ Export</button>
+    <label class="select" style="cursor:pointer" title="Import visits from an Excel/CSV file (matches the export columns)">⬆ Import<input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="visitsImportFile(this)"></label>
     <span style="flex:1"></span>
     <span class="acct-tbl-count" id="visits-count"></span>
   </div>
