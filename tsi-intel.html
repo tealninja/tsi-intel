@@ -3640,7 +3640,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#161 · 2026-07-17 · dashboard-map popup: account + opportunity links';
+const APP_BUILD = '#162 · 2026-07-17 · fix preso maps/climate — resolve opp→site coords (was fuzzy-mislocating)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -19100,8 +19100,40 @@ function presoLoc(o){ return o.loc || [o.city,o.country].filter(Boolean).join(',
 function presoCoords(loc){
   if(!loc || typeof LOC_COORDS==='undefined') return null;
   if(LOC_COORDS[loc]) return LOC_COORDS[loc];
-  const k=Object.keys(LOC_COORDS).find(k=>loc.toLowerCase().includes(k.toLowerCase().split(',')[0])||k.toLowerCase().includes(loc.toLowerCase().split(',')[0]));
+  // Fuzzy match, but only on a meaningful first token (≥4 chars) so short tokens
+  // like "MS"/"USA" can't drag an unknown place to a wrong LOC_COORDS entry.
+  const first=loc.toLowerCase().split(',')[0].trim();
+  if(first.length<4) return null;
+  const k=Object.keys(LOC_COORDS).find(k=>{ const kf=k.toLowerCase().split(',')[0].trim(); return kf.length>=4 && (first.includes(kf)||kf.includes(first)); });
   return k?LOC_COORDS[k]:null;
+}
+// Resolve an opportunity's real map coordinates: its own geocoded lat/lon, then
+// its keyed site, then an exact location-string match to a site, then the fuzzy
+// LOC_COORDS lookup. (presoCoords alone mis-placed opps whose loc isn't in the
+// dictionary — e.g. "CM - Quitman" landed in the Atlantic.)
+function presoJobCoords(o){
+  if(o && o.lat!=null && o.lon!=null) return [o.lat, o.lon];
+  try{
+    const accts=getAccounts().accounts;
+    // 1) explicitly keyed site
+    if(o && o.acctId){ const s=accts.find(a=>a.id===o.acctId); if(s && s.lat && s.lon) return [s.lat, s.lon]; }
+    const loc=(presoLoc(o)||'').trim().toLowerCase();
+    const acct=(o&&o.acct||'').trim().toLowerCase();
+    const city=loc.split(',')[0].trim();
+    // 2) match a site by account (acctMatch) + city — this disambiguates same-named
+    //    towns (e.g. LP → Newberry MI vs West Fraser → Newberry SC) which a plain
+    //    loc-string lookup cannot, since opp locations often omit the state.
+    if(acct && city){
+      const s=accts.find(a=>a.lat && a.lon && a.acctMatch &&
+        (acct.includes(a.acctMatch.toLowerCase()) || a.acctMatch.toLowerCase().includes(acct)) &&
+        (a.loc||'').trim().toLowerCase().split(',')[0].trim()===city);
+      if(s) return [s.lat, s.lon];
+    }
+    // 3) exact location-string match to a site
+    if(loc && loc!=='—'){ const s=accts.find(a=>a.lat && a.lon && (a.loc||'').trim().toLowerCase()===loc); if(s) return [s.lat, s.lon]; }
+  }catch(_){}
+  // 4) fuzzy LOC_COORDS dictionary (last resort)
+  return presoCoords(presoLoc(o));
 }
 
 async function presoLoadOverrides(){
@@ -19425,7 +19457,7 @@ function presoRenderOvMap(s){
         {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
       const pts=[];
       (s.sections||PRESO_SECTIONS).forEach(sec=>{
-        (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoCoords(presoLoc(o)); if(!c) return;
+        (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoJobCoords(o); if(!c) return;
           const mk=L.circleMarker(c,{radius:Math.max(6,Math.min(24,6+Math.sqrt((o.val||0)/1e6)*1.3)),
             color:sec.acc,fillColor:sec.acc,fillOpacity:.78,weight:1.5});
           // Click a pin to jump straight to that opportunity's slide.
@@ -19477,7 +19509,7 @@ function presoResetMapView(id){
 }
 function presoRenderJobMap(o,sec){
   const el=document.getElementById('pz-jobmap'); if(!el) return;
-  const c=presoCoords(presoLoc(o));
+  const c=presoJobCoords(o);
   if(typeof L==='undefined'||!c) return;   // keep the grid+pin fallback
   try{ if(_presoJobMap){ _presoJobMap.remove(); _presoJobMap=null; } }catch(_){}
   requestAnimationFrame(()=>setTimeout(()=>{
@@ -19554,7 +19586,7 @@ function presoDrawClima(job){
 }
 async function presoRenderClima(job){
   const box=document.getElementById('pz-clima-box'); if(!box) return;
-  const c=presoCoords(presoLoc(job)); if(!c) return;
+  const c=presoJobCoords(job); if(!c) return;   // site-resolved coords, not the opp's fuzzy loc
   if(job._clima){ presoDrawClima(job); return; }
   const ly=new Date().getUTCFullYear()-1;
   let w=null;
@@ -19637,7 +19669,7 @@ function presoOppSlide(o,sec,s){
   const inst=presoInstall(o.tags);
   const spec=(o.notes||'').trim();
   const specHtml=spec?`<div class="pz-spec">${qesc(spec).replace(/(\d+)\s*[x×]/g,'<span class="x">$1×</span>')}</div>`:(chips?'':`<div class="pz-empty">Scope defined by project type; details TBD.</div>`);
-  const coords=presoCoords(presoLoc(o));
+  const coords=presoJobCoords(o);
   // Real Leaflet map mounts into #pz-jobmap after render (presoRenderJobMap). The
   // grid + pin stay as an offline/no-coords fallback and are hidden once tiles load.
   const pin=`<div class="pz-map" id="pz-jobmap"><div class="gb"></div>${coords?`<div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div>`:''}<div class="nm">${qesc(presoLoc(o))}</div></div>`;
