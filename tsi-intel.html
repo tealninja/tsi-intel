@@ -3089,6 +3089,8 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 .ql-field > span { font-size:8px; text-transform:uppercase; letter-spacing:.03em; color:var(--color-text-muted); }
 .ql-field input { width:60px; padding:5px 6px; border:1px solid var(--color-border-mid); border-radius:4px; font-size:12px; background:var(--color-bg); color:var(--color-text-primary); font-family:var(--font-mono); text-align:right; outline:none; }
 .ql-field.unit input { width:52px; text-align:left; font-family:var(--font-ui); }
+.ql-field.qty input { width:48px; }
+.ql-field.price input { width:98px; }
 .ql-field input:focus { border-color:var(--tsi-teal); }
 .ql-total { display:flex; flex-direction:column; gap:2px; align-items:flex-end; min-width:74px; }
 .ql-total > span { font-size:8px; text-transform:uppercase; color:var(--color-text-muted); }
@@ -3651,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#165 · 2026-07-17 · visit familiarity map — time-decayed bubbles + scrubber + filters';
+const APP_BUILD = '#166 · 2026-07-17 · fix quote line-item column alignment (wider unit-price field)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -18806,9 +18808,9 @@ function renderQuoteLines(){
         </div>
       </div>
       <div class="ql-nums">
-        <label class="ql-field"><span>Qty</span><input type="number" min="0" step="1" value="${l.qty}" oninput="updateQuoteLine(${i},'qty',this.value)"></label>
+        <label class="ql-field qty"><span>Qty</span><input type="number" min="0" step="1" value="${l.qty}" oninput="updateQuoteLine(${i},'qty',this.value)"></label>
         <label class="ql-field unit"><span>Unit</span><input value="${qattr(l.unit)}" oninput="updateQuoteLine(${i},'unit',this.value)"></label>
-        <label class="ql-field"><span>Unit Price</span><input type="number" min="0" step="0.01" value="${l.unit_price}" oninput="updateQuoteLine(${i},'unit_price',this.value)"></label>
+        <label class="ql-field price"><span>Unit Price</span><input type="number" min="0" step="0.01" value="${l.unit_price}" oninput="updateQuoteLine(${i},'unit_price',this.value)"></label>
         <div class="ql-total"><span>Total</span><b class="q-line-total">${qmoney((Number(l.qty)||0)*(Number(l.unit_price)||0),cur)}</b></div>
         <button class="q-line-del" onclick="removeQuoteLine(${i})" title="Remove line">✕</button>
       </div>
