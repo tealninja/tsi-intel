@@ -2009,6 +2009,17 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .vst-who { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:20px; padding:0 4px; margin-right:2px;
   border-radius:4px; background:var(--tsi-deep-blue); color:#fff; font:600 10px var(--font-mono); }
 .vst-notes { color:var(--color-text-secondary); max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* visit familiarity map */
+.vtoggle { display:inline-flex; border:1px solid var(--color-border-mid); border-radius:8px; overflow:hidden; }
+.vtoggle-btn { background:var(--color-surface); border:none; padding:6px 12px; font-size:12px; cursor:pointer; color:var(--color-text-secondary); font-family:var(--font-ui); }
+.vtoggle-btn.active { background:var(--tsi-deep-blue); color:#fff; }
+.fam-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.fam-scrub-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; max-width:1000px; }
+.fam-scrub-row input[type=range] { flex:1; accent-color:var(--tsi-teal); }
+.fam-date { font-family:var(--font-mono); font-size:12px; color:var(--color-heading); min-width:130px; text-align:right; }
+.fam-legend { display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:11px; color:var(--color-text-secondary); max-width:1000px; }
+.fam-leg-item { display:flex; align-items:center; gap:6px; }
+.fam-swatch { width:12px; height:12px; border-radius:50%; border:1px solid var(--color-border-mid); display:inline-block; }
 .btn-am-save {
   flex:1; padding:9px; background:var(--tsi-deep-blue); color:white;
   border:none; border-radius:var(--radius-md); font-size:13px;
@@ -3640,7 +3651,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#164 · 2026-07-17 · visits Excel export / import';
+const APP_BUILD = '#165 · 2026-07-17 · visit familiarity map — time-decayed bubbles + scrubber + filters';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -4471,6 +4482,7 @@ function openVisitModal(presetSiteId){
   _visitPeople = (me && LEADS.includes(me)) ? [me] : [];
   const t=document.getElementById('vf-title'); if(t) t.textContent='Log a visit';
   document.getElementById('vf-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('vf-days').value='1';
   document.getElementById('vf-type').value='visit';
   document.getElementById('vf-notes').value='';
   document.getElementById('vf-report').value='';
@@ -4486,6 +4498,7 @@ function editVisitModal(id){
   _visitEditId=id; _visitPeople=[...(rec.people||[])]; _visitAreas=[...(rec.areas||[])];
   const t=document.getElementById('vf-title'); if(t) t.textContent='Edit visit';
   document.getElementById('vf-date').value=rec.date||'';
+  document.getElementById('vf-days').value=(rec.days!=null?rec.days:1);
   document.getElementById('vf-type').value=rec.type||'visit';
   document.getElementById('vf-notes').value=rec.notes||'';
   document.getElementById('vf-report').value=rec.reportUrl||'';
@@ -4508,6 +4521,7 @@ async function saveVisit(){
   if(_visitEditId){ rec={...(activityStore().all().find(a=>a.id===_visitEditId)||{})}; }
   else { rec={ id:'ACT-'+(site?site.id.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase():'X')+'-'+Date.now().toString(36).slice(-5).toUpperCase(), createdAt:now, createdBy:me }; }
   rec.type=type; rec.siteId=siteId; rec.date=date;
+  rec.days=Math.max(0.5, parseFloat(document.getElementById('vf-days').value)||1);
   rec.people=[..._visitPeople]; rec.areas=[..._visitAreas];
   rec.notes=document.getElementById('vf-notes').value.trim();
   rec.reportUrl=document.getElementById('vf-report').value.trim();
@@ -4575,12 +4589,12 @@ function renderVisits(){
 function visitsExportXLSX(){
   if(typeof XLSX==='undefined'){ showToast('Excel library still loading — try again','var(--tsi-amber)'); return; }
   const rows=visitRows().slice().sort((a,b)=>(b._ts||0)-(a._ts||0));
-  const headers=['Date','Type','People','Mill / site','Account','Looked at','Notes','Report link','ID','Site ID'];
+  const headers=['Date','Days','Type','People','Mill / site','Account','Looked at','Notes','Report link','ID','Site ID'];
   const data=[headers, ...rows.map(r=>[
-    r.date||'', (r.type||'visit'), (r.people||[]).join(', '), r._site, r._parent,
+    r.date||'', (r.days!=null?r.days:1), (r.type||'visit'), (r.people||[]).join(', '), r._site, r._parent,
     (r.areas||[]).join(', '), r.notes||'', r.reportUrl||'', r.id, r.siteId||'' ])];
   const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[12,9,16,26,22,30,44,26,16,12].map(w=>({wch:w}));
+  ws['!cols']=[12,6,9,16,26,22,30,44,26,16,12].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Visits');
   XLSX.writeFile(wb, `TSI_Visits_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
@@ -4612,7 +4626,8 @@ async function visitsImportFile(input){
       let rec;
       if(existing){ rec={...existing}; updated++; }
       else { const site=acctById(siteId); rec={ id: id || ('ACT-'+(site?site.id.replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase():'X')+'-'+Date.now().toString(36).slice(-5).toUpperCase()+created), createdAt:now, createdBy:me }; created++; }
-      rec.type=type; rec.siteId=siteId; rec.date=date; rec.people=people; rec.areas=areas; rec.notes=notes; rec.reportUrl=report; rec.updatedAt=now; rec.updatedBy=me;
+      const days=Math.max(0.5, parseFloat(pick(row,['days','days on site']))||1);
+      rec.type=type; rec.siteId=siteId; rec.date=date; rec.days=days; rec.people=people; rec.areas=areas; rec.notes=notes; rec.reportUrl=report; rec.updatedAt=now; rec.updatedBy=me;
       await activityStore().put(rec);
     }
     renderVisits(); if(typeof renderAcctMain==='function' && _acctSelectedSite) renderAcctMain(_acctSelectedSite);
@@ -4620,6 +4635,107 @@ async function visitsImportFile(input){
     showToast(`✓ Import: ${created} added, ${updated} updated${skipped?', '+skipped+' skipped':''}`,'var(--tsi-succ-green)');
   }catch(e){ showToast('Import failed: '+(e.message||e),'var(--tsi-coral)'); }
   input.value='';
+}
+
+// ── Visit familiarity map (time-decayed bubbles) ────────────────────────────
+const FAM_YEAR_MS = 365*24*3600*1000;
+let _visitsView='list';
+function visitsSetView(v){
+  _visitsView=v;
+  const lp=document.getElementById('visits-list-panel'), mp=document.getElementById('visits-map-panel');
+  if(lp) lp.style.display = v==='list'?'':'none';
+  if(mp) mp.style.display = v==='map'?'':'none';
+  document.getElementById('vtoggle-list')?.classList.toggle('active', v==='list');
+  document.getElementById('vtoggle-map')?.classList.toggle('active', v==='map');
+  if(v==='map') initFamiliarityMap();
+}
+// Familiarity of a site at time atMs = Σ over its visits (on/before atMs) of
+// days × linear decay to zero over one year. Optionally restrict to one person.
+function siteFamiliarity(visits, atMs, person){
+  let f=0;
+  for(const v of (visits||[])){
+    if(person && !((v.people||[]).includes(person))) continue;
+    const vt=v.date?new Date(v.date+'T00:00:00').getTime():0;
+    if(!vt || vt>atMs) continue;
+    const age=atMs-vt; if(age>=FAM_YEAR_MS) continue;
+    f += Math.max(0.5, Number(v.days)||1) * (1 - age/FAM_YEAR_MS);
+  }
+  return f;
+}
+// Line of business for a site (from its plant tags / industry keywords).
+function famSiteLob(s){
+  const t=(((s.plantTags||[]).join(' '))+' '+(s.plantType||'')+' '+(s.industry||'')).toLowerCase();
+  if(/torref|saf|biocarbon/.test(t)) return 'torref';
+  if(/osb|mdf|lvl|particle|siding|plywood|ewp|engineered/.test(t)) return 'engwood';
+  if(/pellet|biomass/.test(t)) return 'biomass';
+  return '';
+}
+// black → sage green as familiarity rises
+function famColor(t){ t=Math.max(0,Math.min(1,t)); return `rgb(${Math.round(0x80*t)},${Math.round(0x98*t)},${Math.round(0x48*t)})`; }
+function famVisits(){ return (typeof activityStore==='function'?activityStore().all():[]); }
+let _famMap=null, _famMarkers=[], _famScrubMs=null, _famRangeMin=0, _famRangeMax=0, _famPlayTimer=null;
+function initFamiliarityMap(){
+  const pv=document.getElementById('fam-person');
+  if(pv && pv.options.length<=1) pv.innerHTML='<option value="">Whole team</option>'+LEADS.map(i=>`<option value="${qattr(i)}">${qesc(leadName(i))}</option>`).join('');
+  const av=document.getElementById('fam-account');
+  if(av && av.options.length<=1){ const groups=getAccounts().groups.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')); av.innerHTML='<option value="">All accounts</option>'+groups.map(g=>`<option value="${qattr(g.id)}">${qesc(g.name)}</option>`).join(''); }
+  const times=famVisits().map(v=>v.date?new Date(v.date+'T00:00:00').getTime():0).filter(Boolean);
+  const now=Date.now();
+  _famRangeMin = times.length?Math.min(...times):(now-FAM_YEAR_MS);
+  _famRangeMax = now; _famScrubMs = now;
+  const sc=document.getElementById('fam-scrub'); if(sc) sc.value=100;
+  if(typeof L!=='undefined' && !_famMap){
+    try{
+      _famMap=L.map('fam-map',{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([25,-40],2);
+      const dark=document.documentElement.getAttribute('data-theme')==='dark';
+      L.tileLayer(dark?'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png':'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',{maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(_famMap);
+      setTimeout(()=>{ try{_famMap.invalidateSize();}catch(_){} },140);
+    }catch(_){}
+  }
+  renderFamiliarityMap();
+}
+function famScrub(v){ _famScrubMs=_famRangeMin+(_famRangeMax-_famRangeMin)*(Number(v)/100); renderFamiliarityMap(); }
+function famTogglePlay(){
+  const btn=document.getElementById('fam-play');
+  if(_famPlayTimer){ clearInterval(_famPlayTimer); _famPlayTimer=null; if(btn) btn.textContent='▶ Play'; return; }
+  if(btn) btn.textContent='⏸ Pause';
+  let val=parseFloat(document.getElementById('fam-scrub').value)||0; if(val>=100) val=0;
+  _famPlayTimer=setInterval(()=>{ val+=1.5; if(val>=100){ val=100; clearInterval(_famPlayTimer); _famPlayTimer=null; if(btn) btn.textContent='▶ Play'; }
+    const sc=document.getElementById('fam-scrub'); if(sc) sc.value=val; famScrub(val); }, 90);
+}
+function renderFamiliarityMap(){
+  const dateEl=document.getElementById('fam-date'); if(dateEl && _famScrubMs) dateEl.textContent=new Date(_famScrubMs).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(!_famMap || typeof L==='undefined') return;
+  const person=document.getElementById('fam-person')?.value||'';
+  const industry=document.getElementById('fam-industry')?.value||'';
+  const cust=document.getElementById('fam-cust')?.value||'';
+  const accountId=document.getElementById('fam-account')?.value||'';
+  const bySite={}; famVisits().forEach(v=>{ (bySite[v.siteId]=bySite[v.siteId]||[]).push(v); });
+  const accts=getAccounts().accounts.filter(a=>a.parentId && a.lat && a.lon);
+  _famMarkers.forEach(m=>{ try{m.remove();}catch(_){}}); _famMarkers=[];
+  const rows=[]; let maxF=0;
+  accts.forEach(s=>{
+    if(accountId && s.parentId!==accountId) return;
+    if(cust){ const cs=s.customerStatus||''; if(cust==='prospective'){ if(cs) return; } else if(cs!==cust) return; }
+    if(industry && famSiteLob(s)!==industry) return;
+    const f=siteFamiliarity(bySite[s.id]||[], _famScrubMs, person);
+    rows.push({s,f}); if(f>maxF) maxF=f;
+  });
+  const denom=maxF||1;
+  rows.forEach(({s,f})=>{
+    const t=f/denom;
+    const radius = f>0 ? Math.max(6, Math.sqrt(t)*26) : 5;
+    const color  = f>0 ? famColor(0.28+0.72*t) : '#111';
+    const nVis=(bySite[s.id]||[]).length;
+    const m=L.circleMarker([s.lat,s.lon],{radius,fillColor:color,color:f>0?'#fff':'#3a3a3a',weight:f>0?1.5:1,fillOpacity:f>0?0.85:0.9})
+      .bindPopup(`<div class="map-popup-title">${qesc(s.name)}</div><div class="map-popup-meta">Familiarity: ${f.toFixed(1)} · ${nVis} visit${nVis===1?'':'s'}${f===0?' · <b>needs attention</b>':''}</div>`);
+    m.addTo(_famMap); _famMarkers.push(m);
+  });
+  const lg=document.getElementById('fam-legend');
+  if(lg) lg.innerHTML=`<span class="fam-leg-item"><span class="fam-swatch" style="background:#111"></span>No familiarity — needs attention</span>`
+    +`<span class="fam-leg-item"><span class="fam-swatch" style="background:${famColor(0.55)}"></span>Building</span>`
+    +`<span class="fam-leg-item"><span class="fam-swatch" style="background:${famColor(1)}"></span>Well-known</span>`
+    +`<span class="fam-leg-item" style="color:var(--color-text-muted)">Bubble size = familiarity · fades to black over ~1 year since a visit</span>`;
 }
 
 function toggleCloseChip(el) {
@@ -15879,8 +15995,15 @@ startAdminPoll();
 <div id="view-visits" class="view" style="padding:16px 20px">
   <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
     <h2 style="font:400 22px var(--font-display);color:var(--color-heading);margin:0">Mill visits</h2>
-    <button class="btn-acct-add" style="margin-left:auto" onclick="openVisitModal()">＋ Log a visit</button>
+    <div class="vtoggle" style="margin-left:auto">
+      <button class="vtoggle-btn active" id="vtoggle-list" onclick="visitsSetView('list')">▤ Log</button>
+      <button class="vtoggle-btn" id="vtoggle-map" onclick="visitsSetView('map')">🗺️ Familiarity</button>
+    </div>
+    <button class="btn-acct-add" onclick="openVisitModal()">＋ Log a visit</button>
   </div>
+
+  <!-- LIST -->
+  <div id="visits-list-panel">
   <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 14px;max-width:840px">
     Who has been to which mill, when, and what they looked at. Click a row to edit; use the header ▾ on
     Date to filter a range. (Attached visit reports come later — the link field is ready for them.)</p>
@@ -15911,6 +16034,33 @@ startAdminPoll();
       <tbody id="visits-table-body"></tbody>
     </table>
   </div>
+  </div><!-- /visits-list-panel -->
+
+  <!-- FAMILIARITY MAP -->
+  <div id="visits-map-panel" style="display:none">
+    <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 12px;max-width:900px">
+      How well TSI knows each mill, over time. Bubbles grow with visit time and <b>fade to black over a year</b> —
+      black dots are mills that don't know us. Drag the timeline (or press Play) to watch familiarity build and decay.
+      Pick a person to see <b>their</b> familiarity instead of the team's.</p>
+    <div class="fam-controls">
+      <select class="filter-select" id="fam-person" onchange="renderFamiliarityMap()"><option value="">Whole team</option></select>
+      <select class="filter-select" id="fam-industry" onchange="renderFamiliarityMap()">
+        <option value="">All lines</option><option value="biomass">Biomass</option><option value="engwood">Engineered wood</option><option value="torref">Torrefaction</option>
+      </select>
+      <select class="filter-select" id="fam-cust" onchange="renderFamiliarityMap()">
+        <option value="">All customers</option><option value="current">✅ Current</option><option value="potential">🎯 Potential</option><option value="prospective">Prospective</option>
+      </select>
+      <select class="filter-select" id="fam-account" onchange="renderFamiliarityMap()"><option value="">All accounts</option></select>
+      <span style="flex:1"></span>
+      <button class="select" id="fam-play" onclick="famTogglePlay()" title="Animate the timeline">▶ Play</button>
+    </div>
+    <div class="fam-scrub-row">
+      <input type="range" id="fam-scrub" min="0" max="100" value="100" oninput="famScrub(this.value)">
+      <span class="fam-date mono" id="fam-date"></span>
+    </div>
+    <div id="fam-map" style="height:500px;max-width:1000px;border-radius:var(--radius-md);background:var(--color-bg);overflow:hidden"></div>
+    <div class="fam-legend" id="fam-legend"></div>
+  </div>
 </div>
 
 <!-- Log-a-visit modal -->
@@ -15919,14 +16069,15 @@ startAdminPoll();
     <h3 id="vf-title">Log a visit</h3>
     <div class="am-row am-row-2">
       <div><label class="am-label">Date</label><input id="vf-date" type="date"></div>
-      <div><label class="am-label">Type</label>
-        <select id="vf-type" class="dselect">
-          <option value="visit">🚩 Visit</option>
-          <option value="call">📞 Call</option>
-          <option value="meeting">👥 Meeting</option>
-          <option value="sample">🧪 Sample</option>
-        </select>
-      </div>
+      <div><label class="am-label">Days on site <span class="vf-hint">— longer = more familiarity</span></label><input id="vf-days" type="number" min="0.5" step="0.5" value="1"></div>
+    </div>
+    <div class="am-row"><label class="am-label">Type</label>
+      <select id="vf-type" class="dselect">
+        <option value="visit">🚩 Visit</option>
+        <option value="call">📞 Call</option>
+        <option value="meeting">👥 Meeting</option>
+        <option value="sample">🧪 Sample</option>
+      </select>
     </div>
     <div class="am-row"><label class="am-label">Mill / site</label>
       <select id="vf-site" class="dselect"><option value="">— select a mill / site —</option></select>
