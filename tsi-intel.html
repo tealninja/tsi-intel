@@ -1778,6 +1778,10 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); white-space:nowrap; }
 .accf-chip:hover { border-color:var(--tsi-teal); }
 .accf-chip.active { background:var(--tsi-teal); border-color:var(--tsi-teal); color:#fff; }
+/* corporate/HQ map marker — office building, bordered in the group colour */
+.acct-corp-marker { background:none; border:none; }
+.acm-corp { display:flex; align-items:center; justify-content:center; width:26px; height:26px; font-size:15px;
+  background:#fff; border:2px solid var(--mc,#19446C); border-radius:6px; line-height:1; }
 .addr-radios { display:flex; flex-direction:column; gap:4px; margin:4px 0 2px; }
 .addr-radios label { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--color-text-primary); cursor:pointer; font-weight:400; text-transform:none; letter-spacing:0; }
 .addr-radios input[type=radio] { accent-color:var(--tsi-teal); }
@@ -3634,7 +3638,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#158 · 2026-07-16 · slide logo→top-right + compact section rows + no weather on HQ';
+const APP_BUILD = '#159 · 2026-07-16 · deck-builder filters + map corporate icons/filter';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -13174,6 +13178,10 @@ function renderAcctMap() {
 
   let sites = allMatchingSites.filter(s => s.lat && s.lon);
   const sitesWithoutCoords = allMatchingSites.filter(s => !s.lat || !s.lon);
+  // Location-type filter: plants (non-corporate) vs corporate/HQ offices.
+  const locTypeFilter = document.getElementById('acct-map-loctype-filter')?.value || '';
+  if (locTypeFilter === 'corporate') sites = sites.filter(s => s.locType === 'corporate');
+  else if (locTypeFilter === 'plant') sites = sites.filter(s => s.locType !== 'corporate');
 
   // ── Match open deals to each site via acctMatch ──────────────
   const openDeals = DATA.filter(o => o.status === 'O');
@@ -13238,9 +13246,19 @@ function renderAcctMap() {
 
     // Click just opens the popup with info — no auto-navigation.
     // Navigation only happens via the explicit "Go to account" button above.
-    const marker = L.circleMarker([s.lat, s.lon], {
-      radius, fillColor: color, color: 'white', weight, fillOpacity,
-    }).bindPopup(popupHtml);
+    // Corporate / HQ locations render as an office-building marker so they read
+    // distinctly from production plants (circles sized by open-deal value).
+    let marker;
+    if (s.locType === 'corporate') {
+      marker = L.marker([s.lat, s.lon], { icon: L.divIcon({
+        className: 'acct-corp-marker',
+        html: `<span class="acm-corp" style="--mc:${color}" title="${qattr(s.name)}">🏢</span>`,
+        iconSize: [26,26], iconAnchor: [13,13] }) }).bindPopup(popupHtml);
+    } else {
+      marker = L.circleMarker([s.lat, s.lon], {
+        radius, fillColor: color, color: 'white', weight, fillOpacity,
+      }).bindPopup(popupHtml);
+    }
     marker.addTo(_acctMap);
     _acctMapMarkers.push(marker);
     bounds.push([s.lat, s.lon]);
@@ -15860,6 +15878,11 @@ startAdminPoll();
           All Account Locations
           <span id="acct-map-filter-label" style="font-size:11px;font-weight:400;color:var(--color-text-muted);margin-left:8px"></span>
         </div>
+        <select id="acct-map-loctype-filter" onchange="renderAcctMap()" class="filter-select" title="Show plants, corporate offices, or both">
+          <option value="">All locations</option>
+          <option value="plant">🏭 Plants only</option>
+          <option value="corporate">🏢 Corporate only</option>
+        </select>
         <select id="acct-map-plant-filter" onchange="renderAcctMap()" class="filter-select">
           <option value="">All Plant Types</option>
         </select>
@@ -16970,6 +16993,17 @@ startAdminPoll();
 .pb-btn{background:var(--pb-btn);color:var(--pb-btnink);border:1px solid var(--pb-line2);border-radius:7px;padding:7px 13px;font-size:12.5px;cursor:pointer}
 .pb-btn:hover{background:var(--pb-panel2)}
 .pb-btn.primary{background:linear-gradient(135deg,#19446c,#00929f);color:#fff;border:none;font-weight:700}
+.pb-filters{display:flex;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid var(--pb-line2);flex-wrap:wrap}
+.pb-filter-search{flex:0 1 260px;background:var(--pb-card);color:var(--pb-btnink);border:1px solid var(--pb-line2);border-radius:7px;padding:6px 10px;font-size:12.5px;outline:none}
+.pb-filter-search:focus{border-color:#00929f}
+.pb-filter-sel{background:var(--pb-card);color:var(--pb-btnink);border:1px solid var(--pb-line2);border-radius:7px;padding:6px 9px;font-size:12.5px;cursor:pointer}
+.pb-filter-star{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--pb-muted);cursor:pointer}
+.pb-filter-star input{accent-color:#00929f}
+.pb-filter-clear{background:none;border:1px solid var(--pb-line2);color:var(--pb-muted);border-radius:7px;padding:5px 11px;font-size:12px;cursor:pointer}
+.pb-filter-clear:hover{border-color:#00929f;color:#00929f}
+.pb-filter-count{margin-left:auto;font-size:11.5px;color:var(--pb-faint);font-variant-numeric:tabular-nums}
+.pb-card.pb-filtered{display:none}
+.pb-col-nomatch{opacity:.5}
 .pb-board{flex:1 1 auto;display:flex;gap:14px;padding:16px 18px;overflow-x:auto;align-items:flex-start}
 .pb-col{flex:0 0 300px;max-width:300px;background:var(--pb-panel);border:1px solid var(--pb-colline);border-radius:12px;
   display:flex;flex-direction:column;max-height:100%}
@@ -17010,6 +17044,17 @@ startAdminPoll();
     <button class="pb-btn" onclick="presoResetCfg()" title="Clear all overrides — back to auto-classification">↺ Reset to auto</button>
     <button class="pb-btn" onclick="closePresoBuilder()">Close</button>
     <button class="pb-btn primary" onclick="presoPresentFromBuilder()">▶ Present</button>
+  </div>
+  <div class="pb-filters" id="pb-filters">
+    <input class="pb-filter-search" id="pb-f-q" placeholder="🔍 Filter — account, type, notes…" oninput="pbSetFilter()">
+    <select class="pb-filter-sel" id="pb-f-stage" onchange="pbSetFilter()">
+      <option value="">All stages</option>
+      <option value="Lead">Lead</option><option value="Qualified">Qualified</option><option value="Proposal">Proposal</option>
+      <option value="Negotiation">Negotiation</option><option value="Verbal">Verbal</option><option value="PO Received">PO Received</option>
+    </select>
+    <label class="pb-filter-star"><input type="checkbox" id="pb-f-star" onchange="pbSetFilter()"> ⭐ Starred only</label>
+    <button class="pb-filter-clear" id="pb-f-clear" onclick="pbClearFilter()" style="display:none">Clear</button>
+    <span class="pb-filter-count" id="pb-f-count"></span>
   </div>
   <div class="pb-board" id="pb-board" onclick="if(!event.target.closest('.pb-card')) pbClearSelection()"></div>
 </div>
@@ -19762,6 +19807,7 @@ async function openPresoBuilder(){
   document.getElementById('pb-board').innerHTML='<div style="margin:auto;color:var(--pb-faint)">Loading opportunities…</div>';
   await presoBuildBoard();                       // presoLoadOverrides() pulls the authoritative copy from D1
   _pbSelected.clear(); _pbAnchor=null;            // fresh selection each open
+  pbClearFilter();                                // start unfiltered (also renders)
   pbSetSaveState(presoSectStore ? presoSectStore.mode() : 'local');
   pbRender();
 }
@@ -19800,21 +19846,52 @@ async function presoBuildBoard(){
   _presoBoard=cols;
 }
 
+// Deck-builder filters — dim/hide cards that don't match so the right opps are
+// easy to grab. Filtering never changes the arrangement; it's a view lens only.
+let _pbFilter={ q:'', stage:'', starred:false };
+function pbFilterActive(){ return !!(_pbFilter.q || _pbFilter.stage || _pbFilter.starred); }
+function pbMatch(it){
+  if(!it) return false;
+  const f=_pbFilter;
+  if(f.starred && !(typeof starredIds!=='undefined' && starredIds.has(it.id))) return false;
+  if(f.stage){ if(it.__quote) return false; if((it.stage||'')!==f.stage) return false; }
+  if(f.q){ const q=f.q.toLowerCase(); if(![it.acct,it.type,it.stage,it.notes,it.id].some(v=>String(v||'').toLowerCase().includes(q))) return false; }
+  return true;
+}
+function pbSetFilter(){
+  _pbFilter.q=(document.getElementById('pb-f-q')?.value||'').trim();
+  _pbFilter.stage=document.getElementById('pb-f-stage')?.value||'';
+  _pbFilter.starred=!!document.getElementById('pb-f-star')?.checked;
+  const clr=document.getElementById('pb-f-clear'); if(clr) clr.style.display=pbFilterActive()?'':'none';
+  pbRender();
+}
+function pbClearFilter(){
+  _pbFilter={ q:'', stage:'', starred:false };
+  const q=document.getElementById('pb-f-q'); if(q) q.value='';
+  const st=document.getElementById('pb-f-stage'); if(st) st.value='';
+  const sr=document.getElementById('pb-f-star'); if(sr) sr.checked=false;
+  const clr=document.getElementById('pb-f-clear'); if(clr) clr.style.display='none';
+  pbRender();
+}
 function pbRender(){
   const board=document.getElementById('pb-board'); if(!board||!_presoBoard) return;
   // prune selection to ids still on the board
   const live=new Set(pbVisualOrder()); [..._pbSelected].forEach(id=>{ if(!live.has(id)) _pbSelected.delete(id); });
+  const active=pbFilterActive(); let totalMatch=0, totalAll=0;
   board.innerHTML=PB_COLS.map(c=>{
     const ids=_presoBoard[c.key]||[];
+    const matched=active?ids.filter(id=>pbMatch(_presoItemMap[id])).length:ids.length;
+    totalMatch+=matched; totalAll+=ids.length;
     const cards=ids.map(id=>pbCard(id,c)).join('') || `<div class="pb-empty">${c.key==='excluded'?'Everything is in the deck':'Drop opportunities here'}</div>`;
     const val=ids.reduce((a,id)=>a+(Number(_presoItemMap[id]?.val)||0),0);
-    return `<div class="pb-col ${c.key==='excluded'?'excluded':''}" style="--c:${c.acc}" data-col="${c.key}"
+    return `<div class="pb-col ${c.key==='excluded'?'excluded':''}${active&&!matched?' pb-col-nomatch':''}" style="--c:${c.acc}" data-col="${c.key}"
         ondragover="pbColOver(event,'${c.key}')" ondragleave="pbColLeave(event)" ondrop="pbDrop(event,'${c.key}')">
       <div class="pb-col-h"><span class="pb-col-dot" style="background:${c.acc}"></span>
         <span class="pb-col-nm">${qesc(c.label)}</span>
-        <span class="pb-col-ct">${ids.length}${val?' · '+presoMoney(val):''}</span></div>
+        <span class="pb-col-ct">${active?matched+'/'+ids.length:ids.length}${val?' · '+presoMoney(val):''}</span></div>
       <div class="pb-col-body">${cards}</div></div>`;
   }).join('');
+  const fc=document.getElementById('pb-f-count'); if(fc) fc.textContent = active ? (totalMatch+' of '+totalAll+' shown') : '';
   pbUpdateSelectionUI();   // re-apply multi-select highlight after re-render
 }
 function pbCard(id,col){
@@ -19823,7 +19900,8 @@ function pbCard(id,col){
   const meta=it.__quote
     ? `${it.status?qesc(it.status):'Quote'}${it.val?' · '+presoMoney(it.val):''}`
     : `${qesc(it.stage||'—')}${it.val?' · '+presoMoney(it.val):''}${it.close?' · '+qesc(it.close):''}`;
-  return `<div class="pb-card${_pbSelected.has(id)?' selected':''}" draggable="true" data-id="${qattr(id)}" style="--c:${acc}"
+  const hidden = pbFilterActive() && !pbMatch(it);
+  return `<div class="pb-card${_pbSelected.has(id)?' selected':''}${hidden?' pb-filtered':''}" draggable="true" data-id="${qattr(id)}" style="--c:${acc}"
       onclick="pbCardClick(event,'${qattr(id)}')" ondragstart="pbDragStart(event,'${qattr(id)}')" ondragend="pbDragEnd(event)">
     <div class="a"><span class="grip">⠿</span>${(!it.__quote && typeof starredIds!=='undefined' && starredIds.has(it.id))?'<span class="pb-star" title="Starred opportunity">⭐</span>':''}${qesc(it.acct)}${it.__quote?' <span class="pb-badge">SAMPLE</span>':''}</div>
     <div class="t">${qesc(it.type||'')}</div>
