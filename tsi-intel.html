@@ -652,6 +652,8 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 .map-popup-title { font-weight:500; color:var(--tsi-deep-blue); margin-bottom:3px; }
 .map-popup-val { color:var(--tsi-teal); font-weight:500; }
 .map-popup-meta { color:var(--color-text-muted); font-size:11px; margin-top:2px; }
+.map-popup-link { color:var(--tsi-teal); cursor:pointer; font-weight:500; }
+.map-popup-link:hover { text-decoration:underline; }
 
 @media(max-width:900px){ .charts-grid{grid-template-columns:1fr 1fr} }
 @media(max-width:600px){ .charts-grid{grid-template-columns:1fr} }
@@ -3638,7 +3640,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#160 · 2026-07-17 · bill/ship-to Attn + dept line + full-name country (intl addresses)';
+const APP_BUILD = '#161 · 2026-07-17 · dashboard-map popup: account + opportunity links';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5780,7 +5782,7 @@ function updateMap(rows) {
       opacity: maxProb >= 0.75 ? 1 : 0.7,
     });
 
-    const names = opps.map(o=>`<div style="margin:2px 0">• ${o.acct} — ${o.type.length>30?o.type.slice(0,28)+'…':o.type}</div>`).join('');
+    const names = opps.map(o=>`<div style="margin:2px 0">• <a class="map-popup-link" onclick="mapPopupGoToAccount('${o.id}')" title="Go to this account">${o.acct}</a> — <a class="map-popup-link" onclick="mapPopupOpenOpp('${o.id}')" title="Open this opportunity">${o.type.length>30?o.type.slice(0,28)+'…':o.type}</a></div>`).join('');
     marker.bindPopup(`
       <div class="map-popup-title">${loc}</div>
       <div class="map-popup-val">${opps.length} opp${opps.length>1?'s':''} · $${(totalVal/1e6).toFixed(1)}M</div>
@@ -9626,6 +9628,26 @@ function selectAcctSite(siteId) {
   renderAcctMain(siteId);
   acctSetDetailOpen(true);   // mobile: swap from the list to the site detail
 }
+
+// From a dashboard-map popup: jump to the account/site behind an opportunity.
+// Resolves the opp's keyed site (acctId) or matches by account name; falls back
+// to opening the opportunity itself if no account record is found.
+function mapPopupGoToAccount(oppId){
+  const o = DATA.find(x => x.id === oppId); if(!o) return;
+  let siteId = o.acctId || '';
+  if(!siteId){
+    try{
+      const accts = getAccounts().accounts;
+      const m = accts.find(a => a.acctMatch && (o.acct===a.acctMatch || (o.acct||'').includes(a.acctMatch) || (a.acctMatch||'').includes(o.acct||'')))
+             || accts.find(a => a.name===o.acct);
+      if(m) siteId = m.id;
+    }catch(_){}
+  }
+  if(siteId){ showTab('accounts'); selectAcctSite(siteId); }
+  else if(typeof openOppDrawer==='function'){ openOppDrawer(oppId); }   // no account match — open the opp
+}
+// From a dashboard-map popup: open an opportunity's edit drawer directly.
+function mapPopupOpenOpp(oppId){ if(typeof openOppDrawer==='function') openOppDrawer(oppId); }
 
 // Mobile master/detail helpers (no-op visual effect on desktop; the class is
 // only consumed by the ≤768px stylesheet).
