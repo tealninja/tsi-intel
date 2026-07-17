@@ -3640,7 +3640,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#162 · 2026-07-17 · fix preso maps/climate — resolve opp→site coords (was fuzzy-mislocating)';
+const APP_BUILD = '#163 · 2026-07-17 · opp→site linker + one-click backfill (auto-link opps to sites)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -3750,6 +3750,11 @@ function oppsNeedingReview(){ return DATA.filter(o => o.status === 'O' && oppMis
 // step-through opens the top row and pages straight down the visible list.
 function oppsNeedingReviewSorted(){ return oppsNeedingReview().sort(oppReviewComparator()); }
 function updateOppGapBadge(){ const el = document.getElementById('opp-gap-badge'); if (el){ const n = oppsNeedingReview().length; el.textContent = n ? '('+n+')' : ''; } }
+function oppReviewBackfill(){
+  const n = (typeof oppBackfillSites==='function') ? oppBackfillSites() : 0;
+  showToast(n ? ('✓ Linked '+n+' opportunit'+(n===1?'y':'ies')+' to their site') : 'No unlinked opportunities matched a site', n?'var(--tsi-succ-green)':'var(--tsi-amber)');
+  renderOppReview(); if(typeof updateOppGapBadge==='function') updateOppGapBadge();
+}
 function openOppReview(){ renderOppReview(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.add('open'); }
 function closeOppReview(){ exitOppFixDock(); const o = document.getElementById('oppreview-overlay'); if (o) o.classList.remove('open'); }
 function renderOppReview(){
@@ -4157,6 +4162,41 @@ function oppParentAccount(o){
   // loose contains-match against known acctMatch keys
   for(const [k,v] of _acctParentCache){ if(k && (key.includes(k) || k.includes(key))) return v; }
   return nm;   // no registry match — group under its own account name
+}
+// Resolve an opportunity to its account SITE record (or null). This is the single
+// opp→site linker: explicit acctId, then acctMatch + city (which disambiguates
+// same-named towns like LP→Newberry MI vs West Fraser→Newberry SC), then an exact
+// location-string match. Geography (coords, climatogram) lives on the site; the
+// opp just points at it. Torrefaction samples have no site.
+function oppSite(o){
+  if(!o) return null;
+  try{
+    const accts=getAccounts().accounts;
+    if(o.acctId){ const s=accts.find(a=>a.id===o.acctId); if(s) return s; }
+    const loc=(o.loc||'').trim().toLowerCase();
+    const acct=(o.acct||'').trim().toLowerCase();
+    const city=loc.split(',')[0].trim();
+    if(acct && city){
+      const s=accts.find(a=>a.parentId && a.acctMatch &&
+        (acct.includes(a.acctMatch.toLowerCase()) || a.acctMatch.toLowerCase().includes(acct)) &&
+        (a.loc||'').trim().toLowerCase().split(',')[0].trim()===city);
+      if(s) return s;
+    }
+    if(loc){ const s=accts.find(a=>a.parentId && (a.loc||'').trim().toLowerCase()===loc); if(s) return s; }
+  }catch(_){}
+  return null;
+}
+// Bulk-link every open opportunity that has no site to its resolved site (persists
+// the acctId FK). Returns the count linked. Non-sample opps only (DATA has no
+// samples — those come from Biocarbon quotes at presentation time).
+function oppBackfillSites(){
+  const unlinked=DATA.filter(o=>o.status==='O' && !o.acctId);
+  const changed=[];
+  unlinked.forEach(o=>{ const s=oppSite(o); if(s){ o.acctId=s.id; o.updatedAt=new Date().toISOString(); o.updatedBy=(typeof getUserInitials==='function'?getUserInitials():'')||'?'; changed.push(o); } });
+  changed.forEach(o=>{ if(typeof markDirty==='function') markDirty(o.id); oppPersist(o); });
+  if(typeof usageLog==='function') usageLog('opp_backfill_sites', changed.length+' linked');
+  if(changed.length && typeof renderPipeline==='function') renderPipeline();
+  return changed.length;
 }
 // Build a roll-up header row that aligns to the LIVE #pip-table columns, so the
 // tree inherits the table's column set, show/hide, resize and widths. Roll-up
@@ -16643,6 +16683,7 @@ startAdminPoll();
 <div class="ship-est-overlay" id="oppreview-overlay" onclick="if(event.target===this)closeOppReview()">
   <div class="ship-est" style="max-width:720px;width:94vw">
     <div class="ship-est-h"><b id="oppreview-title">Review gaps</b><span class="ship-est-sub">open opportunities missing key fields — click one to fix, then it drops off the list</span>
+      <button class="btn btn-teal btn-sm" style="margin-left:auto" onclick="oppReviewBackfill()" title="Key every open opportunity to its site by account + city (fills location/coordinates from the site)">🔗 Auto-link all to sites</button>
       <button class="ship-est-x" onclick="closeOppReview()">✕</button></div>
     <div class="ship-est-body" id="oppreview-body"></div>
   </div>
@@ -19113,27 +19154,9 @@ function presoCoords(loc){
 // dictionary — e.g. "CM - Quitman" landed in the Atlantic.)
 function presoJobCoords(o){
   if(o && o.lat!=null && o.lon!=null) return [o.lat, o.lon];
-  try{
-    const accts=getAccounts().accounts;
-    // 1) explicitly keyed site
-    if(o && o.acctId){ const s=accts.find(a=>a.id===o.acctId); if(s && s.lat && s.lon) return [s.lat, s.lon]; }
-    const loc=(presoLoc(o)||'').trim().toLowerCase();
-    const acct=(o&&o.acct||'').trim().toLowerCase();
-    const city=loc.split(',')[0].trim();
-    // 2) match a site by account (acctMatch) + city — this disambiguates same-named
-    //    towns (e.g. LP → Newberry MI vs West Fraser → Newberry SC) which a plain
-    //    loc-string lookup cannot, since opp locations often omit the state.
-    if(acct && city){
-      const s=accts.find(a=>a.lat && a.lon && a.acctMatch &&
-        (acct.includes(a.acctMatch.toLowerCase()) || a.acctMatch.toLowerCase().includes(acct)) &&
-        (a.loc||'').trim().toLowerCase().split(',')[0].trim()===city);
-      if(s) return [s.lat, s.lon];
-    }
-    // 3) exact location-string match to a site
-    if(loc && loc!=='—'){ const s=accts.find(a=>a.lat && a.lon && (a.loc||'').trim().toLowerCase()===loc); if(s) return [s.lat, s.lon]; }
-  }catch(_){}
-  // 4) fuzzy LOC_COORDS dictionary (last resort)
-  return presoCoords(presoLoc(o));
+  const s=(typeof oppSite==='function') ? oppSite(o) : null;   // geography lives on the site
+  if(s && s.lat && s.lon) return [s.lat, s.lon];
+  return presoCoords(presoLoc(o));                             // fuzzy dictionary (last resort)
 }
 
 async function presoLoadOverrides(){
