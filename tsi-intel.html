@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#167 · 2026-07-17 · quote/budgetary-estimate toggle (budgetary default: no T&Cs / acceptance)';
+const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -6687,6 +6687,7 @@ function openOppDrawer(editId, opts) {
   // Open
   document.getElementById('opp-drawer-overlay').classList.add('open');
   document.getElementById('opp-drawer').classList.add('open');
+  if(typeof oppSyncLocationFromSite==='function') oppSyncLocationFromSite();   // lock location to the linked site (editable if unlinked)
   applyFixHighlights();   // highlight missing fields when opened from the gap-review fix flow
   const _db = document.querySelector('#opp-drawer .drawer-body'); if(_db) _db.scrollTop = 0;  // reset scroll when paging
   if(editId) {
@@ -14409,47 +14410,42 @@ function populateOppAccountOptions() {
 function onOppAcctInput(typedName) {
   const match = (window._oppAcctNameToRecord || {})[typedName.trim()];
   const idField = document.getElementById('d-acct-id');
-  if (!match) {
-    if (idField) idField.value = '';
-    return;
-  }
-  if (idField) idField.value = match.id;
-
-  // Autofill the opportunity's location from the account's site — but ONLY when
-  // the deal has no location yet, so we never clobber one the user set. It stays
-  // fully editable afterward.
-  const locSearch = document.getElementById('d-loc-search');
-  const hasLoc = (_drawerLat && _drawerLon) || (locSearch && locSearch.value.trim());
-  if (hasLoc) return;
-
-  // Location source: the account itself if geocoded, else its single geocoded
-  // child site (multiple sites is ambiguous — leave that for the user to pick).
-  let src = null;
-  if (match.lat && match.lon) src = match;
-  else if (!match.parentId) {
-    const kids = getAccounts().accounts.filter(a => a.parentId === match.id && a.lat && a.lon);
-    if (kids.length === 1) src = kids[0];
-  }
-  if (!src) return;
-
-  const parts   = (src.loc || '').split(',').map(s => s.trim()).filter(Boolean);
-  const city    = src.city    || (parts.length > 1 ? parts[0] : '') || '';
-  const state    = src.state  || (parts.length > 2 ? parts[1] : '') || '';
-  const country = src.country || parts[parts.length - 1] || '';
-  if (locSearch) locSearch.value = src.loc || [city, state, country].filter(Boolean).join(', ');
-  const cityEl=document.getElementById('d-city');    if (cityEl)    cityEl.value    = city;
-  const stateEl=document.getElementById('d-state');  if (stateEl)   stateEl.value   = state;
-  const countryEl=document.getElementById('d-country'); if (countryEl) countryEl.value = country;
-
-  if (src.lat && src.lon) {
+  if (idField) idField.value = match ? match.id : '';
+  oppSyncLocationFromSite();
+}
+// The opportunity inherits its geography from the linked account/site — geography
+// lives on the site, the opp just points at it. When a site is linked the location
+// fields fill from it and lock (read-only); with no link (e.g. samples) they stay
+// editable so a location can still be entered.
+function oppSyncLocationFromSite(){
+  const acctId = document.getElementById('d-acct-id')?.value || '';
+  const ids = ['d-loc-search','d-city','d-state','d-country'];
+  const setRO = (ro) => { ids.forEach(id=>{ const el=document.getElementById(id); if(el){ el.readOnly=ro; el.style.background=ro?'var(--color-bg-subtle,#f4f5f6)':''; el.style.cursor=ro?'default':''; } });
+    const btn=document.querySelector('#dsec-location .dloc-geo-btn'); if(btn) btn.style.display=ro?'none':''; };
+  if(!acctId){ setRO(false); return; }
+  const accts = getAccounts().accounts;
+  let src = accts.find(a=>a.id===acctId);
+  if(src && !(src.lat&&src.lon) && !src.parentId){ const kids=accts.filter(a=>a.parentId===src.id&&a.lat&&a.lon); if(kids.length===1) src=kids[0]; }
+  if(!src){ setRO(false); return; }
+  const parts = (src.loc||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const city = src.city || (parts.length>1?parts[0]:'') || '';
+  const state = src.state || (parts.length>2?parts[1]:'') || '';
+  const country = src.country || parts[parts.length-1] || '';
+  const ls=document.getElementById('d-loc-search'); if(ls) ls.value = src.loc || [city,state,country].filter(Boolean).join(', ');
+  const ce=document.getElementById('d-city');    if(ce) ce.value = city;
+  const se=document.getElementById('d-state');   if(se) se.value = state;
+  const co=document.getElementById('d-country'); if(co) co.value = country;
+  if(src.lat && src.lon){
     _drawerLat = src.lat; _drawerLon = src.lon;
-    const latEl = document.getElementById('d-lat'); if (latEl) latEl.value = src.lat;
-    window._drawerLocMeta = { label: (locSearch?locSearch.value:'') || (match.name||'account'), approx:false };
-    setDrawerLocStatus('✓ Location from ' + (match.name || 'account') + ' — editable', 'var(--tsi-succ-green)');
-    setTimeout(() => initDrawerMap(src.lat, src.lon), 200);
-    const o = DATA.find(r => r.id === _drawerEditId);
-    if (!o?._monthlyHigh) drawerFetchWeather(src.lat, src.lon);
+    const latEl=document.getElementById('d-lat'); if(latEl) latEl.value=src.lat;
+    const lonEl=document.getElementById('d-lon'); if(lonEl) lonEl.value=src.lon;
+    window._drawerLocMeta = { label:(ls?ls.value:'')||(src.name||'site'), approx:false };
+    setTimeout(()=>initDrawerMap(src.lat, src.lon), 200);
+    const o=DATA.find(r=>r.id===_drawerEditId);
+    if(!o?._monthlyHigh) drawerFetchWeather(src.lat, src.lon);
   }
+  setRO(true);
+  setDrawerLocStatus('🔒 Inherited from '+(src.name||'the linked site')+' — edit the site to change', 'var(--tsi-teal)');
 }
 
 
