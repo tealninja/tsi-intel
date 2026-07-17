@@ -3638,7 +3638,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#159 · 2026-07-16 · deck-builder filters + map corporate icons/filter';
+const APP_BUILD = '#160 · 2026-07-17 · bill/ship-to Attn + dept line + full-name country (intl addresses)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -14024,14 +14024,16 @@ function siteAddrAccountSearch(which){
 function _addrGet(which,f){ return document.getElementById('s-'+which+'-'+f); }
 function _addrSet(which, a){
   a=a||{};
-  ['street','city','state','zip','country'].forEach(f=>{ const el=_addrGet(which,f); if(el) el.value=a[f]||''; });
+  ['attn','line2','street','city','state','zip','country'].forEach(f=>{ const el=_addrGet(which,f); if(el) el.value=a[f]||''; });
   _addrCoords[which]={ lat:a.lat??null, lon:a.lon??null };
 }
 function _addrRead(which){
   const v=f=>{ const el=_addrGet(which,f); return el?el.value.trim():''; };
   const c=_addrCoords[which]||{};
-  return { street:v('street'), city:v('city'), state:v('state'), zip:v('zip'),
-    country:(v('country')||'US').toUpperCase(), lat:c.lat??null, lon:c.lon??null };
+  // Preserve country as typed for full names (Japan); only 2/3-letter codes upper-case.
+  const cty=v('country'); const country = cty ? (cty.length<=3 ? cty.toUpperCase() : cty) : 'US';
+  return { attn:v('attn'), line2:v('line2'), street:v('street'), city:v('city'), state:v('state'), zip:v('zip'),
+    country, lat:c.lat??null, lon:c.lon??null };
 }
 function _addrFromNominatim(r){
   const a=r.address||{};
@@ -15312,13 +15314,15 @@ startAdminPoll();
           </div>
           <div class="dloc-status" id="s-billto-status"></div>
         </div>
+        <div class="drow"><label>Attn <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-muted)">— recipient name &amp; title</span></label><input class="dinput" id="s-billto-attn" placeholder="e.g. Akito Kasai, Senior Researcher"></div>
+        <div class="drow"><label>Dept / building <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-muted)">— line 2</span></label><input class="dinput" id="s-billto-line2" placeholder="Department, division, or building"></div>
         <div class="drow"><label>Street</label><input class="dinput" id="s-billto-street" placeholder="Street / PO box"></div>
         <div class="drow-3">
           <div class="drow"><label>City</label><input class="dinput" id="s-billto-city"></div>
-          <div class="drow"><label>State</label><input class="dinput" id="s-billto-state"></div>
+          <div class="drow"><label>State / Prefecture</label><input class="dinput" id="s-billto-state"></div>
           <div class="drow"><label>ZIP / Postal</label><input class="dinput" id="s-billto-zip"></div>
         </div>
-        <div class="drow"><label>Country</label><input class="dinput" id="s-billto-country" placeholder="US" maxlength="2" style="text-transform:uppercase"></div>
+        <div class="drow"><label>Country</label><input class="dinput" id="s-billto-country" placeholder="US · or full name (Japan)"></div>
       </div>
       <div class="dsec-sep"></div>
       <!-- Ship-to -->
@@ -15344,13 +15348,15 @@ startAdminPoll();
           </div>
           <div class="dloc-status" id="s-shipto-status"></div>
         </div>
+        <div class="drow"><label>Attn <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-muted)">— recipient name &amp; title</span></label><input class="dinput" id="s-shipto-attn" placeholder="e.g. Akito Kasai, Senior Researcher"></div>
+        <div class="drow"><label>Dept / building <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-muted)">— line 2</span></label><input class="dinput" id="s-shipto-line2" placeholder="Department, division, or building"></div>
         <div class="drow"><label>Street</label><input class="dinput" id="s-shipto-street" placeholder="Street / PO box"></div>
         <div class="drow-3">
           <div class="drow"><label>City</label><input class="dinput" id="s-shipto-city"></div>
-          <div class="drow"><label>State</label><input class="dinput" id="s-shipto-state"></div>
+          <div class="drow"><label>State / Prefecture</label><input class="dinput" id="s-shipto-state"></div>
           <div class="drow"><label>ZIP / Postal</label><input class="dinput" id="s-shipto-zip"></div>
         </div>
-        <div class="drow"><label>Country</label><input class="dinput" id="s-shipto-country" placeholder="US" maxlength="2" style="text-transform:uppercase"></div>
+        <div class="drow"><label>Country</label><input class="dinput" id="s-shipto-country" placeholder="US · or full name (Japan)"></div>
       </div>
       </div><!-- /dsec-body -->
     </div>
@@ -18200,10 +18206,12 @@ function qcUseAccount(rec, contact){
 let _qBillAddr=null;
 function fmtAddr(a){
   if(!a) return '';
+  const attn=a.attn?('Attn: '+a.attn):'';
+  const l2b=a.line2||'';
   const l1=a.street||'';
-  const l2=[a.city,[a.state,a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  const l3=(a.country && a.country!=='US')?a.country:'';
-  return [l1,l2,l3].filter(Boolean).join('\n');
+  const cityLine=[a.city,[a.state,a.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const country=(a.country && a.country!=='US')?a.country:'';
+  return [attn,l2b,l1,cityLine,country].filter(Boolean).join('\n');
 }
 // Source accounts to offer for a quote's bill/ship: the picked account, its
 // parent + siblings, and its child sites.
