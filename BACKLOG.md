@@ -179,6 +179,69 @@ Roles (cumulative ladder):
 
 ## ✅ Recently done
 
+### 🗒️ 2026-07-16/17 session cont. — visits, familiarity, quotes, opp→site (builds #154–#168)
+Branch `claude/reintegrate-features-tablekit` → fast-forwarded to `main` after each change.
+
+**Mill visits (new tab)**
+- [x] **Visits log** — generic `activities` collection (type `visit`; call/meeting/sample reserved).
+  Person(s) + mill/site + date + areas-looked-at (tags) + notes + report link. TableKit list with
+  date-range filter + per-person filter; account/site detail gets a "Field visits" section.
+- [x] **Excel export / import** for the visit log (Date, Days, Type, People, Mill, Account, Looked at,
+  Notes, Report, ID, Site ID). Import resolves site by id or name; upserts by ID.
+- [x] **Familiarity map** — 🗺️ view: every site is a bubble sized/coloured by familiarity at a
+  scrubbed date = Σ(days × linear decay to zero over a year). Fades to **black** over the year since a
+  visit (= mills that don't know us). Timeline scrubber + Play. Filters: person, line of business,
+  customer status, account. Visits gained a **days-on-site** field.
+
+**Presentation / deck**
+- [x] Deck-builder **star** indicator + **filters** (search / stage / ⭐ starred).
+- [x] **Slide footer** → TSI logo + Confidential moved **top-right** (out of the scroll path); section
+  items compacted to a **single row** (tags inline).
+- [x] Deck job maps: **pan/zoom + saved per-mill framing** (`preso_mapviews`).
+- [x] **Package deck → self-contained static HTML** ("⬇ Save HTML"): every slide, charts baked to PNG,
+  framed maps, styles inlined, keyboard/arrow nav. (No export **history** yet — see open items.)
+- [x] **FIX: preso maps/climatograms were mis-located** — used fuzzy `LOC_COORDS` on the opp's loc
+  string. Now `presoJobCoords`/`oppSite` resolve the real **site** coords (acctId → acctMatch+city →
+  exact loc), disambiguating same-named towns (LP→Newberry MI vs West Fraser→Newberry SC).
+
+**Opp → site model**
+- [x] **`oppSite(o)` linker + one-click backfill** ("🔗 Auto-link all to sites" in the opp gap review) —
+  keyed 57/73 open opps to their site (persists acctId).
+- [x] **Opp location inherits (read-only) from the linked site**; unlinked/sample opps stay editable.
+
+**Accounts**
+- [x] Corporate/HQ locations: **no climatogram** (weather is a plant concern); **office-building
+  markers** on the accounts map + an **All / Plants / Corporate** filter.
+- [x] Bill/ship-to gained **Attn + Dept/building (line 2)** and a **full-name Country** (Japan) — the
+  geocoder resolves Asia poorly; addresses now round-trip (Kobe Steel example).
+- [x] **Industry is a multi-tag editor** (confirmed live — was a deploy-lag confusion, not a code gap).
+
+**Quotes**
+- [x] **Fixed line-item column alignment** (unit-price field was too narrow → truncated prices).
+- [x] **Quote / Budgetary-estimate toggle** — **budgetary is the default** (no T&Cs, no acceptance
+  line; "planning only" note). Quotation = full actionable doc. Applies to Print/PDF + Word.
+
+**Dashboard map**
+- [x] Location popup: opportunities now **link** — account name → the account, project type → the opp drawer.
+
+**Housekeeping**
+- [x] Header build stamp slimmed to the number; logos back onto **white** + upload as **PNG** (no black).
+
+**Open / next (raised, not yet built)**
+- [ ] **Slides: commissioning key** (white=not included, green=included) + generalize "Scope of Supply"
+  into Engineering / Equipment / Controls / Mechanical / Electrical / Commissioning inclusions
+  (+ possible products/equipment section).
+- [ ] **Quote from opportunity** — "start from opp" picker pulling account/contact/bill-ship/location/
+  scope, linking the quote back to the opp.
+- [ ] **Accounting currency format** in the quote pricing table (symbol flush-left, amount right-aligned).
+- [ ] **Export history for "Save HTML"** — archive each deck export (timestamp + slide count), re-downloadable.
+- [ ] Refresh the Google Doc from this BACKLOG.
+
+**Known follow-ups**
+- [ ] Deleting an opp doesn't clean its legacy KV mirror (harmless now).
+- [ ] Opportunities are JSON blobs in the D1 `collections` table — could promote to a real table.
+- [ ] Traffic **Unassigned** column / familiarity-map **black dots** are the natural "needs attention" inbox.
+
 ### 🗒️ 2026-07-16 session — pipeline tree, traffic, preso & polish (raised by JT, builds #135–#153)
 Branch `claude/reintegrate-features-tablekit` → fast-forwarded to `main` after each change.
 
