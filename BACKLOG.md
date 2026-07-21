@@ -54,8 +54,20 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   (paste a free ORS key in Trip settings → live road times; no key → straight-line estimate,
   legs marked `~`). Client-side key for now; **proxy through the tsi-intel-api worker on merge**.
   The N×N matrix also sets up a future "suggest order" (nearest-neighbour) button.
-- [ ] **Real road geometry on the map** — ORS Directions returns leg polylines; draw the
-  actual road path for car legs instead of straight lines (follow-up; matrix has no geometry).
+- [x] **Key-free real road times + geometry (OSRM)** — default road engine is now the OSRM
+  demo server (`router.project-osrm.org`, no key): per car leg it returns real duration +
+  distance **and the route geometry drawn on the map** (real roads, not straight lines),
+  cached by coord-pair. ORS key stays as an optional override; straight-line ÷80 is the
+  offline fallback (legs marked `~`). Status line reflects OSRM / ORS / estimate.
+- [x] **Duplicate a stop** — ⧉ button + **Ctrl/Alt-drag to copy** (e.g. a return airport you
+  pass through twice). Cloning keeps label/coords/kind, new id.
+- [x] **Airport-base grouping bar** — consecutive stops sharing the same nearest-airport
+  catchment get a teal vertical bar labelled with the IATA (+ hotel if you're staying there),
+  e.g. everything based out of BRU. Auto-computed from `nearestAirport()`.
+- [ ] **Drag a whole airport-base block together** — grip on the cluster bar to move the
+  entire catchment group (all its stops) to a new position at once, not one stop at a time.
+- [ ] **Real airport geometry** is straight-line for plane legs (fine); road geometry only
+  needs OSRM which is already wired.
 - [ ] **Airports** — swap Nominatim airport lookup for the **OurAirports** open dataset
   (IATA + coords + large/medium filter; the flight fetch needs IATA anyway). Airport-filter
   UI (which airports to consider per city); carrier filter **default-inclusive** in Europe

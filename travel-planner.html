@@ -117,7 +117,11 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .mill-row .sub{color:var(--color-text-muted);font-size:11px;margin-left:auto}
 
 /* itinerary list */
-.stops{display:flex;flex-direction:column;gap:0}
+.stops{position:relative;display:flex;flex-direction:column;gap:0;padding-left:24px}
+/* cluster grouping bar — connects consecutive stops in one car "leg" (split at flights) */
+.cluster-bar{position:absolute;left:17px;width:3px;border-radius:2px;background:var(--tsi-teal);opacity:.45;pointer-events:none}
+.cluster-lbl{position:absolute;left:2px;width:12px;writing-mode:vertical-rl;font-size:9px;letter-spacing:.02em;
+  color:var(--tsi-teal);white-space:nowrap;overflow:hidden;opacity:.85;pointer-events:none}
 .leg{display:flex;align-items:center;gap:8px;padding:7px 0 7px 34px;font-size:11.5px;color:var(--color-text-secondary);position:relative}
 .leg::before{content:'';position:absolute;left:21px;top:0;bottom:0;border-left:var(--hair) dashed var(--color-border-mid)}
 .leg-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);flex-shrink:0}
@@ -155,8 +159,11 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .stop .meta input.dur{width:52px;text-align:right}
 .stop .meta .t{font-size:10px;color:var(--color-text-muted)}
 .chip-fixed{font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(25,68,108,.1);color:var(--tsi-deep-blue)}
-.stop .x{background:transparent;border:none;color:var(--color-text-muted);font-size:15px;line-height:1;padding:0 2px}
+.stop .rowbtns{display:flex;flex-direction:column;gap:2px}
+.stop .x,.stop .dup{background:transparent;border:none;color:var(--color-text-muted);font-size:15px;line-height:1;padding:0 2px}
+.stop .dup{font-size:12px}
 .stop .x:hover{color:var(--tsi-coral)}
+.stop .dup:hover{color:var(--tsi-teal)}
 .stop .times{font-family:var(--font-mono);font-size:11px;color:var(--tsi-teal);margin-top:4px;white-space:nowrap}
 .stop .warn{font-size:11px;color:var(--tsi-coral);margin-top:4px}
 .empty{font-size:12.5px;color:var(--color-text-muted);text-align:center;padding:18px 8px;line-height:1.5}
@@ -296,7 +303,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-21c";
+const APP_BUILD = "tp-2026-07-21d";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -490,9 +497,43 @@ function renderStops(res){
         ${s._arrival?`<div class="times">${fmtTime(s._arrival)}–${fmtTime(s._depart)} · ${fmtDayLabel(s._arrival)}</div>`:''}
         ${res.warn[s.id]?`<div class="warn">⚠ ${esc(res.warn[s.id])}</div>`:''}
       </div>
-      <button class="x" onclick="removeStop('${s.id}')" title="Remove">×</button>`;
+      <span class="rowbtns">
+        <button class="x" onclick="removeStop('${s.id}')" title="Remove">×</button>
+        <button class="dup" onclick="duplicateStop('${s.id}')" title="Duplicate this stop (or Ctrl-drag)">⧉</button>
+      </span>`;
     wireDnD(el);
     box.appendChild(el);
+  });
+  drawClusterBars(box);
+}
+/* consecutive stops sharing the same nearest-airport catchment = one "airport base"
+   (e.g. everything based out of AMS). Returns [start,end] index ranges. */
+function airportClusters(){
+  const cl=[]; if(!stops.length) return cl;
+  let start=0;
+  for(let i=1;i<stops.length;i++){
+    if(nearestAirport(stops[i]).iata !== nearestAirport(stops[i-1]).iata){ cl.push([start,i-1]); start=i; }
+  }
+  cl.push([start,stops.length-1]); return cl;
+}
+/* vertical bar grouping each airport-base block, labelled with the IATA (+ hotel if any) */
+function drawClusterBars(box){
+  box.querySelectorAll('.cluster-bar,.cluster-lbl').forEach(x=>x.remove());
+  airportClusters().forEach(([a,b])=>{
+    if(b<=a) return;                                    // ≥2 stops to form a group
+    const f=box.querySelector(`.stop[data-id="${stops[a].id}"]`);
+    const l=box.querySelector(`.stop[data-id="${stops[b].id}"]`);
+    if(!f||!l) return;
+    const top=f.offsetTop, h=l.offsetTop+l.offsetHeight-top;
+    const iata=nearestAirport(stops[a]).iata;
+    let hotel=null; for(let k=a;k<=b;k++){ if(stops[k].kind==='hotel'){ hotel=stops[k].label; break; } }
+    const bar=document.createElement('div'); bar.className='cluster-bar';
+    bar.style.top=top+'px'; bar.style.height=h+'px';
+    bar.title=`Based near ${iata}`+(hotel?` · ${hotel}`:'')+` — ${b-a+1} stops`;
+    box.appendChild(bar);
+    const lbl=document.createElement('div'); lbl.className='cluster-lbl';
+    lbl.style.top=top+'px'; lbl.style.height=h+'px'; lbl.textContent=iata+(hotel?' · '+hotel:'');
+    box.appendChild(lbl);
   });
 }
 
@@ -515,8 +556,13 @@ function renderMap(){
   });
   for(let i=1;i<stops.length;i++){
     const plane=stops[i].mode==='plane';
-    L.polyline([pts[i-1],pts[i]],{color:plane?'rgb(1,94,107)':'rgb(0,146,159)',weight:2,
-      dashArray:plane?'6,6':null,opacity:.8}).addTo(lineLayer);
+    const geom=!plane && geomCache[roadKey(stops[i-1],stops[i])];
+    if(geom){                                    // real road path (OSRM)
+      L.polyline(geom,{color:'rgb(0,146,159)',weight:3,opacity:.75}).addTo(lineLayer);
+    } else {                                     // straight line (plane leg, or road not fetched yet)
+      L.polyline([pts[i-1],pts[i]],{color:plane?'rgb(1,94,107)':'rgb(0,146,159)',weight:2,
+        dashArray:plane?'6,6':null,opacity:.8}).addTo(lineLayer);
+    }
   }
   if(pts.length) map.fitBounds(pts,{padding:[40,40],maxZoom:9});
 }
@@ -588,34 +634,59 @@ function renderTimeline(res){
 
 /* ── recompute all ─────────────────────────────────────────── */
 function renderAll(){ const res=computeItinerary(); renderStops(res); renderMap(); renderTimeline(res); }
-function recompute(){ renderAll(); save(); maybeRefreshMatrix(); }
+function recompute(){ renderAll(); save(); updateRoadStatus(); refreshRoads(); maybeRefreshMatrix(); }
 
-/* ── real drive times via OpenRouteService matrix (optional key) ──
-   One POST returns every pairwise car duration/distance, so a reorder needs no
-   re-fetch. No key → straight-line estimate. Client-side key here; proxy through
-   the tsi-intel-api worker on merge. */
-let roadCache={}, roadSig='', matrixBusy=false;
+/* ── road drive times + geometry ───────────────────────────────
+   Default: OSRM demo server (key-free) — real road duration + distance + the route
+   geometry drawn on the map, per consecutive car leg, cached by coord-pair.
+   Optional: an OpenRouteService key uses the ORS matrix (all pairs in one call,
+   authoritative for durations). Straight-line ÷CAR_KMH is the offline fallback.
+   Client-side here; proxy both through the tsi-intel-api worker on merge. */
+let roadCache={}, geomCache={}, roadSig='', roadSource='est', matrixBusy=false, roadsBusy=false;
 function roadKey(a,b){ return a.lat.toFixed(4)+','+a.lon.toFixed(4)+'>'+b.lat.toFixed(4)+','+b.lon.toFixed(4); }
 function getOrsKey(){ const el=document.getElementById('orsKey'); return el?(el.value||'').trim():''; }
-function onOrsKey(){ roadSig=''; save(); maybeRefreshMatrix(); }
-function updateOrsStatus(state){
+function onOrsKey(){ roadSig=''; recompute(); }
+function updateRoadStatus(){
   const el=document.getElementById('orsStatus'); if(!el) return;
-  if(!getOrsKey()){ el.className='hint2';
-    el.innerHTML=`Using <b>straight-line estimates</b> (÷ ${CAR_KMH} km/h). Paste a free `+
-      `<a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">ORS key</a> for live road times.`; return; }
-  if(state==='loading'){ el.className='hint2'; el.textContent='Fetching live road times…'; return; }
-  if(state==='error'){ el.className='hint2';
-    el.innerHTML='<b style="color:var(--tsi-coral)">ORS request failed</b> — check the key or daily quota. Showing estimates.'; return; }
-  el.className='hint2 live'; el.innerHTML='<b>Live road times</b> via OpenRouteService.';
+  const key=getOrsKey();
+  if(key){
+    if(roadSource==='ors'){ el.className='hint2 live'; el.innerHTML='<b>Live road times</b> — OpenRouteService.'; }
+    else { el.className='hint2'; el.textContent='Fetching OpenRouteService road times…'; }
+    return;
+  }
+  if(roadSource==='osrm'){ el.className='hint2 live';
+    el.innerHTML='<b>Live road times</b> — OSRM. Optional: paste a free '+
+      '<a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">ORS key</a> to use OpenRouteService instead.'; return; }
+  el.className='hint2';
+  el.innerHTML=`Loading live road times… offline it falls back to <b>straight-line estimates</b> (÷ ${CAR_KMH} km/h, marked ~).`;
 }
+/* OSRM demo — per consecutive car leg, key-free; fills geometry + (unless ORS keyed) durations */
+async function refreshRoads(){
+  if(roadsBusy) return;
+  const need=[];
+  for(let i=1;i<stops.length;i++){ if(stops[i].mode!=='car') continue;
+    const k=roadKey(stops[i-1],stops[i]); if(!geomCache[k]) need.push([stops[i-1],stops[i],k]); }
+  if(!need.length) return;
+  roadsBusy=true;
+  try{
+    for(const [a,bb,k] of need){
+      const url=`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${bb.lon},${bb.lat}?overview=full&geometries=geojson`;
+      const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
+      const d=await r.json(); const rt=d&&d.routes&&d.routes[0]; if(!rt) throw new Error('no route');
+      geomCache[k]=rt.geometry.coordinates.map(c=>[c[1],c[0]]);              // [lon,lat] → [lat,lon]
+      if(!getOrsKey() || !roadCache[k]) roadCache[k]={min:rt.duration/60, km:rt.distance/1000, src:'osrm'};
+    }
+    roadsBusy=false; if(roadSource!=='ors') roadSource='osrm'; updateRoadStatus(); renderAll();
+  }catch(e){ roadsBusy=false; updateRoadStatus(); }                          // leave estimates in place offline
+}
+/* OpenRouteService matrix — optional key, all pairs in one POST, authoritative for durations */
 async function maybeRefreshMatrix(){
   const key=getOrsKey();
-  if(!key){ updateOrsStatus('idle'); return; }
-  if(stops.length<2 || matrixBusy) return;
+  if(!key || stops.length<2 || matrixBusy) return;
   const coords=stops.map(s=>[s.lon,s.lat]);          // ORS wants [lon,lat]
   const sig=key+'|'+JSON.stringify(coords);
   if(sig===roadSig) return;
-  roadSig=sig; matrixBusy=true; updateOrsStatus('loading');
+  roadSig=sig; matrixBusy=true; updateRoadStatus();
   try{
     const r=await fetch('https://api.openrouteservice.org/v2/matrix/driving-car',{
       method:'POST', headers:{'Authorization':key,'Content-Type':'application/json'},
@@ -627,11 +698,11 @@ async function maybeRefreshMatrix(){
       if(i===j) continue;
       const dur=d.durations[i][j]; if(dur==null) continue;
       const dist=d.distances?d.distances[i][j]:null;
-      roadCache[roadKey(stops[i],stops[j])]={min:dur/60, km:(dist!=null?dist/1000:haversine(stops[i],stops[j]))};
+      roadCache[roadKey(stops[i],stops[j])]={min:dur/60, km:(dist!=null?dist/1000:haversine(stops[i],stops[j])), src:'ors'};
     }
-    matrixBusy=false; updateOrsStatus('ok'); renderAll();
+    matrixBusy=false; roadSource='ors'; updateRoadStatus(); renderAll();
     maybeRefreshMatrix();                              // catch any change made mid-fetch (no-op if sig unchanged)
-  }catch(e){ matrixBusy=false; updateOrsStatus('error'); }   // keep roadSig so a bad key doesn't hammer
+  }catch(e){ matrixBusy=false; updateRoadStatus(); }   // keep roadSig so a bad key doesn't hammer
 }
 
 /* ── stop mutations ────────────────────────────────────────── */
@@ -650,28 +721,38 @@ function setTiming(id,t){ const s=stops.find(x=>x.id===id); if(s){s.timing=t;rec
 function setArriveBy(id,v){ const s=stops.find(x=>x.id===id); if(s){s.arriveBy=v;recompute();} }
 function setDuration(id,v){ const s=stops.find(x=>x.id===id); if(s){s.duration=+v||0;recompute();} }
 function setLabel(id,v){ const s=stops.find(x=>x.id===id); if(s){ const t=(v||'').trim(); if(t){s.label=t;recompute();} } }
+function cloneStop(s){ const c={...s}; delete c._arrival; delete c._depart; c.id='s'+(uid++); return c; }
+function duplicateStop(id){ const i=stops.findIndex(s=>s.id===id); if(i<0) return;
+  stops.splice(i+1,0,cloneStop(stops[i])); recompute(); }
 
 /* ── drag & drop reorder — shows a "ghost line" at the insertion point ── */
-let dragId=null;
+let dragId=null, dragCopy=false;
 function clearDrop(){ document.querySelectorAll('.stop.drop-above,.stop.drop-below')
   .forEach(x=>x.classList.remove('drop-above','drop-below')); }
 function dropSide(el,e){ const r=el.getBoundingClientRect(); return (e.clientY-r.top)<r.height/2?'above':'below'; }
+function redefaultModes(){ stops.forEach((s,i)=>{ if(i>0 && s.mode==='car' && haversine(stops[i-1],s)>500) s.mode='plane'; }); }
 function wireDnD(el){
-  el.addEventListener('dragstart',e=>{dragId=el.dataset.id;el.classList.add('drag');e.dataTransfer.effectAllowed='move';});
-  el.addEventListener('dragend',()=>{el.classList.remove('drag');clearDrop();});
-  el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';
-    if(el.dataset.id===dragId){clearDrop();return;}      // don't mark the card being dragged
+  el.addEventListener('dragstart',e=>{dragId=el.dataset.id;dragCopy=e.ctrlKey||e.metaKey||e.altKey;
+    el.classList.add('drag');e.dataTransfer.effectAllowed='copyMove';});
+  el.addEventListener('dragend',()=>{el.classList.remove('drag');clearDrop();dragCopy=false;});
+  el.addEventListener('dragover',e=>{e.preventDefault();
+    const copy=dragCopy||e.ctrlKey||e.metaKey||e.altKey; e.dataTransfer.dropEffect=copy?'copy':'move';
+    if(!copy && el.dataset.id===dragId){clearDrop();return;}   // moving onto itself = no-op marker
     const side=dropSide(el,e); clearDrop(); el.classList.add('drop-'+side);});
   el.addEventListener('drop',e=>{e.preventDefault();
+    const copy=dragCopy||e.ctrlKey||e.metaKey||e.altKey;
     const side=dropSide(el,e); clearDrop();
     const from=stops.findIndex(s=>s.id===dragId), to=stops.findIndex(s=>s.id===el.dataset.id);
     if(from<0||to<0){return;}
     let insertAt = side==='above'?to:to+1;
-    const [m]=stops.splice(from,1);
-    if(from<insertAt) insertAt--;                         // account for the removed item
-    stops.splice(insertAt,0,m);
-    stops.forEach((s,i)=>{ if(i>0 && s.mode==='car' && haversine(stops[i-1],s)>500) s.mode='plane'; });
-    recompute();
+    if(copy){                                             // Ctrl/Alt-drag → duplicate the stop
+      stops.splice(insertAt,0,cloneStop(stops[from]));
+    } else {
+      const [m]=stops.splice(from,1);
+      if(from<insertAt) insertAt--;                       // account for the removed item
+      stops.splice(insertAt,0,m);
+    }
+    redefaultModes(); recompute();
   });
 }
 
