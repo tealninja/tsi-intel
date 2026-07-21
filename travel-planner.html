@@ -119,9 +119,11 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 /* itinerary list */
 .stops{position:relative;display:flex;flex-direction:column;gap:0;padding-left:24px}
 /* cluster grouping bar — connects consecutive stops in one car "leg" (split at flights) */
-.cluster-bar{position:absolute;left:17px;width:3px;border-radius:2px;background:var(--tsi-teal);opacity:.45;pointer-events:none}
-.cluster-lbl{position:absolute;left:2px;width:12px;writing-mode:vertical-rl;font-size:9px;letter-spacing:.02em;
-  color:var(--tsi-teal);white-space:nowrap;overflow:hidden;opacity:.85;pointer-events:none}
+.cluster-bar{position:absolute;left:17px;width:4px;border-radius:2px;background:var(--tsi-teal);opacity:.5;cursor:grab}
+.cluster-bar:hover,.cluster-lbl:hover{opacity:1}
+.cluster-bar.gdrag,.cluster-lbl.gdrag{opacity:.3}
+.cluster-lbl{position:absolute;left:1px;width:13px;writing-mode:vertical-rl;font-size:9px;letter-spacing:.02em;
+  color:var(--tsi-teal);white-space:nowrap;overflow:hidden;opacity:.85;cursor:grab}
 .leg{display:flex;align-items:center;gap:8px;padding:7px 0 7px 34px;font-size:11.5px;color:var(--color-text-secondary);position:relative}
 .leg::before{content:'';position:absolute;left:21px;top:0;bottom:0;border-left:var(--hair) dashed var(--color-border-mid)}
 .leg-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);flex-shrink:0}
@@ -303,7 +305,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-21d";
+const APP_BUILD = "tp-2026-07-21e";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -527,14 +529,32 @@ function drawClusterBars(box){
     const top=f.offsetTop, h=l.offsetTop+l.offsetHeight-top;
     const iata=nearestAirport(stops[a]).iata;
     let hotel=null; for(let k=a;k<=b;k++){ if(stops[k].kind==='hotel'){ hotel=stops[k].label; break; } }
+    const gids=stops.slice(a,b+1).map(s=>s.id);
+    const tip=`Based near ${iata}`+(hotel?` · ${hotel}`:'')+` — ${b-a+1} stops · drag to move the whole block`;
     const bar=document.createElement('div'); bar.className='cluster-bar';
-    bar.style.top=top+'px'; bar.style.height=h+'px';
-    bar.title=`Based near ${iata}`+(hotel?` · ${hotel}`:'')+` — ${b-a+1} stops`;
-    box.appendChild(bar);
+    bar.style.top=top+'px'; bar.style.height=h+'px'; bar.title=tip;
+    wireGroupDrag(bar,gids); box.appendChild(bar);
     const lbl=document.createElement('div'); lbl.className='cluster-lbl';
-    lbl.style.top=top+'px'; lbl.style.height=h+'px'; lbl.textContent=iata+(hotel?' · '+hotel:'');
-    box.appendChild(lbl);
+    lbl.style.top=top+'px'; lbl.style.height=h+'px'; lbl.textContent=iata+(hotel?' · '+hotel:''); lbl.title=tip;
+    wireGroupDrag(lbl,gids); box.appendChild(lbl);
   });
+}
+/* drag an entire airport-base block (all its stops) to a new position at once */
+function wireGroupDrag(el,ids){
+  el.draggable=true;
+  el.addEventListener('dragstart',e=>{ dragGroupIds=ids.slice(); dragId=null; dragCopy=false;
+    el.classList.add('gdrag'); e.dataTransfer.effectAllowed='move';
+    try{e.dataTransfer.setData('text/plain','group');}catch(_){}; e.stopPropagation(); });
+  el.addEventListener('dragend',()=>{ el.classList.remove('gdrag'); dragGroupIds=null; clearDrop(); });
+}
+function moveGroup(ids,targetId,side){
+  const set=new Set(ids);
+  if(set.has(targetId)) return;                       // dropped inside the same block
+  const block=stops.filter(s=>set.has(s.id));
+  const rest=stops.filter(s=>!set.has(s.id));
+  const idx=rest.findIndex(s=>s.id===targetId); if(idx<0) return;
+  rest.splice(side==='above'?idx:idx+1,0,...block);
+  stops=rest; redefaultModes(); recompute();
 }
 
 /* ── render: map ───────────────────────────────────────────── */
@@ -726,7 +746,7 @@ function duplicateStop(id){ const i=stops.findIndex(s=>s.id===id); if(i<0) retur
   stops.splice(i+1,0,cloneStop(stops[i])); recompute(); }
 
 /* ── drag & drop reorder — shows a "ghost line" at the insertion point ── */
-let dragId=null, dragCopy=false;
+let dragId=null, dragCopy=false, dragGroupIds=null;
 function clearDrop(){ document.querySelectorAll('.stop.drop-above,.stop.drop-below')
   .forEach(x=>x.classList.remove('drop-above','drop-below')); }
 function dropSide(el,e){ const r=el.getBoundingClientRect(); return (e.clientY-r.top)<r.height/2?'above':'below'; }
@@ -736,12 +756,15 @@ function wireDnD(el){
     el.classList.add('drag');e.dataTransfer.effectAllowed='copyMove';});
   el.addEventListener('dragend',()=>{el.classList.remove('drag');clearDrop();dragCopy=false;});
   el.addEventListener('dragover',e=>{e.preventDefault();
+    if(dragGroupIds){ if(dragGroupIds.includes(el.dataset.id)){clearDrop();return;}
+      const side=dropSide(el,e); clearDrop(); el.classList.add('drop-'+side); return; }
     const copy=dragCopy||e.ctrlKey||e.metaKey||e.altKey; e.dataTransfer.dropEffect=copy?'copy':'move';
     if(!copy && el.dataset.id===dragId){clearDrop();return;}   // moving onto itself = no-op marker
     const side=dropSide(el,e); clearDrop(); el.classList.add('drop-'+side);});
   el.addEventListener('drop',e=>{e.preventDefault();
-    const copy=dragCopy||e.ctrlKey||e.metaKey||e.altKey;
     const side=dropSide(el,e); clearDrop();
+    if(dragGroupIds){ const g=dragGroupIds; dragGroupIds=null; moveGroup(g,el.dataset.id,side); return; }
+    const copy=dragCopy||e.ctrlKey||e.metaKey||e.altKey;
     const from=stops.findIndex(s=>s.id===dragId), to=stops.findIndex(s=>s.id===el.dataset.id);
     if(from<0||to<0){return;}
     let insertAt = side==='above'?to:to+1;

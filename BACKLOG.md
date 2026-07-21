@@ -64,8 +64,9 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
 - [x] **Airport-base grouping bar** — consecutive stops sharing the same nearest-airport
   catchment get a teal vertical bar labelled with the IATA (+ hotel if you're staying there),
   e.g. everything based out of BRU. Auto-computed from `nearestAirport()`.
-- [ ] **Drag a whole airport-base block together** — grip on the cluster bar to move the
-  entire catchment group (all its stops) to a new position at once, not one stop at a time.
+- [x] **Drag a whole airport-base block together** — the cluster bar/IATA label is a grip;
+  dragging it moves the entire catchment group (all its stops, kept intact + ordered) to a
+  new position at once. Drops onto any stop outside the block.
 - [ ] **Real airport geometry** is straight-line for plane legs (fine); road geometry only
   needs OSRM which is already wired.
 - [ ] **Airports** — swap Nominatim airport lookup for the **OurAirports** open dataset
