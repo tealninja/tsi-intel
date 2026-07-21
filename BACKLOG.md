@@ -67,6 +67,11 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
 - [x] **Drag a whole airport-base block together** — the cluster bar/IATA label is a grip;
   dragging it moves the entire catchment group (all its stops, kept intact + ordered) to a
   new position at once. Drops onto any stop outside the block.
+- [x] **Suggest / optimise order** — "↳ Optimise order" button runs nearest-neighbour over
+  the travel-time matrix (real road times where cached, else haversine), keeps stop[0] as the
+  origin, **preserves the relative order of fixed appointments**, and 2-opts when there are no
+  fixed anchors. Shows the travel-time saved. (Heuristic — doesn't yet treat appointment times
+  as hard time-windows; the timing walk still flags an unmeetable fixed stop.)
 - [ ] **Real airport geometry** is straight-line for plane legs (fine); road geometry only
   needs OSRM which is already wired.
 - [ ] **Airports** — swap Nominatim airport lookup for the **OurAirports** open dataset

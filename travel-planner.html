@@ -85,6 +85,13 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .card{border:var(--hair) solid var(--color-border-mid);border-radius:var(--radius-lg);padding:14px;background:var(--color-surface)}
 .card > h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-secondary);
   margin-bottom:10px;font-weight:500}
+.card-head{display:flex;justify-content:space-between;align-items:center}
+.card-head > h3{margin-bottom:0}
+.mini-btn{background:transparent;border:var(--hair) solid var(--tsi-teal);color:var(--tsi-teal);
+  border-radius:var(--radius-sm);padding:4px 9px;font-size:11px}
+.mini-btn:hover{background:var(--tsi-teal);color:#fff}
+#optNote{margin:8px 0 4px}
+#optNote.live{color:var(--tsi-sage)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .field{margin-bottom:8px}
 .field:last-child{margin-bottom:0}
@@ -272,7 +279,11 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
       </div>
 
       <div class="card">
-        <h3>Itinerary</h3>
+        <div class="card-head">
+          <h3>Itinerary</h3>
+          <button class="mini-btn" onclick="suggestOrder()" title="Reorder stops to minimise travel time — keeps your first stop as the origin and fixed appointments in order">↳ Optimise order</button>
+        </div>
+        <div id="optNote" class="hint2"></div>
         <div class="stops" id="stops"></div>
       </div>
     </div>
@@ -305,7 +316,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-21e";
+const APP_BUILD = "tp-2026-07-21f";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -744,6 +755,50 @@ function setLabel(id,v){ const s=stops.find(x=>x.id===id); if(s){ const t=(v||''
 function cloneStop(s){ const c={...s}; delete c._arrival; delete c._depart; c.id='s'+(uid++); return c; }
 function duplicateStop(id){ const i=stops.findIndex(s=>s.id===id); if(i<0) return;
   stops.splice(i+1,0,cloneStop(stops[i])); recompute(); }
+
+/* ── suggest order — nearest-neighbour over the travel-time matrix ──
+   Keeps stop[0] as the origin; preserves the relative order of FIXED appointments
+   (you can't get an optimiser to move a booked meeting); 2-opt polish when there
+   are no fixed anchors. Uses real road times where cached, else haversine. */
+function legCost(a,b){ const rc=roadCache[roadKey(a,b)]; return rc?rc.min:haversine(a,b)/CAR_KMH*60; }
+function totalTravelMin(){ const res=computeItinerary();
+  return stops.slice(1).reduce((t,s)=>t+((res.legInfo[s.id]&&res.legInfo[s.id].minutes)||0),0); }
+function suggestOrder(){
+  const note=document.getElementById('optNote');
+  if(stops.length<3){ if(note){note.className='hint2';note.textContent='Add at least 3 stops to optimise.';} return; }
+  const before=totalTravelMin();
+  const origin=stops[0];
+  const fixedSeq=stops.slice(1).filter(s=>s.timing==='fixed');   // relative order to preserve
+  const remaining=stops.slice(1);
+  const route=[origin]; let cur=origin, fi=0;
+  while(remaining.length){
+    const nextFixed = fi<fixedSeq.length ? fixedSeq[fi] : null;
+    const allowed = remaining.filter(s=> s.timing!=='fixed' || s===nextFixed);
+    let best=allowed[0], bc=Infinity;
+    for(const s of allowed){ const c=legCost(cur,s); if(c<bc){bc=c;best=s;} }
+    route.push(best); cur=best; remaining.splice(remaining.indexOf(best),1);
+    if(best===nextFixed) fi++;
+  }
+  if(!fixedSeq.length) twoOpt(route);            // safe only without precedence constraints
+  stops=route; redefaultModes();
+  const after=totalTravelMin();
+  recompute();
+  if(note){
+    const saved=before-after;
+    if(saved>1){ note.className='hint2 live'; note.innerHTML=`Optimised — travel now <b>${fmtDur(after)}</b> (−${fmtDur(saved)}).`; }
+    else { note.className='hint2'; note.textContent='Already close to optimal — no meaningful saving.'; }
+  }
+}
+function twoOpt(route){
+  const tot=r=>{ let t=0; for(let i=1;i<r.length;i++) t+=legCost(r[i-1],r[i]); return t; };
+  let improved=true, guard=0;
+  while(improved && guard++<50){ improved=false;
+    for(let i=1;i<route.length-1;i++) for(let j=i+1;j<route.length;j++){
+      const nr=route.slice(0,i).concat(route.slice(i,j+1).reverse(),route.slice(j+1));
+      if(tot(nr)<tot(route)-1e-6){ for(let k=0;k<route.length;k++) route[k]=nr[k]; improved=true; }
+    }
+  }
+}
 
 /* ── drag & drop reorder — shows a "ghost line" at the insertion point ── */
 let dragId=null, dragCopy=false, dragGroupIds=null;
