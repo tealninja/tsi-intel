@@ -49,8 +49,13 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   (Ryanair/easyJet — which Amadeus self-service excludes) **with fares**, answering both
   "does a plannable flight exist" and "will it cost €90 or €10k." Proxy the key through the
   `tsi-intel-api` worker + **cache per route**. On-demand (only on *Get price*) keeps volume/cost tiny.
-- [ ] **Car routing** — swap the haversine/avg-speed estimate for **OpenRouteService**
-  (free key; **matrix endpoint** gives the N×N grid → also powers a future "suggest order").
+- [x] **Car routing** — **OpenRouteService** matrix wired: one POST returns every pairwise
+  car duration/distance (so a reorder needs no refetch), cached client-side. **Optional key**
+  (paste a free ORS key in Trip settings → live road times; no key → straight-line estimate,
+  legs marked `~`). Client-side key for now; **proxy through the tsi-intel-api worker on merge**.
+  The N×N matrix also sets up a future "suggest order" (nearest-neighbour) button.
+- [ ] **Real road geometry on the map** — ORS Directions returns leg polylines; draw the
+  actual road path for car legs instead of straight lines (follow-up; matrix has no geometry).
 - [ ] **Airports** — swap Nominatim airport lookup for the **OurAirports** open dataset
   (IATA + coords + large/medium filter; the flight fetch needs IATA anyway). Airport-filter
   UI (which airports to consider per city); carrier filter **default-inclusive** in Europe

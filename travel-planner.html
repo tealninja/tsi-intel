@@ -107,6 +107,10 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .ac .row .k{font-size:10px;color:#fff;padding:1px 5px;border-radius:3px;flex-shrink:0}
 .ac .row .sub{color:var(--color-text-muted);font-size:11px}
 .ac .hint{padding:8px 9px;font-size:11px;color:var(--color-text-muted)}
+.hint2{font-size:10px;color:var(--color-text-muted);margin-top:4px;line-height:1.45}
+.hint2 b{font-weight:500}
+.hint2 a{color:var(--tsi-teal)}
+.hint2.live{color:var(--tsi-sage)}
 .mill-row{padding:7px 9px;font-size:12.5px;cursor:pointer;display:flex;gap:8px;align-items:center;
   border:var(--hair) solid var(--color-border);border-radius:var(--radius-sm);margin-bottom:4px}
 .mill-row:hover{border-color:var(--tsi-teal)}
@@ -235,6 +239,11 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
               <option value="20">0h 20m</option><option value="30" selected>0h 30m</option>
               <option value="45">0h 45m</option><option value="60">1h 00m</option></select></div>
         </div>
+        <div class="field" style="margin-top:8px">
+          <label>Drive times — OpenRouteService key (optional)</label>
+          <input id="orsKey" placeholder="paste a free ORS key for live road times" oninput="onOrsKey()" autocomplete="off">
+          <div id="orsStatus" class="hint2"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -287,7 +296,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-21b";
+const APP_BUILD = "tp-2026-07-21c";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -394,11 +403,13 @@ function computeItinerary(){
         cur=t0;
         legInfo[s.id]={mode:'plane',minutes:toDep+bufPre+flight+bufPost+fromArr,label:`${dep.iata}→${arr.iata}`,dep,arr};
       } else {
-        const km=haversine(prev,s), mins=km/CAR_KMH*60;
+        const rc=roadCache[roadKey(prev,s)];
+        const km=rc?rc.km:haversine(prev,s);
+        const mins=rc?rc.min:km/CAR_KMH*60;
         const e=addMin(cur,mins);
-        iv.push({start:cur,end:e,cat:'drive',title:`Drive to ${s.label}`,sub:`${Math.round(km)} km`});
+        iv.push({start:cur,end:e,cat:'drive',title:`Drive to ${s.label}`,sub:`${Math.round(km)} km${rc?'':' (est)'}`});
         cur=e;
-        legInfo[s.id]={mode:'car',minutes:mins,label:`${Math.round(km)} km`};
+        legInfo[s.id]={mode:'car',minutes:mins,label:`${Math.round(km)} km`,est:!rc};
       }
     }
     // arrival = cur. handle fixed appointments (wait or conflict)
@@ -450,7 +461,7 @@ function renderStops(res){
           <button class="${s.mode==='plane'?'on':''}" onclick="setMode('${s.id}','plane')" title="Fly">${MODE_ICONS.plane}Plane</button>
           <button class="soon" disabled title="EU public transit — coming soon (Transitous)">${MODE_ICONS.train}Transit</button>
         </span>
-        <span class="dur">${li.minutes?fmtDur(li.minutes):'—'}</span>
+        <span class="dur" title="${li.est?'straight-line estimate — add an ORS key for live road time':''}">${li.minutes?(li.est?'~':'')+fmtDur(li.minutes):'—'}</span>
         ${s.mode==='plane'?`<button class="price-btn" onclick="showPrice(event,'${s.id}')">Get price</button>`:`<span class="t">${li.label||''}</span>`}`;
       box.appendChild(leg);
     }
@@ -576,9 +587,51 @@ function renderTimeline(res){
 }
 
 /* ── recompute all ─────────────────────────────────────────── */
-function recompute(){
-  const res=computeItinerary();
-  renderStops(res); renderMap(); renderTimeline(res); save();
+function renderAll(){ const res=computeItinerary(); renderStops(res); renderMap(); renderTimeline(res); }
+function recompute(){ renderAll(); save(); maybeRefreshMatrix(); }
+
+/* ── real drive times via OpenRouteService matrix (optional key) ──
+   One POST returns every pairwise car duration/distance, so a reorder needs no
+   re-fetch. No key → straight-line estimate. Client-side key here; proxy through
+   the tsi-intel-api worker on merge. */
+let roadCache={}, roadSig='', matrixBusy=false;
+function roadKey(a,b){ return a.lat.toFixed(4)+','+a.lon.toFixed(4)+'>'+b.lat.toFixed(4)+','+b.lon.toFixed(4); }
+function getOrsKey(){ const el=document.getElementById('orsKey'); return el?(el.value||'').trim():''; }
+function onOrsKey(){ roadSig=''; save(); maybeRefreshMatrix(); }
+function updateOrsStatus(state){
+  const el=document.getElementById('orsStatus'); if(!el) return;
+  if(!getOrsKey()){ el.className='hint2';
+    el.innerHTML=`Using <b>straight-line estimates</b> (÷ ${CAR_KMH} km/h). Paste a free `+
+      `<a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">ORS key</a> for live road times.`; return; }
+  if(state==='loading'){ el.className='hint2'; el.textContent='Fetching live road times…'; return; }
+  if(state==='error'){ el.className='hint2';
+    el.innerHTML='<b style="color:var(--tsi-coral)">ORS request failed</b> — check the key or daily quota. Showing estimates.'; return; }
+  el.className='hint2 live'; el.innerHTML='<b>Live road times</b> via OpenRouteService.';
+}
+async function maybeRefreshMatrix(){
+  const key=getOrsKey();
+  if(!key){ updateOrsStatus('idle'); return; }
+  if(stops.length<2 || matrixBusy) return;
+  const coords=stops.map(s=>[s.lon,s.lat]);          // ORS wants [lon,lat]
+  const sig=key+'|'+JSON.stringify(coords);
+  if(sig===roadSig) return;
+  roadSig=sig; matrixBusy=true; updateOrsStatus('loading');
+  try{
+    const r=await fetch('https://api.openrouteservice.org/v2/matrix/driving-car',{
+      method:'POST', headers:{'Authorization':key,'Content-Type':'application/json'},
+      body:JSON.stringify({locations:coords,metrics:['duration','distance'],units:'m'})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(!d||!d.durations) throw new Error('no matrix');
+    for(let i=0;i<stops.length;i++) for(let j=0;j<stops.length;j++){
+      if(i===j) continue;
+      const dur=d.durations[i][j]; if(dur==null) continue;
+      const dist=d.distances?d.distances[i][j]:null;
+      roadCache[roadKey(stops[i],stops[j])]={min:dur/60, km:(dist!=null?dist/1000:haversine(stops[i],stops[j]))};
+    }
+    matrixBusy=false; updateOrsStatus('ok'); renderAll();
+    maybeRefreshMatrix();                              // catch any change made mid-fetch (no-op if sig unchanged)
+  }catch(e){ matrixBusy=false; updateOrsStatus('error'); }   // keep roadSig so a bad key doesn't hammer
 }
 
 /* ── stop mutations ────────────────────────────────────────── */
@@ -725,7 +778,7 @@ function save(){
   try{ localStorage.setItem('tsi-trip',JSON.stringify({
     name:document.getElementById('tripName').value, startDate:document.getElementById('startDate').value,
     startTime:document.getElementById('startTime').value, bufPre:document.getElementById('bufPre').value,
-    bufPost:document.getElementById('bufPost').value, uid, stops
+    bufPost:document.getElementById('bufPost').value, orsKey:getOrsKey(), uid, stops
   })); }catch(e){}
 }
 function load(){
@@ -736,6 +789,7 @@ function load(){
     if(d.startTime)document.getElementById('startTime').value=d.startTime;
     if(d.bufPre)document.getElementById('bufPre').value=d.bufPre;
     if(d.bufPost)document.getElementById('bufPost').value=d.bufPost;
+    if(d.orsKey)document.getElementById('orsKey').value=d.orsKey;
     stops=d.stops||[]; uid=d.uid||(stops.length+1);
     return stops.length>0;
   }catch(e){ return false; }
