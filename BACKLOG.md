@@ -21,12 +21,16 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
 **Done in the v0 prototype:**
 - [x] **Source-agnostic stops** `{id,label,lat,lon,kind,timing,duration,arriveBy,mode}`,
   `kind ∈ mill·office·airport·station·hotel·place`. One object no matter the source.
-- [x] **Add stop** two ways: Nominatim geocode **autocomplete** (auto-detects kind from
-  the OSM class/type — airport/hotel/station/office), and a **Mills** tab (mock list =
-  the DB seam). Reuses the geocoder pattern already in `tsi-intel.html`.
-- [x] **Drag-to-reorder** itinerary (HTML5 DnD); per-leg **mode** toggle car·plane
-  (auto-defaults plane over ~500 km); **fixed** (appointment time) vs **flex** timing;
-  per-visit **duration** (generic default or custom).
+- [x] **Add stop** two ways: **Photon** geocode **autocomplete** (search-as-you-type by
+  *name* or address — "Schiphol", "Motel One Düsseldorf" — free, no key; auto-detects kind
+  from the OSM key/value), and a **Mills** tab (mock list = the DB seam). Switched off
+  Nominatim, which ranks by address and buried business-name hits.
+- [x] **Editable stop names** — rename any stop inline after geocoding (the geocoded name is
+  just a default).
+- [x] **Drag-to-reorder** itinerary with a **ghost insertion line** (teal bar shows exactly
+  where the card drops, above/below by cursor half); per-leg **mode** as a clearer segmented
+  **Travel: [Car | Plane | Transit(soon)]** control (Transit disabled, signals the EU roadmap);
+  auto-defaults plane over ~500 km; **fixed** (appointment) vs **flex** timing; per-visit **duration**.
 - [x] **Timing-walk engine** (single source of truth for list + timeline): walks the
   ordered stops from the start datetime, computes arrive/depart per node, **inserts
   airport gateways + flight buffers** (customizable pre/post) for plane legs, handles

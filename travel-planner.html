@@ -9,7 +9,7 @@
   Not merged into tsi-intel.html yet; excluded from public serving via .assetsignore.
 
   What works (v0, no paid keys):
-    • Add stops via Nominatim geocode autocomplete (Search tab) or the mock Mills tab.
+    • Add stops via Photon geocode autocomplete (name OR address; Search tab) or the mock Mills tab.
     • Stops are source-agnostic {id,label,lat,lon,kind,...}; kind ∈ mill|office|airport|station|hotel|place.
     • Drag to reorder (or ↑/↓). Per-leg mode car|plane. Fixed/flex timing + visit duration.
     • Timing walk engine: computes arrive/depart per node, inserts airport gateways + flight
@@ -114,24 +114,38 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 
 /* itinerary list */
 .stops{display:flex;flex-direction:column;gap:0}
-.leg{display:flex;align-items:center;gap:8px;padding:5px 0 5px 34px;font-size:11.5px;color:var(--color-text-secondary)}
-.leg .modebtns{display:flex;gap:2px}
-.leg .modebtns button{background:transparent;border:var(--hair) solid var(--color-border-mid);
-  padding:2px 7px;font-size:11px;border-radius:3px;color:var(--color-text-secondary)}
-.leg .modebtns button.on{background:var(--tsi-teal);color:#fff;border-color:var(--tsi-teal)}
-.leg .dur{font-family:var(--font-mono);color:var(--color-text-muted)}
+.leg{display:flex;align-items:center;gap:8px;padding:7px 0 7px 34px;font-size:11.5px;color:var(--color-text-secondary);position:relative}
+.leg::before{content:'';position:absolute;left:21px;top:0;bottom:0;border-left:var(--hair) dashed var(--color-border-mid)}
+.leg-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);flex-shrink:0}
+.leg .modebtns{display:inline-flex;border:var(--hair) solid var(--color-border-mid);border-radius:var(--radius-sm);
+  overflow:hidden;background:var(--color-surface)}
+.leg .modebtns button{background:transparent;border:none;border-right:var(--hair) solid var(--color-border-mid);
+  padding:3px 8px;font-size:11px;color:var(--color-text-secondary);display:inline-flex;align-items:center;gap:4px}
+.leg .modebtns button:last-child{border-right:none}
+.leg .modebtns button svg{width:12px;height:12px}
+.leg .modebtns button.on{background:var(--tsi-teal);color:#fff}
+.leg .modebtns button.soon{color:var(--color-text-muted);cursor:not-allowed;font-style:italic}
+.leg .dur{font-family:var(--font-mono);color:var(--color-text-secondary)}
 .leg .price-btn{background:transparent;border:var(--hair) solid var(--tsi-teal);color:var(--tsi-teal);
-  border-radius:3px;padding:2px 7px;font-size:10.5px;margin-left:auto}
-.stop{display:flex;gap:10px;align-items:flex-start;padding:10px;border:var(--hair) solid var(--color-border-mid);
+  border-radius:3px;padding:2px 8px;font-size:10.5px;margin-left:auto}
+.leg .price-btn:hover{background:var(--tsi-teal);color:#fff}
+.stop{position:relative;display:flex;gap:10px;align-items:flex-start;padding:10px;border:var(--hair) solid var(--color-border-mid);
   border-radius:var(--radius-md);background:var(--color-surface);transition:border-color var(--tr)}
-.stop.dragover{border-color:var(--tsi-teal);border-style:dashed}
-.stop.drag{opacity:.4}
+.stop.drag{opacity:.35}
+/* drag insertion "ghost line" — a teal bar showing where the card will drop (borders only, no shadow) */
+.stop.drop-above::before,.stop.drop-below::after{content:'';position:absolute;left:2px;right:2px;height:2px;
+  background:var(--tsi-teal);border-radius:2px;z-index:6}
+.stop.drop-above::before{top:-5px}
+.stop.drop-below::after{bottom:-5px}
 .stop .handle{cursor:grab;color:var(--color-text-muted);font-size:14px;line-height:1;padding-top:2px;user-select:none}
 .stop .ic{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   flex-shrink:0;color:#fff}
 .stop .ic svg{width:14px;height:14px}
 .stop .main{flex:1;min-width:0}
-.stop .nm{font-size:13.5px;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stop .nm{font-size:13.5px;color:var(--color-text-primary);width:100%;font-family:var(--font-ui);
+  border:1px solid transparent;background:transparent;padding:1px 4px;border-radius:3px;text-overflow:ellipsis}
+.stop .nm:hover{border-color:var(--color-border)}
+.stop .nm:focus{border-color:var(--tsi-teal);background:var(--color-surface)}
 .stop .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;align-items:center}
 .stop .meta select,.stop .meta input{font-size:11px;padding:3px 5px}
 .stop .meta input.dur{width:52px;text-align:right}
@@ -231,7 +245,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
         </div>
         <div id="paneSearch">
           <div class="search-wrap">
-            <input id="geo" placeholder="Address, airport, hotel, station…" autocomplete="off"
+            <input id="geo" placeholder="Search by name or address…" autocomplete="off"
               oninput="onGeoInput()" onfocus="onGeoInput()">
             <div class="ac" id="ac"></div>
           </div>
@@ -273,7 +287,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-21a";
+const APP_BUILD = "tp-2026-07-21b";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -293,6 +307,11 @@ const KIND_COLOR = {mill:'rgb(128,152,72)',office:'rgb(25,68,108)',airport:'rgb(
   station:'rgb(0,146,159)',hotel:'rgb(25,68,108)',place:'rgb(100,100,100)'};
 const KIND_LABEL = {mill:'Mill',office:'Office',airport:'Airport',station:'Station',hotel:'Hotel',place:'Place'};
 const VISIT_KINDS = new Set(['mill','office','place']);   // things you "visit" (have a duration)
+const MODE_ICONS = {
+  car:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12l1.4-4.3A2 2 0 0 1 8.3 6h7.4a2 2 0 0 1 1.9 1.7L19 12v5H5z"/><circle cx="7.5" cy="17" r="1.4"/><circle cx="16.5" cy="17" r="1.4"/></svg>',
+  plane:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15l-8-3V5a1.5 1.5 0 0 0-3 0v7l-8 3v2l8-2v3l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-3l8 2z"/></svg>',
+  train:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="4" width="12" height="12" rx="2"/><path d="M6 11h12M9 20l-2 2M15 20l2 2"/></svg>'
+};
 
 /* mock mills — the DB seam. Later: getAccounts().accounts.filter(a=>a.lat&&a.lon) */
 const MOCK_MILLS = [
@@ -425,13 +444,14 @@ function renderStops(res){
     if(i>0){
       const li=res.legInfo[s.id]||{};
       const leg=document.createElement('div'); leg.className='leg';
-      leg.innerHTML=`<span class="modebtns">
-          <button class="${s.mode==='car'?'on':''}" onclick="setMode('${s.id}','car')">Car</button>
-          <button class="${s.mode==='plane'?'on':''}" onclick="setMode('${s.id}','plane')">Plane</button>
+      leg.innerHTML=`<span class="leg-label">Travel</span>
+        <span class="modebtns">
+          <button class="${s.mode==='car'?'on':''}" onclick="setMode('${s.id}','car')" title="Drive">${MODE_ICONS.car}Car</button>
+          <button class="${s.mode==='plane'?'on':''}" onclick="setMode('${s.id}','plane')" title="Fly">${MODE_ICONS.plane}Plane</button>
+          <button class="soon" disabled title="EU public transit — coming soon (Transitous)">${MODE_ICONS.train}Transit</button>
         </span>
         <span class="dur">${li.minutes?fmtDur(li.minutes):'—'}</span>
-        <span class="t">${li.label||''}</span>
-        ${s.mode==='plane'?`<button class="price-btn" onclick="showPrice(event,'${s.id}')">Get price</button>`:''}`;
+        ${s.mode==='plane'?`<button class="price-btn" onclick="showPrice(event,'${s.id}')">Get price</button>`:`<span class="t">${li.label||''}</span>`}`;
       box.appendChild(leg);
     }
     const el=document.createElement('div'); el.className='stop'; el.draggable=true; el.dataset.id=s.id;
@@ -440,7 +460,8 @@ function renderStops(res){
       <span class="handle" title="Drag to reorder">⋮⋮</span>
       <span class="ic" style="background:${KIND_COLOR[s.kind]}">${ICONS[s.kind]}</span>
       <div class="main">
-        <div class="nm" title="${esc(s.label)}">${esc(s.label)}</div>
+        <input class="nm" value="${esc(s.label)}" onchange="setLabel('${s.id}',this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename this stop" spellcheck="false">
         <div class="meta">
           <select onchange="setKind('${s.id}',this.value)">
             ${Object.keys(KIND_LABEL).map(k=>`<option value="${k}" ${k===s.kind?'selected':''}>${KIND_LABEL[k]}</option>`).join('')}
@@ -575,60 +596,79 @@ function setKind(id,k){ const s=stops.find(x=>x.id===id); if(s){s.kind=k;
 function setTiming(id,t){ const s=stops.find(x=>x.id===id); if(s){s.timing=t;recompute();} }
 function setArriveBy(id,v){ const s=stops.find(x=>x.id===id); if(s){s.arriveBy=v;recompute();} }
 function setDuration(id,v){ const s=stops.find(x=>x.id===id); if(s){s.duration=+v||0;recompute();} }
+function setLabel(id,v){ const s=stops.find(x=>x.id===id); if(s){ const t=(v||'').trim(); if(t){s.label=t;recompute();} } }
 
-/* ── drag & drop reorder ───────────────────────────────────── */
+/* ── drag & drop reorder — shows a "ghost line" at the insertion point ── */
 let dragId=null;
+function clearDrop(){ document.querySelectorAll('.stop.drop-above,.stop.drop-below')
+  .forEach(x=>x.classList.remove('drop-above','drop-below')); }
+function dropSide(el,e){ const r=el.getBoundingClientRect(); return (e.clientY-r.top)<r.height/2?'above':'below'; }
 function wireDnD(el){
   el.addEventListener('dragstart',e=>{dragId=el.dataset.id;el.classList.add('drag');e.dataTransfer.effectAllowed='move';});
-  el.addEventListener('dragend',()=>{el.classList.remove('drag');document.querySelectorAll('.stop.dragover').forEach(x=>x.classList.remove('dragover'));});
-  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('dragover');});
-  el.addEventListener('dragleave',()=>el.classList.remove('dragover'));
-  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('dragover');
+  el.addEventListener('dragend',()=>{el.classList.remove('drag');clearDrop();});
+  el.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';
+    if(el.dataset.id===dragId){clearDrop();return;}      // don't mark the card being dragged
+    const side=dropSide(el,e); clearDrop(); el.classList.add('drop-'+side);});
+  el.addEventListener('drop',e=>{e.preventDefault();
+    const side=dropSide(el,e); clearDrop();
     const from=stops.findIndex(s=>s.id===dragId), to=stops.findIndex(s=>s.id===el.dataset.id);
-    if(from<0||to<0||from===to)return;
-    const [m]=stops.splice(from,1); stops.splice(to,0,m);
-    // re-default modes after reorder
+    if(from<0||to<0){return;}
+    let insertAt = side==='above'?to:to+1;
+    const [m]=stops.splice(from,1);
+    if(from<insertAt) insertAt--;                         // account for the removed item
+    stops.splice(insertAt,0,m);
     stops.forEach((s,i)=>{ if(i>0 && s.mode==='car' && haversine(stops[i-1],s)>500) s.mode='plane'; });
     recompute();
   });
 }
 
-/* ── geocode autocomplete (Nominatim) ──────────────────────── */
+/* ── geocode autocomplete (Photon — search-as-you-type by NAME or address) ── */
 let geoTimer=null, geoSeq=0;
-function detectKind(r){
-  const c=(r.class||'')+'/'+(r.type||'');
-  if(r.class==='aeroway'||/aerodrome|airport/.test(c)) return 'airport';
-  if(r.class==='railway'||/station|halt/.test(r.type||'')) return 'station';
-  if(r.class==='tourism'&&/hotel|motel|hostel|guest/.test(r.type||'')) return 'hotel';
-  if(r.class==='office'||r.type==='office'||r.type==='commercial') return 'office';
+function detectKind(key,value){
+  key=(key||'').toLowerCase(); value=(value||'').toLowerCase();
+  if(key==='aeroway'||/aerodrome|airport|terminal/.test(value)) return 'airport';
+  if(key==='railway'&&/station|halt|stop/.test(value)) return 'station';
+  if(value==='station'&&/rail|train|subway|light_rail/.test(key)) return 'station';
+  if((key==='tourism'||key==='building')&&/hotel|motel|hostel|guest_house|resort/.test(value)) return 'hotel';
+  if(key==='office'||value==='office') return 'office';
   return 'place';
+}
+function photonLabel(p){
+  return p.name || [p.street,p.housenumber].filter(Boolean).join(' ') || p.city || p.locality || 'Unnamed place';
+}
+function photonSub(p){
+  const parts=[]; if(p.name&&p.street) parts.push(p.street);
+  parts.push(p.district,p.city,p.state,p.country);
+  return [...new Set(parts.filter(Boolean))].slice(0,3).join(', ');
 }
 function onGeoInput(){
   const q=document.getElementById('geo').value.trim();
   const ac=document.getElementById('ac');
-  if(q.length<3){ ac.innerHTML='<div class="hint">Type an address, airport, hotel or station…</div>'; ac.classList.add('show'); return; }
+  if(q.length<2){ ac.innerHTML='<div class="hint">Search by name or address — "Schiphol", "Motel One Düsseldorf", a mill, an office…</div>'; ac.classList.add('show'); return; }
   ac.innerHTML='<div class="hint">Searching…</div>'; ac.classList.add('show');
   clearTimeout(geoTimer);
-  geoTimer=setTimeout(()=>runGeo(q),350);
+  geoTimer=setTimeout(()=>runGeo(q),300);
 }
 async function runGeo(q){
   const seq=++geoSeq;
   try{
-    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=7&addressdetails=1&extratags=1`;
-    const rows=await (await fetch(url,{headers:{'Accept':'application/json'}})).json();
+    const url=`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=en`;
+    const data=await (await fetch(url)).json();
     if(seq!==geoSeq) return;
     const ac=document.getElementById('ac');
+    const rows=(data&&data.features)||[];
     if(!rows.length){ ac.innerHTML='<div class="hint">No matches.</div>'; return; }
     ac.innerHTML='';
-    rows.forEach(r=>{
-      const kind=detectKind(r);
-      const iata=(r.extratags&&r.extratags.iata)?` (${r.extratags.iata})`:'';
-      const name=r.display_name.split(',')[0]+iata;
-      const sub=r.display_name.split(',').slice(1,4).join(', ');
+    rows.forEach(f=>{
+      const p=f.properties||{}, coords=(f.geometry||{}).coordinates||[];
+      const lon=coords[0], lat=coords[1];
+      if(lat==null||lon==null) return;
+      const kind=detectKind(p.osm_key,p.osm_value);
+      const name=photonLabel(p), sub=photonSub(p);
       const row=document.createElement('div'); row.className='row';
       row.innerHTML=`<span class="k" style="background:${KIND_COLOR[kind]}">${KIND_LABEL[kind]}</span>
         <span><div>${esc(name)}</div><div class="sub">${esc(sub)}</div></span>`;
-      row.onclick=()=>{ addStop({label:name,lat:r.lat,lon:r.lon,kind});
+      row.onclick=()=>{ addStop({label:name,lat,lon,kind});
         document.getElementById('geo').value=''; ac.classList.remove('show'); };
       ac.appendChild(row);
     });
