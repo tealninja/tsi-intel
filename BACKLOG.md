@@ -8,6 +8,61 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🧭 2026-07-21 — Trip planner (mill-visit travel planner) — `[~]` prototyping
+New feature for the Visits area: pick customers/mills, map them, and plan how to
+get between them across a start→end window. **Built standalone first** as
+`travel-planner.html` (repo root) to iterate without touching the prod app; folds
+in later as a tab next to Visits. Excluded from public serving via `.assetsignore`.
+
+Drive it: open `travel-planner.html` in a browser (needs a connection for the
+Leaflet map + Nominatim geocoder; the planner logic itself works offline). Header
+**Load demo trip** button seeds a DE/NL route that exercises every path.
+
+**Done in the v0 prototype:**
+- [x] **Source-agnostic stops** `{id,label,lat,lon,kind,timing,duration,arriveBy,mode}`,
+  `kind ∈ mill·office·airport·station·hotel·place`. One object no matter the source.
+- [x] **Add stop** two ways: Nominatim geocode **autocomplete** (auto-detects kind from
+  the OSM class/type — airport/hotel/station/office), and a **Mills** tab (mock list =
+  the DB seam). Reuses the geocoder pattern already in `tsi-intel.html`.
+- [x] **Drag-to-reorder** itinerary (HTML5 DnD); per-leg **mode** toggle car·plane
+  (auto-defaults plane over ~500 km); **fixed** (appointment time) vs **flex** timing;
+  per-visit **duration** (generic default or custom).
+- [x] **Timing-walk engine** (single source of truth for list + timeline): walks the
+  ordered stops from the start datetime, computes arrive/depart per node, **inserts
+  airport gateways + flight buffers** (customizable pre/post) for plane legs, handles
+  **hotel overnights**, and **flags fixed-time conflicts** / inserts flex waits.
+- [x] **Leaflet map** (markers per kind + car/plane leg polylines; graceful offline
+  fallback) and a **per-day timeline** coloured by 4 activity families (visit=sage,
+  transit=teal lightness steps for drive/fly/wait, sleep=deep-blue, flex=gray) — on the
+  five-anchor palette, no 6th colour. Day tabs; click a day to see the hour-by-hour blocks.
+- [x] **Get price** button on plane legs → popover (currently a **STUB** with mock fares).
+- [x] localStorage persistence + light/dark, TSI tokens copied inline, no shadows, mono times.
+
+**Next (needs API access / server work):**
+- [ ] **Real flights** — replace the `getPrice()` stub with a **server-side Google-Flights
+  fetch** (scraper API — SerpApi first for reliability, ~5¢/search on-demand; cheaper Apify
+  actor later). Chosen because Google Flights aggregates **majors + low-cost carriers**
+  (Ryanair/easyJet — which Amadeus self-service excludes) **with fares**, answering both
+  "does a plannable flight exist" and "will it cost €90 or €10k." Proxy the key through the
+  `tsi-intel-api` worker + **cache per route**. On-demand (only on *Get price*) keeps volume/cost tiny.
+- [ ] **Car routing** — swap the haversine/avg-speed estimate for **OpenRouteService**
+  (free key; **matrix endpoint** gives the N×N grid → also powers a future "suggest order").
+- [ ] **Airports** — swap Nominatim airport lookup for the **OurAirports** open dataset
+  (IATA + coords + large/medium filter; the flight fetch needs IATA anyway). Airport-filter
+  UI (which airports to consider per city); carrier filter **default-inclusive** in Europe
+  (exclude-what-you-won't-fly, not majors-only — else you re-create the LCC blind spot).
+- [ ] **EU public transit** (future 3rd mode) — **Transitous / MOTIS** adapter
+  (`api.transitous.org`, free, no key, cross-border) behind the same `getLeg()` interface.
+  *Not* Google: Google's per-SKU free tier exists (transit ≈ Pro SKU ~5k free/mo) but needs
+  billing + its ToS restrict showing route data on a non-Google (Leaflet) map.
+- [ ] **Places to stay** — lodging search + auto-suggest an overnight when a leg ends late.
+- [ ] **Smarter hotel modeling** — today a hotel = "occupy until next 08:00", so a *midday*
+  hotel reads as sleeping all afternoon. Add day-boundary / evening-only rest logic.
+- [ ] **Merge into tsi-intel.html** as a Visits sub-tab: replace `MOCK_MILLS` with
+  `getAccounts().accounts.filter(a=>a.lat&&a.lon)` (same object shape → one-line swap);
+  route `getLeg()`/`getPrice()` through the worker. Persist trips via `Store('trips')` (D1).
+- [ ] Editable timeline (drag a block to restretch a visit / push a flex appointment → re-solve).
+
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
 - [x] Pipeline **Value** shows thousands separators (commas).

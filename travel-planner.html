@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TSI · Trip planner</title>
+<!--
+  TSI Trip planner — STANDALONE PROTOTYPE.
+  Not merged into tsi-intel.html yet; excluded from public serving via .assetsignore.
+
+  What works (v0, no paid keys):
+    • Add stops via Nominatim geocode autocomplete (Search tab) or the mock Mills tab.
+    • Stops are source-agnostic {id,label,lat,lon,kind,...}; kind ∈ mill|office|airport|station|hotel|place.
+    • Drag to reorder (or ↑/↓). Per-leg mode car|plane. Fixed/flex timing + visit duration.
+    • Timing walk engine: computes arrive/depart per node, inserts airport gateways + flight
+      buffers for plane legs, handles hotel overnights, flags fixed-time conflicts.
+    • Leaflet map (CDN; degrades offline) + a per-day timeline coloured by activity family.
+    • getPrice() is a STUB (mock fares) — swap for a server-side Google-Flights scraper later.
+
+  Merge path: replace MOCK_MILLS with getAccounts().accounts.filter(a=>a.lat&&a.lon),
+  and route getLeg()/getPrice() through the tsi-intel-api worker. See BACKLOG.md.
+-->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=DM+Serif+Display&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── TSI base tokens (copied from tsi-style/colors_and_type.css) ── */
+:root{
+  --tsi-deep-blue:rgb(25,68,108); --tsi-teal:rgb(0,146,159); --tsi-sage:rgb(128,152,72);
+  --tsi-warm-white:rgb(250,248,244); --tsi-dried-wood:rgb(234,222,134); --tsi-deep-slate:rgb(18,26,36);
+  --tsi-gray:rgb(100,100,100); --tsi-amber:rgb(196,162,48); --tsi-coral:rgb(192,82,52);
+  --color-bg:rgb(250,248,244); --color-surface:rgb(255,255,255);
+  --color-border:rgba(64,64,64,0.12); --color-border-mid:rgba(64,64,64,0.25);
+  --color-text-primary:rgb(64,64,64); --color-text-secondary:rgb(100,100,100); --color-text-muted:rgb(150,150,150);
+  --color-heading:rgb(25,68,108); --color-accent:rgb(0,146,159);
+  --font-ui:'Inter',system-ui,sans-serif; --font-display:'DM Serif Display',Georgia,serif;
+  --font-mono:'JetBrains Mono','Courier New',monospace;
+  --sp-1:4px; --sp-2:8px; --sp-3:16px; --sp-4:24px;
+  --radius-sm:4px; --radius-md:6px; --radius-lg:8px; --hair:0.5px; --tr:150ms ease;
+  /* timeline activity families — 4 semantic groups, transit as lightness steps of teal */
+  --tl-visit:rgb(128,152,72);        /* sage — the point of the trip            */
+  --tl-drive:rgb(0,146,159);         /* teal — in motion                        */
+  --tl-fly:rgb(1,94,107);            /* deep teal — flying                      */
+  --tl-wait:rgb(167,211,217);        /* pale teal — airport/station waiting     */
+  --tl-sleep:rgb(25,68,108);         /* deep blue — hotel / night               */
+  --tl-flex:rgb(216,213,206);        /* warm gray — open / flex / beach         */
+}
+[data-theme="dark"]{
+  --color-bg:rgb(18,26,36); --color-surface:rgb(26,38,52);
+  --color-border:rgba(255,255,255,0.08); --color-border-mid:rgba(255,255,255,0.16);
+  --color-text-primary:rgba(255,255,255,0.87); --color-text-secondary:rgba(255,255,255,0.55);
+  --color-text-muted:rgba(255,255,255,0.35); --color-heading:rgb(0,186,200); --color-accent:rgb(0,186,200);
+  --tl-drive:rgb(0,186,200); --tl-fly:rgb(0,120,134); --tl-wait:rgb(60,110,120); --tl-flex:rgb(52,64,78);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font-ui);font-size:15px;color:var(--color-text-primary);
+  background:var(--color-bg);-webkit-font-smoothing:antialiased;overflow:hidden}
+h1,h2,h3{font-weight:400;color:var(--color-heading);margin:0}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+button{font-family:var(--font-ui);cursor:pointer}
+input,select{font-family:var(--font-ui);font-size:13px;color:var(--color-text-primary);
+  background:var(--color-surface);border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);
+  padding:6px 8px;outline:none}
+input:focus,select:focus{border-color:var(--color-accent)}
+label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bottom:3px}
+
+/* ── shell ── */
+.app{display:flex;flex-direction:column;height:100%}
+.hdr{height:48px;flex-shrink:0;background:var(--tsi-deep-slate);display:flex;align-items:center;
+  gap:12px;padding:0 16px;color:#fff}
+.hdr .brand{font-family:var(--font-display);font-size:18px;color:#fff;letter-spacing:.2px}
+.hdr .brand b{color:var(--tsi-dried-wood);font-weight:400}
+.hdr .stamp{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.4)}
+.hdr .spacer{flex:1}
+.hdr button{background:transparent;border:var(--hair) solid rgba(255,255,255,.3);color:rgba(255,255,255,.85);
+  border-radius:var(--radius-sm);padding:5px 10px;font-size:12px}
+.hdr button:hover{border-color:rgba(255,255,255,.6)}
+.body{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0}
+@media(max-width:820px){.body{grid-template-columns:1fr;overflow:auto}}
+
+/* ── left rail ── */
+.rail{border-right:var(--hair) solid var(--color-border-mid);overflow-y:auto;padding:16px;
+  display:flex;flex-direction:column;gap:16px;background:var(--color-surface)}
+.card{border:var(--hair) solid var(--color-border-mid);border-radius:var(--radius-lg);padding:14px;background:var(--color-surface)}
+.card > h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-secondary);
+  margin-bottom:10px;font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{margin-bottom:8px}
+.field:last-child{margin-bottom:0}
+.field input,.field select{width:100%}
+
+/* add-stop */
+.tabs{display:flex;gap:2px;margin-bottom:8px}
+.tabs button{flex:1;background:transparent;border:var(--hair) solid var(--color-border-mid);
+  padding:6px;font-size:12px;color:var(--color-text-secondary);border-radius:var(--radius-sm)}
+.tabs button.on{background:var(--tsi-teal);color:#fff;border-color:var(--tsi-teal)}
+.search-wrap{position:relative}
+.search-wrap input{width:100%}
+.ac{position:absolute;left:0;right:0;top:100%;z-index:50;background:var(--color-surface);
+  border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);margin-top:2px;max-height:230px;
+  overflow:auto;display:none}
+.ac.show{display:block}
+.ac .row{padding:7px 9px;font-size:12.5px;cursor:pointer;display:flex;gap:8px;align-items:center;
+  border-bottom:var(--hair) solid var(--color-border)}
+.ac .row:hover{background:var(--color-bg)}
+.ac .row .k{font-size:10px;color:#fff;padding:1px 5px;border-radius:3px;flex-shrink:0}
+.ac .row .sub{color:var(--color-text-muted);font-size:11px}
+.ac .hint{padding:8px 9px;font-size:11px;color:var(--color-text-muted)}
+.mill-row{padding:7px 9px;font-size:12.5px;cursor:pointer;display:flex;gap:8px;align-items:center;
+  border:var(--hair) solid var(--color-border);border-radius:var(--radius-sm);margin-bottom:4px}
+.mill-row:hover{border-color:var(--tsi-teal)}
+.mill-row .sub{color:var(--color-text-muted);font-size:11px;margin-left:auto}
+
+/* itinerary list */
+.stops{display:flex;flex-direction:column;gap:0}
+.leg{display:flex;align-items:center;gap:8px;padding:5px 0 5px 34px;font-size:11.5px;color:var(--color-text-secondary)}
+.leg .modebtns{display:flex;gap:2px}
+.leg .modebtns button{background:transparent;border:var(--hair) solid var(--color-border-mid);
+  padding:2px 7px;font-size:11px;border-radius:3px;color:var(--color-text-secondary)}
+.leg .modebtns button.on{background:var(--tsi-teal);color:#fff;border-color:var(--tsi-teal)}
+.leg .dur{font-family:var(--font-mono);color:var(--color-text-muted)}
+.leg .price-btn{background:transparent;border:var(--hair) solid var(--tsi-teal);color:var(--tsi-teal);
+  border-radius:3px;padding:2px 7px;font-size:10.5px;margin-left:auto}
+.stop{display:flex;gap:10px;align-items:flex-start;padding:10px;border:var(--hair) solid var(--color-border-mid);
+  border-radius:var(--radius-md);background:var(--color-surface);transition:border-color var(--tr)}
+.stop.dragover{border-color:var(--tsi-teal);border-style:dashed}
+.stop.drag{opacity:.4}
+.stop .handle{cursor:grab;color:var(--color-text-muted);font-size:14px;line-height:1;padding-top:2px;user-select:none}
+.stop .ic{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;color:#fff}
+.stop .ic svg{width:14px;height:14px}
+.stop .main{flex:1;min-width:0}
+.stop .nm{font-size:13.5px;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stop .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;align-items:center}
+.stop .meta select,.stop .meta input{font-size:11px;padding:3px 5px}
+.stop .meta input.dur{width:52px;text-align:right}
+.stop .meta .t{font-size:10px;color:var(--color-text-muted)}
+.chip-fixed{font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(25,68,108,.1);color:var(--tsi-deep-blue)}
+.stop .x{background:transparent;border:none;color:var(--color-text-muted);font-size:15px;line-height:1;padding:0 2px}
+.stop .x:hover{color:var(--tsi-coral)}
+.stop .times{font-family:var(--font-mono);font-size:11px;color:var(--tsi-teal);margin-top:4px;white-space:nowrap}
+.stop .warn{font-size:11px;color:var(--tsi-coral);margin-top:4px}
+.empty{font-size:12.5px;color:var(--color-text-muted);text-align:center;padding:18px 8px;line-height:1.5}
+
+/* ── right pane ── */
+.pane{display:flex;flex-direction:column;min-height:0;min-width:0}
+#map{height:44%;min-height:200px;background:var(--color-bg);border-bottom:var(--hair) solid var(--color-border-mid)}
+.map-off{height:100%;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);font-size:12px}
+.tl{flex:1;overflow:auto;padding:14px 16px;min-height:0}
+.tl-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.tl-head h2{font-family:var(--font-display);font-size:20px}
+.tl-total{font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary)}
+.daytabs{display:flex;gap:4px;flex-wrap:wrap}
+.daytabs button{background:var(--color-surface);border:var(--hair) solid var(--color-border-mid);
+  padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;color:var(--color-text-secondary)}
+.daytabs button .d{font-family:var(--font-mono)}
+.daytabs button.on{background:var(--tsi-deep-blue);color:#fff;border-color:var(--tsi-deep-blue)}
+.daytabs button.on .d{color:#fff}
+
+/* timeline column */
+.tlcol{position:relative;margin-left:52px;border-left:var(--hair) solid var(--color-border-mid)}
+.tlhour{position:absolute;left:-52px;width:46px;text-align:right;font-family:var(--font-mono);font-size:10px;
+  color:var(--color-text-muted);transform:translateY(-6px)}
+.tlgrid{position:absolute;left:0;right:0;border-top:var(--hair) dashed var(--color-border)}
+.block{position:absolute;left:8px;right:8px;border-radius:var(--radius-sm);padding:4px 8px;overflow:hidden;
+  color:#fff;font-size:11.5px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;
+  border:var(--hair) solid rgba(0,0,0,.08)}
+.block .bt{font-family:var(--font-mono);font-size:10px;opacity:.85}
+.block .bl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.block.visit{background:var(--tl-visit)}
+.block.drive{background:var(--tl-drive)}
+.block.fly{background:var(--tl-fly)}
+.block.wait{background:var(--tl-wait);color:var(--color-text-primary)}
+.block.sleep{background:var(--tl-sleep)}
+.block.flex{background:var(--tl-flex);color:var(--color-text-secondary);border-style:dashed}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--color-text-secondary)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+
+/* price popover */
+.pop{position:fixed;z-index:400;background:var(--color-surface);border:1px solid var(--color-border-mid);
+  border-radius:var(--radius-md);padding:12px;width:260px;display:none}
+.pop.show{display:block}
+.pop h4{font-size:12px;color:var(--color-heading);margin:0 0 8px;font-weight:500}
+.pop .fl{display:flex;justify-content:space-between;padding:6px 0;border-top:var(--hair) solid var(--color-border);font-size:12px}
+.pop .fl .car{color:var(--color-text-secondary)}
+.pop .fl .pr{font-family:var(--font-mono);color:var(--color-heading)}
+.pop .stub{font-size:10px;color:var(--tsi-amber);margin-top:8px}
+.pop .close{position:absolute;top:6px;right:8px;background:transparent;border:none;color:var(--color-text-muted);font-size:15px}
+.btn-primary{background:var(--tsi-teal);color:#fff;border:none;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;width:100%}
+.btn-primary:hover{background:var(--tsi-deep-blue)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <span class="brand">TSI <b>·</b> Trip planner</span>
+    <span class="stamp" id="stamp"></span>
+    <span class="spacer"></span>
+    <button onclick="loadDemo()">Load demo trip</button>
+    <button onclick="toggleTheme()" id="themebtn">Dark</button>
+  </div>
+  <div class="body">
+    <!-- LEFT RAIL -->
+    <div class="rail">
+      <div class="card">
+        <h3>Trip</h3>
+        <div class="field"><label>Trip name</label><input id="tripName" value="Mill visits — DE/NL" oninput="save()"></div>
+        <div class="grid2">
+          <div class="field"><label>Start date</label><input type="date" id="startDate" onchange="recompute()"></div>
+          <div class="field"><label>Start time</label><input type="time" id="startTime" value="08:00" onchange="recompute()"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Flight buffer — before</label>
+            <select id="bufPre" onchange="recompute()">
+              <option value="60">1h 00m</option><option value="90" selected>1h 30m</option>
+              <option value="120">2h 00m</option><option value="150">2h 30m</option></select></div>
+          <div class="field"><label>Flight buffer — after</label>
+            <select id="bufPost" onchange="recompute()">
+              <option value="20">0h 20m</option><option value="30" selected>0h 30m</option>
+              <option value="45">0h 45m</option><option value="60">1h 00m</option></select></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Add stop</h3>
+        <div class="tabs">
+          <button id="tabSearch" class="on" onclick="setTab('search')">Search</button>
+          <button id="tabMills" onclick="setTab('mills')">Mills</button>
+        </div>
+        <div id="paneSearch">
+          <div class="search-wrap">
+            <input id="geo" placeholder="Address, airport, hotel, station…" autocomplete="off"
+              oninput="onGeoInput()" onfocus="onGeoInput()">
+            <div class="ac" id="ac"></div>
+          </div>
+        </div>
+        <div id="paneMills" style="display:none"></div>
+      </div>
+
+      <div class="card">
+        <h3>Itinerary</h3>
+        <div class="stops" id="stops"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANE -->
+    <div class="pane">
+      <div id="map"></div>
+      <div class="tl">
+        <div class="tl-head">
+          <h2>Timeline</h2>
+          <span class="tl-total" id="tlTotal"></span>
+          <div class="daytabs" id="daytabs"></div>
+        </div>
+        <div id="tlbody"></div>
+        <div class="legend">
+          <span><i style="background:var(--tl-visit)"></i>Visiting</span>
+          <span><i style="background:var(--tl-drive)"></i>Driving</span>
+          <span><i style="background:var(--tl-fly)"></i>Flying</span>
+          <span><i style="background:var(--tl-wait)"></i>Airport / station</span>
+          <span><i style="background:var(--tl-sleep)"></i>Sleeping</span>
+          <span><i style="background:var(--tl-flex);border:0.5px dashed var(--color-border-mid)"></i>Flex / open</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pop" id="pop"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+const APP_BUILD = "tp-2026-07-21a";
+document.getElementById('stamp').textContent = APP_BUILD;
+
+/* ── constants / knobs ─────────────────────────────────────── */
+const CAR_KMH = 80, PLANE_KMH = 800, PLANE_OVERHEAD_MIN = 30;
+const HOTEL_CHECKOUT = "08:00";       // default morning departure from a hotel
+
+/* kind → icon (inline svg) + marker colour */
+const ICONS = {
+  mill:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 21V9l6 4V9l6 4V5l6 4v12z"/></svg>',
+  office: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>',
+  airport:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15l-8-3V5a1.5 1.5 0 0 0-3 0v7l-8 3v2l8-2v3l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-3l8 2z"/></svg>',
+  station:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="4" width="12" height="12" rx="2"/><path d="M6 10h12M9 20l-2 2M15 20l2 2"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/></svg>',
+  hotel:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 18V7M3 12h13a4 4 0 0 1 4 4v2M3 18h18M7 10h.01"/><path d="M7 10a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/></svg>',
+  place:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s-7-5.7-7-11a7 7 0 0 1 14 0c0 5.3-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>'
+};
+const KIND_COLOR = {mill:'rgb(128,152,72)',office:'rgb(25,68,108)',airport:'rgb(0,146,159)',
+  station:'rgb(0,146,159)',hotel:'rgb(25,68,108)',place:'rgb(100,100,100)'};
+const KIND_LABEL = {mill:'Mill',office:'Office',airport:'Airport',station:'Station',hotel:'Hotel',place:'Place'};
+const VISIT_KINDS = new Set(['mill','office','place']);   // things you "visit" (have a duration)
+
+/* mock mills — the DB seam. Later: getAccounts().accounts.filter(a=>a.lat&&a.lon) */
+const MOCK_MILLS = [
+  {label:'Kappa Papier — Düsseldorf',      lat:51.2277, lon:6.7735,  city:'Düsseldorf, DE'},
+  {label:'Rijn Board Mill — Rotterdam',    lat:51.9244, lon:4.4777,  city:'Rotterdam, NL'},
+  {label:'Schelde Tissue — Antwerp',       lat:51.2194, lon:4.4025,  city:'Antwerp, BE'},
+  {label:'Ruhr Kraft — Duisburg',          lat:51.4344, lon:6.7623,  city:'Duisburg, DE'},
+  {label:'Maas Liner — Eindhoven',         lat:51.4416, lon:5.4697,  city:'Eindhoven, NL'},
+  {label:'Nordsee Fibre — Bremen',         lat:53.0793, lon:8.8017,  city:'Bremen, DE'}
+];
+/* mock airport list for nearest-airport selection (subset; OurAirports later) */
+const AIRPORTS = [
+  {iata:'DUS',name:'Düsseldorf',        lat:51.2895, lon:6.7668},
+  {iata:'CGN',name:'Köln/Bonn',         lat:50.8659, lon:7.1427},
+  {iata:'AMS',name:'Amsterdam Schiphol',lat:52.3105, lon:4.7683},
+  {iata:'RTM',name:'Rotterdam',         lat:51.9569, lon:4.4372},
+  {iata:'BRU',name:'Brussels',          lat:50.9014, lon:4.4844},
+  {iata:'EIN',name:'Eindhoven',         lat:51.4501, lon:5.3745},
+  {iata:'BRE',name:'Bremen',            lat:53.0475, lon:8.7867},
+  {iata:'HAM',name:'Hamburg',           lat:53.6304, lon:9.9882},
+  {iata:'FRA',name:'Frankfurt',         lat:50.0379, lon:8.5622}
+];
+
+/* ── state ─────────────────────────────────────────────────── */
+let stops = [];          // [{id,label,lat,lon,kind,timing,duration,arriveBy,mode}]
+let activeDay = 0;
+let map=null, markerLayer=null, lineLayer=null;
+let uid = 1;
+
+/* ── geometry / time helpers ───────────────────────────────── */
+function haversine(a,b){
+  const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLon=(b.lon-a.lon)*Math.PI/180;
+  const la1=a.lat*Math.PI/180, la2=b.lat*Math.PI/180;
+  const h=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function nearestAirport(pt){
+  let best=AIRPORTS[0], bd=Infinity;
+  for(const a of AIRPORTS){ const d=haversine(pt,a); if(d<bd){bd=d;best=a;} }
+  return best;
+}
+const pad=n=>String(n).padStart(2,'0');
+function fmtTime(d){ return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function fmtDur(m){ m=Math.round(m); const h=Math.floor(m/60), r=m%60;
+  return h?(r?`${h}h ${pad(r)}m`:`${h}h`):`${r}m`; }
+function fmtDayLabel(d){ return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}); }
+function startDateTime(){
+  const ds=document.getElementById('startDate').value || todayISO();
+  const ts=document.getElementById('startTime').value || '08:00';
+  return new Date(ds+'T'+ts);
+}
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function addMin(d,m){ return new Date(d.getTime()+m*60000); }
+function dayKey(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+/* ── the timing walk — single source of truth for both list & timeline ── */
+function computeItinerary(){
+  const iv=[];                       // {start,end,cat,title,sub,stopId}
+  const legInfo={};                  // stopId -> {mode,minutes,label} (travel arriving TO it)
+  const warn={};                     // stopId -> warning string
+  if(!stops.length) return {iv,legInfo,warn,end:null};
+  let cur = startDateTime();
+  const bufPre = +document.getElementById('bufPre').value;
+  const bufPost= +document.getElementById('bufPost').value;
+
+  stops.forEach((s,i)=>{
+    if(i>0){
+      const prev=stops[i-1];
+      if(s.mode==='plane'){
+        const dep=nearestAirport(prev), arr=nearestAirport(s);
+        const toDep=haversine(prev,dep)/CAR_KMH*60;
+        const flight=haversine(dep,arr)/PLANE_KMH*60 + PLANE_OVERHEAD_MIN;
+        const fromArr=haversine(arr,s)/CAR_KMH*60;
+        let t0=cur;
+        let e=addMin(t0,toDep);  iv.push({start:t0,end:e,cat:'drive',title:`Drive to ${dep.iata}`,sub:`${Math.round(haversine(prev,dep))} km`}); t0=e;
+        e=addMin(t0,bufPre);     iv.push({start:t0,end:e,cat:'wait', title:`${dep.iata} — check-in & security`,sub:fmtDur(bufPre)}); t0=e;
+        e=addMin(t0,flight);     iv.push({start:t0,end:e,cat:'fly',  title:`Fly ${dep.iata} → ${arr.iata}`,sub:`${Math.round(haversine(dep,arr))} km`}); t0=e;
+        e=addMin(t0,bufPost);    iv.push({start:t0,end:e,cat:'wait', title:`${arr.iata} — deplane & pickup`,sub:fmtDur(bufPost)}); t0=e;
+        e=addMin(t0,fromArr);    iv.push({start:t0,end:e,cat:'drive',title:`Drive to ${s.label}`,sub:`${Math.round(haversine(arr,s))} km`}); t0=e;
+        cur=t0;
+        legInfo[s.id]={mode:'plane',minutes:toDep+bufPre+flight+bufPost+fromArr,label:`${dep.iata}→${arr.iata}`,dep,arr};
+      } else {
+        const km=haversine(prev,s), mins=km/CAR_KMH*60;
+        const e=addMin(cur,mins);
+        iv.push({start:cur,end:e,cat:'drive',title:`Drive to ${s.label}`,sub:`${Math.round(km)} km`});
+        cur=e;
+        legInfo[s.id]={mode:'car',minutes:mins,label:`${Math.round(km)} km`};
+      }
+    }
+    // arrival = cur. handle fixed appointments (wait or conflict)
+    let arrival=cur;
+    if(s.timing==='fixed' && s.arriveBy){
+      const want=new Date(dayKey(arrival)+'T'+s.arriveBy);
+      // if the appointment time is earlier today than arrival, it's a real conflict
+      if(want.getTime() < arrival.getTime()-1){
+        warn[s.id]=`Arrives ${fmtTime(arrival)} — ${fmtDur((arrival-want)/60000)} after the ${s.arriveBy} appointment`;
+      } else if(want.getTime() > arrival.getTime()+1){
+        iv.push({start:arrival,end:want,cat:'flex',title:'Waiting for appointment',sub:fmtDur((want-arrival)/60000)});
+        arrival=want;
+      }
+    }
+    cur=arrival;
+    // dwell
+    if(s.kind==='hotel'){
+      const checkout=new Date(dayKey(cur)+'T'+HOTEL_CHECKOUT);
+      // next morning if check-in already past checkout hour
+      if(checkout.getTime()<=cur.getTime()) checkout.setDate(checkout.getDate()+1);
+      iv.push({start:cur,end:checkout,cat:'sleep',title:`Overnight — ${s.label}`,sub:'',stopId:s.id});
+      cur=checkout;
+    } else if(VISIT_KINDS.has(s.kind)){
+      const e=addMin(cur,s.duration||90);
+      iv.push({start:cur,end:e,cat:'visit',title:s.label,sub:fmtDur(s.duration||90)+' visit',stopId:s.id});
+      cur=e;
+    } else { // airport/station added as a manual stop -> a wait
+      const e=addMin(cur,s.duration||30);
+      iv.push({start:cur,end:e,cat:'wait',title:s.label,sub:fmtDur(s.duration||30),stopId:s.id});
+      cur=e;
+    }
+    s._arrival=arrival; s._depart=cur;   // stash for the list read-out
+  });
+  return {iv,legInfo,warn,end:cur};
+}
+
+/* ── render: itinerary list ────────────────────────────────── */
+function renderStops(res){
+  const box=document.getElementById('stops');
+  if(!stops.length){ box.innerHTML='<div class="empty">No stops yet.<br>Add a mill, office, airport or hotel above — or <a href="#" onclick="loadDemo();return false">load the demo trip</a>.</div>'; return; }
+  box.innerHTML='';
+  stops.forEach((s,i)=>{
+    if(i>0){
+      const li=res.legInfo[s.id]||{};
+      const leg=document.createElement('div'); leg.className='leg';
+      leg.innerHTML=`<span class="modebtns">
+          <button class="${s.mode==='car'?'on':''}" onclick="setMode('${s.id}','car')">Car</button>
+          <button class="${s.mode==='plane'?'on':''}" onclick="setMode('${s.id}','plane')">Plane</button>
+        </span>
+        <span class="dur">${li.minutes?fmtDur(li.minutes):'—'}</span>
+        <span class="t">${li.label||''}</span>
+        ${s.mode==='plane'?`<button class="price-btn" onclick="showPrice(event,'${s.id}')">Get price</button>`:''}`;
+      box.appendChild(leg);
+    }
+    const el=document.createElement('div'); el.className='stop'; el.draggable=true; el.dataset.id=s.id;
+    const isVisit=VISIT_KINDS.has(s.kind);
+    el.innerHTML=`
+      <span class="handle" title="Drag to reorder">⋮⋮</span>
+      <span class="ic" style="background:${KIND_COLOR[s.kind]}">${ICONS[s.kind]}</span>
+      <div class="main">
+        <div class="nm" title="${esc(s.label)}">${esc(s.label)}</div>
+        <div class="meta">
+          <select onchange="setKind('${s.id}',this.value)">
+            ${Object.keys(KIND_LABEL).map(k=>`<option value="${k}" ${k===s.kind?'selected':''}>${KIND_LABEL[k]}</option>`).join('')}
+          </select>
+          ${isVisit?`
+            <select onchange="setTiming('${s.id}',this.value)">
+              <option value="flex" ${s.timing==='flex'?'selected':''}>Flex</option>
+              <option value="fixed" ${s.timing==='fixed'?'selected':''}>Fixed</option>
+            </select>
+            ${s.timing==='fixed'?`<input type="time" value="${s.arriveBy||'09:00'}" onchange="setArriveBy('${s.id}',this.value)" title="Appointment time">`:''}
+            <input class="dur mono" type="number" min="0" step="15" value="${s.duration||90}" onchange="setDuration('${s.id}',this.value)" title="Visit minutes"><span class="t">min</span>
+          `:s.kind==='hotel'?`<span class="chip-fixed">overnight → ${HOTEL_CHECKOUT}</span>`:`
+            <input class="dur mono" type="number" min="0" step="15" value="${s.duration||30}" onchange="setDuration('${s.id}',this.value)"><span class="t">min wait</span>`}
+        </div>
+        ${s._arrival?`<div class="times">${fmtTime(s._arrival)}–${fmtTime(s._depart)} · ${fmtDayLabel(s._arrival)}</div>`:''}
+        ${res.warn[s.id]?`<div class="warn">⚠ ${esc(res.warn[s.id])}</div>`:''}
+      </div>
+      <button class="x" onclick="removeStop('${s.id}')" title="Remove">×</button>`;
+    wireDnD(el);
+    box.appendChild(el);
+  });
+}
+
+/* ── render: map ───────────────────────────────────────────── */
+function renderMap(){
+  const el=document.getElementById('map');
+  if(typeof L==='undefined'){ el.innerHTML='<div class="map-off">Map needs a connection (Leaflet CDN). The planner still works offline.</div>'; return; }
+  if(!map){
+    map=L.map('map',{zoomControl:true,attributionControl:false}).setView([51.5,5.5],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map);
+    markerLayer=L.layerGroup().addTo(map); lineLayer=L.layerGroup().addTo(map);
+  }
+  markerLayer.clearLayers(); lineLayer.clearLayers();
+  const pts=[];
+  stops.forEach((s,i)=>{
+    const html=`<div style="width:24px;height:24px;border-radius:50%;background:${KIND_COLOR[s.kind]};color:#fff;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff">${ICONS[s.kind]}</div>`;
+    const icon=L.divIcon({html,className:'',iconSize:[24,24],iconAnchor:[12,12]});
+    L.marker([s.lat,s.lon],{icon}).bindTooltip(`${i+1}. ${s.label}`).addTo(markerLayer);
+    pts.push([s.lat,s.lon]);
+  });
+  for(let i=1;i<stops.length;i++){
+    const plane=stops[i].mode==='plane';
+    L.polyline([pts[i-1],pts[i]],{color:plane?'rgb(1,94,107)':'rgb(0,146,159)',weight:2,
+      dashArray:plane?'6,6':null,opacity:.8}).addTo(lineLayer);
+  }
+  if(pts.length) map.fitBounds(pts,{padding:[40,40],maxZoom:9});
+}
+
+/* ── render: timeline ──────────────────────────────────────── */
+function renderTimeline(res){
+  const days=[];
+  res.iv.forEach(v=>{ // split intervals per calendar day
+    let s=new Date(v.start);
+    while(s < v.end){
+      const dEnd=new Date(dayKey(s)+'T00:00'); dEnd.setDate(dEnd.getDate()+1);
+      const end=v.end<dEnd?v.end:dEnd;
+      const k=dayKey(s);
+      let day=days.find(d=>d.key===k); if(!day){day={key:k,date:new Date(dayKey(s)+'T00:00'),parts:[]};days.push(day);}
+      day.parts.push({...v,start:new Date(s),end:new Date(end)});
+      s=dEnd;
+    }
+  });
+  days.sort((a,b)=>a.date-b.date);
+
+  // day tabs
+  const dt=document.getElementById('daytabs'); dt.innerHTML='';
+  if(activeDay>=days.length) activeDay=0;
+  days.forEach((d,idx)=>{
+    const b=document.createElement('button'); b.className=idx===activeDay?'on':'';
+    b.innerHTML=`Day ${idx+1} · <span class="d">${fmtDayLabel(d.date)}</span>`;
+    b.onclick=()=>{activeDay=idx;renderTimeline(res);};
+    dt.appendChild(b);
+  });
+  // total span
+  const tt=document.getElementById('tlTotal');
+  if(res.end){ const span=(res.end-startDateTime())/3600000;
+    tt.textContent=`${days.length} day${days.length>1?'s':''} · ${span<24?fmtDur(span*60):(span/24).toFixed(1)+' days'} end-to-end`; }
+  else tt.textContent='';
+
+  const body=document.getElementById('tlbody');
+  if(!days.length){ body.innerHTML='<div class="empty">Add stops to see the day-by-day timeline.</div>'; return; }
+  const day=days[activeDay];
+  // fill flex gaps between first & last activity of the day
+  day.parts.sort((a,b)=>a.start-b.start);
+  const filled=[];
+  for(let i=0;i<day.parts.length;i++){
+    if(i>0){ const gap=(day.parts[i].start-day.parts[i-1].end)/60000;
+      if(gap>4) filled.push({start:new Date(day.parts[i-1].end),end:new Date(day.parts[i].start),cat:'flex',title:'Open / flex',sub:fmtDur(gap)}); }
+    filled.push(day.parts[i]);
+  }
+  const t0=filled[0].start, t1=filled[filled.length-1].end;
+  const startH=Math.floor((t0.getHours()*60+t0.getMinutes())/60);
+  const endH=Math.ceil((t1.getHours()*60+t1.getMinutes()+(t1.getDate()!==t0.getDate()?1440:0))/60);
+  const PXH=44;                    // px per hour
+  const minOf=d=>(d.getHours()*60+d.getMinutes()) + (d.getDate()!==t0.getDate()?1440:0);
+  const top=m=>((m-startH*60)/60)*PXH;
+  const height=(endH-startH)*PXH+10;
+  let html=`<div class="tlcol" style="height:${height}px">`;
+  for(let h=startH;h<=endH;h++){
+    html+=`<div class="tlgrid" style="top:${top(h*60)}px"></div><div class="tlhour" style="top:${top(h*60)}px">${pad(h%24)}:00</div>`;
+  }
+  filled.forEach(p=>{
+    const a=minOf(p.start), b=minOf(p.end);
+    const h=Math.max(14,((b-a)/60)*PXH-2);
+    const short=h<26;
+    html+=`<div class="block ${p.cat}" style="top:${top(a)}px;height:${h}px" title="${esc(p.title)} · ${fmtTime(p.start)}–${fmtTime(p.end)}">
+      <span class="bt">${fmtTime(p.start)}–${fmtTime(p.end)}</span>
+      ${short?'':`<span class="bl">${esc(p.title)}${p.sub?` · ${esc(p.sub)}`:''}</span>`}</div>`;
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+
+/* ── recompute all ─────────────────────────────────────────── */
+function recompute(){
+  const res=computeItinerary();
+  renderStops(res); renderMap(); renderTimeline(res); save();
+}
+
+/* ── stop mutations ────────────────────────────────────────── */
+function defaultMode(prev,s){ return haversine(prev,s)>500?'plane':'car'; }
+function addStop(o){
+  const s={id:'s'+(uid++),label:o.label,lat:+o.lat,lon:+o.lon,kind:o.kind||'place',
+    timing:'flex',duration:VISIT_KINDS.has(o.kind||'place')?90:30,arriveBy:'09:00',mode:'car'};
+  if(stops.length) s.mode=defaultMode(stops[stops.length-1],s);
+  stops.push(s); recompute();
+}
+function removeStop(id){ stops=stops.filter(s=>s.id!==id); recompute(); }
+function setMode(id,m){ const s=stops.find(x=>x.id===id); if(s){s.mode=m;recompute();} }
+function setKind(id,k){ const s=stops.find(x=>x.id===id); if(s){s.kind=k;
+  if(VISIT_KINDS.has(k)&&!s.duration)s.duration=90; recompute();} }
+function setTiming(id,t){ const s=stops.find(x=>x.id===id); if(s){s.timing=t;recompute();} }
+function setArriveBy(id,v){ const s=stops.find(x=>x.id===id); if(s){s.arriveBy=v;recompute();} }
+function setDuration(id,v){ const s=stops.find(x=>x.id===id); if(s){s.duration=+v||0;recompute();} }
+
+/* ── drag & drop reorder ───────────────────────────────────── */
+let dragId=null;
+function wireDnD(el){
+  el.addEventListener('dragstart',e=>{dragId=el.dataset.id;el.classList.add('drag');e.dataTransfer.effectAllowed='move';});
+  el.addEventListener('dragend',()=>{el.classList.remove('drag');document.querySelectorAll('.stop.dragover').forEach(x=>x.classList.remove('dragover'));});
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('dragover');});
+  el.addEventListener('dragleave',()=>el.classList.remove('dragover'));
+  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('dragover');
+    const from=stops.findIndex(s=>s.id===dragId), to=stops.findIndex(s=>s.id===el.dataset.id);
+    if(from<0||to<0||from===to)return;
+    const [m]=stops.splice(from,1); stops.splice(to,0,m);
+    // re-default modes after reorder
+    stops.forEach((s,i)=>{ if(i>0 && s.mode==='car' && haversine(stops[i-1],s)>500) s.mode='plane'; });
+    recompute();
+  });
+}
+
+/* ── geocode autocomplete (Nominatim) ──────────────────────── */
+let geoTimer=null, geoSeq=0;
+function detectKind(r){
+  const c=(r.class||'')+'/'+(r.type||'');
+  if(r.class==='aeroway'||/aerodrome|airport/.test(c)) return 'airport';
+  if(r.class==='railway'||/station|halt/.test(r.type||'')) return 'station';
+  if(r.class==='tourism'&&/hotel|motel|hostel|guest/.test(r.type||'')) return 'hotel';
+  if(r.class==='office'||r.type==='office'||r.type==='commercial') return 'office';
+  return 'place';
+}
+function onGeoInput(){
+  const q=document.getElementById('geo').value.trim();
+  const ac=document.getElementById('ac');
+  if(q.length<3){ ac.innerHTML='<div class="hint">Type an address, airport, hotel or station…</div>'; ac.classList.add('show'); return; }
+  ac.innerHTML='<div class="hint">Searching…</div>'; ac.classList.add('show');
+  clearTimeout(geoTimer);
+  geoTimer=setTimeout(()=>runGeo(q),350);
+}
+async function runGeo(q){
+  const seq=++geoSeq;
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=7&addressdetails=1&extratags=1`;
+    const rows=await (await fetch(url,{headers:{'Accept':'application/json'}})).json();
+    if(seq!==geoSeq) return;
+    const ac=document.getElementById('ac');
+    if(!rows.length){ ac.innerHTML='<div class="hint">No matches.</div>'; return; }
+    ac.innerHTML='';
+    rows.forEach(r=>{
+      const kind=detectKind(r);
+      const iata=(r.extratags&&r.extratags.iata)?` (${r.extratags.iata})`:'';
+      const name=r.display_name.split(',')[0]+iata;
+      const sub=r.display_name.split(',').slice(1,4).join(', ');
+      const row=document.createElement('div'); row.className='row';
+      row.innerHTML=`<span class="k" style="background:${KIND_COLOR[kind]}">${KIND_LABEL[kind]}</span>
+        <span><div>${esc(name)}</div><div class="sub">${esc(sub)}</div></span>`;
+      row.onclick=()=>{ addStop({label:name,lat:r.lat,lon:r.lon,kind});
+        document.getElementById('geo').value=''; ac.classList.remove('show'); };
+      ac.appendChild(row);
+    });
+  }catch(e){ document.getElementById('ac').innerHTML='<div class="hint">Geocoder unavailable (offline?).</div>'; }
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('.search-wrap')) document.getElementById('ac').classList.remove('show'); });
+
+/* ── mills tab ─────────────────────────────────────────────── */
+function renderMills(){
+  const p=document.getElementById('paneMills');
+  p.innerHTML=MOCK_MILLS.map((m,i)=>`<div class="mill-row" onclick="addMill(${i})">
+    <span class="ic" style="width:20px;height:20px;background:${KIND_COLOR.mill};border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff">${ICONS.mill}</span>
+    <span>${esc(m.label)}</span><span class="sub">${esc(m.city)}</span></div>`).join('')
+    + '<div class="hint" style="font-size:10px;color:var(--color-text-muted);margin-top:6px">Mock data — real mill sites load from tsi-intel on merge.</div>';
+}
+function addMill(i){ const m=MOCK_MILLS[i]; addStop({label:m.label,lat:m.lat,lon:m.lon,kind:'mill'}); }
+function setTab(t){
+  document.getElementById('tabSearch').classList.toggle('on',t==='search');
+  document.getElementById('tabMills').classList.toggle('on',t==='mills');
+  document.getElementById('paneSearch').style.display=t==='search'?'':'none';
+  document.getElementById('paneMills').style.display=t==='mills'?'':'none';
+  if(t==='mills') renderMills();
+}
+
+/* ── price popover (STUB — swap for server-side Google-Flights scraper) ── */
+function showPrice(ev,id){
+  ev.stopPropagation();
+  const res=computeItinerary(); const li=res.legInfo[id];
+  const pop=document.getElementById('pop');
+  if(!li||li.mode!=='plane'){ return; }
+  const dep=li.dep, arr=li.arr;
+  // deterministic mock fares seeded off the route so it feels stable
+  const seed=(dep.iata.charCodeAt(0)+arr.iata.charCodeAt(2))%5;
+  const carriers=[['KL','KLM'],['LH','Lufthansa'],['HV','Transavia'],['FR','Ryanair'],['U2','easyJet']];
+  const base=60+seed*25;
+  const opts=[0,1,2].map(k=>{
+    const c=carriers[(seed+k)%carriers.length];
+    const dh=6+((seed+k*3)%12);
+    return {car:c[1],code:c[0],time:`${pad(dh)}:${k%2?'40':'05'}`,price:base+k*40+(k===0?0:15)};
+  }).sort((a,b)=>a.price-b.price);
+  pop.innerHTML=`<button class="close" onclick="document.getElementById('pop').classList.remove('show')">×</button>
+    <h4>${dep.iata} → ${arr.iata} · ${document.getElementById('startDate').value||todayISO()}</h4>
+    ${opts.map(o=>`<div class="fl"><span class="car">${o.time} · ${o.car}</span><span class="pr">€${o.price}</span></div>`).join('')}
+    <div class="stub">Stub data. Live: server-side Google-Flights fetch (incl. low-cost carriers).</div>`;
+  pop.classList.add('show');
+  const r=ev.target.getBoundingClientRect();
+  pop.style.top=Math.min(r.bottom+6,window.innerHeight-220)+'px';
+  pop.style.left=Math.min(r.left,window.innerWidth-280)+'px';
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('.pop')&&!e.target.closest('.price-btn')) document.getElementById('pop').classList.remove('show'); });
+
+/* ── persistence (localStorage) ────────────────────────────── */
+function save(){
+  try{ localStorage.setItem('tsi-trip',JSON.stringify({
+    name:document.getElementById('tripName').value, startDate:document.getElementById('startDate').value,
+    startTime:document.getElementById('startTime').value, bufPre:document.getElementById('bufPre').value,
+    bufPost:document.getElementById('bufPost').value, uid, stops
+  })); }catch(e){}
+}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem('tsi-trip')||'null'); if(!d) return false;
+    document.getElementById('tripName').value=d.name||'';
+    if(d.startDate)document.getElementById('startDate').value=d.startDate;
+    if(d.startTime)document.getElementById('startTime').value=d.startTime;
+    if(d.bufPre)document.getElementById('bufPre').value=d.bufPre;
+    if(d.bufPost)document.getElementById('bufPost').value=d.bufPost;
+    stops=d.stops||[]; uid=d.uid||(stops.length+1);
+    return stops.length>0;
+  }catch(e){ return false; }
+}
+
+/* ── demo trip ─────────────────────────────────────────────── */
+function loadDemo(){
+  document.getElementById('startDate').value=todayISO();
+  document.getElementById('startTime').value='08:00';
+  uid=1; stops=[];
+  const seq=[
+    {...MOCK_MILLS[0],kind:'mill'},                                   // Düsseldorf
+    {...MOCK_MILLS[3],kind:'mill'},                                   // Duisburg
+    {...MOCK_MILLS[1],kind:'mill'},                                   // Rotterdam (fixed 14:00 below)
+    {...MOCK_MILLS[2],kind:'mill'},                                   // Antwerp
+    {label:'Hotel — Antwerp',lat:51.2170,lon:4.4210,kind:'hotel'},   // overnight, end of day 1
+    {...MOCK_MILLS[5],kind:'mill'}                                    // Bremen (day 2, far -> plane)
+  ];
+  seq.forEach(o=>addStop({label:o.label,lat:o.lat,lon:o.lon,kind:o.kind}));
+  // make one a fixed appointment to show the conflict/wait logic
+  const rot=stops.find(s=>/Rotterdam/.test(s.label)); if(rot){rot.timing='fixed';rot.arriveBy='14:00';}
+  // fly the final long leg so the airport gateways + flight buffers + Get-price show
+  const bre=stops.find(s=>/Bremen/.test(s.label)); if(bre)bre.mode='plane';
+  recompute();
+}
+
+/* ── theme ─────────────────────────────────────────────────── */
+function toggleTheme(){
+  const on=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',on?'light':'dark');
+  document.getElementById('themebtn').textContent=on?'Dark':'Light';
+  if(map) setTimeout(()=>map.invalidateSize(),50);
+  localStorage.setItem('tsi-theme',on?'light':'dark');
+}
+
+/* ── util ──────────────────────────────────────────────────── */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ── boot ──────────────────────────────────────────────────── */
+(function init(){
+  if(localStorage.getItem('tsi-theme')==='dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('themebtn').textContent='Light'; }
+  if(!document.getElementById('startDate').value) document.getElementById('startDate').value=todayISO();
+  const had=load();
+  if(had) recompute(); else loadDemo();
+  window.addEventListener('resize',()=>{ if(map) map.invalidateSize(); });
+})();
+</script>
+</body>
+</html>
