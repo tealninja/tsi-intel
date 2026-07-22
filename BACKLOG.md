@@ -41,6 +41,14 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   five-anchor palette, no 6th colour. Day tabs; click a day to see the hour-by-hour blocks.
 - [x] **Get price** button on plane legs → popover (currently a **STUB** with mock fares).
 - [x] localStorage persistence + light/dark, TSI tokens copied inline, no shadows, mono times.
+- [x] **Saved-trips library + itinerary options** (localStorage) — a **Trips** panel: named
+  trips with a selector, New / Save as… / Duplicate / Delete; the working trip auto-saves.
+  Within a trip, **options** are variant snapshots (order/modes/timing) shown as chips with
+  their total travel time — click to load, so you can A/B "all car" vs "fly Bremen". Migrates
+  the old single-trip format. Survives reloads. (Merge target: mirror to D1 `Store('trips')`.)
+- [x] **Published for live testing** — mirrored to the public repo `tealninja/tsi-trip-planner`
+  as `index.html` (GitHub Pages: https://tealninja.github.io/tsi-trip-planner/). Mock-data only;
+  `tsi-intel` stays private. Refreshed on every change.
 
 **Next (needs API access / server work):**
 - [ ] **Real flights** — replace the `getPrice()` stub with a **server-side Google-Flights

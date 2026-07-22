@@ -92,6 +92,21 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .mini-btn:hover{background:var(--tsi-teal);color:#fff}
 #optNote{margin:8px 0 4px}
 #optNote.live{color:var(--tsi-sage)}
+.trip-actions{display:flex;gap:6px;margin-top:8px}
+.trip-actions button{flex:1;background:transparent;border:var(--hair) solid var(--color-border-mid);
+  color:var(--color-text-secondary);border-radius:var(--radius-sm);padding:5px 6px;font-size:11px}
+.trip-actions button:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
+.saved-note{font-size:10px;color:var(--color-text-muted);margin-top:6px;font-family:var(--font-mono)}
+.options-bar{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;align-items:center}
+.opt-chip{display:inline-flex;align-items:center;gap:5px;background:var(--color-bg);border:var(--hair) solid var(--color-border-mid);
+  border-radius:14px;padding:3px 6px 3px 10px;font-size:11.5px;cursor:pointer;color:var(--color-text-primary)}
+.opt-chip:hover{border-color:var(--tsi-teal)}
+.opt-chip .opt-t{font-family:var(--font-mono);font-size:10px;color:var(--tsi-teal)}
+.opt-chip .opt-x{color:var(--color-text-muted);font-size:13px;line-height:1;padding:0 1px}
+.opt-chip .opt-x:hover{color:var(--tsi-coral)}
+.opt-add{background:transparent;border:var(--hair) dashed var(--color-border-mid);color:var(--color-text-secondary);
+  border-radius:14px;padding:3px 10px;font-size:11px}
+.opt-add:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .field{margin-bottom:8px}
 .field:last-child{margin-bottom:0}
@@ -239,8 +254,20 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
     <!-- LEFT RAIL -->
     <div class="rail">
       <div class="card">
+        <div class="card-head"><h3>Trips</h3>
+          <button class="mini-btn" onclick="newTrip()" title="Start a new empty trip">+ New</button></div>
+        <div class="field"><select id="tripSelect" onchange="switchTrip(this.value)"></select></div>
+        <div class="trip-actions">
+          <button onclick="saveAsNewTrip()" title="Save the current trip under a new name">Save as…</button>
+          <button onclick="duplicateTrip()" title="Duplicate this trip">Duplicate</button>
+          <button onclick="deleteTrip()" title="Delete this trip">Delete</button>
+        </div>
+        <div class="saved-note" id="savedNote"></div>
+      </div>
+
+      <div class="card">
         <h3>Trip</h3>
-        <div class="field"><label>Trip name</label><input id="tripName" value="Mill visits — DE/NL" oninput="save()"></div>
+        <div class="field"><label>Trip name</label><input id="tripName" value="Mill visits — DE/NL" oninput="onTripName()"></div>
         <div class="grid2">
           <div class="field"><label>Start date</label><input type="date" id="startDate" onchange="recompute()"></div>
           <div class="field"><label>Start time</label><input type="time" id="startTime" value="08:00" onchange="recompute()"></div>
@@ -284,6 +311,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
           <button class="mini-btn" onclick="suggestOrder()" title="Reorder stops to minimise travel time — keeps your first stop as the origin and fixed appointments in order">↳ Optimise order</button>
         </div>
         <div id="optNote" class="hint2"></div>
+        <div class="options-bar" id="optionsBar"></div>
         <div class="stops" id="stops"></div>
       </div>
     </div>
@@ -316,7 +344,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-21f";
+const APP_BUILD = "tp-2026-07-22a";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -932,26 +960,99 @@ function showPrice(ev,id){
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('.pop')&&!e.target.closest('.price-btn')) document.getElementById('pop').classList.remove('show'); });
 
-/* ── persistence (localStorage) ────────────────────────────── */
-function save(){
-  try{ localStorage.setItem('tsi-trip',JSON.stringify({
-    name:document.getElementById('tripName').value, startDate:document.getElementById('startDate').value,
-    startTime:document.getElementById('startTime').value, bufPre:document.getElementById('bufPre').value,
-    bufPost:document.getElementById('bufPost').value, orsKey:getOrsKey(), uid, stops
-  })); }catch(e){}
+/* ── persistence — a named-trip library + per-trip options (localStorage) ──
+   library = { trips:{id:trip}, order:[id…], currentId, orsKey }
+   trip    = { id, name, updatedAt, settings:{startDate,startTime,bufPre,bufPost},
+               stops:[…], options:[ {id,name,createdAt,travelMin,stops:[…]} ] } */
+const LSK='tsi-trips';
+let library={trips:{},order:[],currentId:null,orsKey:''};
+function newId(p){ return p+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36); }
+function blankTrip(name){ return {id:newId('t'),name:name||'Untitled trip',updatedAt:Date.now(),
+  settings:{startDate:todayISO(),startTime:'08:00',bufPre:'90',bufPost:'30'},stops:[],options:[]}; }
+function currentTrip(){ return library.trips[library.currentId]; }
+function stripStops(arr){ return (arr||[]).map(s=>{ const c={...s}; delete c._arrival; delete c._depart; return c; }); }
+
+function saveLibrary(){ try{ localStorage.setItem(LSK,JSON.stringify(library)); }catch(e){} }
+function readWorkingIntoTrip(){
+  const t=currentTrip(); if(!t) return;
+  t.name=document.getElementById('tripName').value||t.name;
+  t.settings={ startDate:document.getElementById('startDate').value, startTime:document.getElementById('startTime').value,
+    bufPre:document.getElementById('bufPre').value, bufPost:document.getElementById('bufPost').value };
+  t.stops=stripStops(stops); t.updatedAt=Date.now();
 }
-function load(){
-  try{
-    const d=JSON.parse(localStorage.getItem('tsi-trip')||'null'); if(!d) return false;
-    document.getElementById('tripName').value=d.name||'';
-    if(d.startDate)document.getElementById('startDate').value=d.startDate;
-    if(d.startTime)document.getElementById('startTime').value=d.startTime;
-    if(d.bufPre)document.getElementById('bufPre').value=d.bufPre;
-    if(d.bufPost)document.getElementById('bufPost').value=d.bufPost;
-    if(d.orsKey)document.getElementById('orsKey').value=d.orsKey;
-    stops=d.stops||[]; uid=d.uid||(stops.length+1);
-    return stops.length>0;
-  }catch(e){ return false; }
+function applyTripToWorking(t){
+  document.getElementById('tripName').value=t.name||'';
+  document.getElementById('startDate').value=(t.settings&&t.settings.startDate)||todayISO();
+  document.getElementById('startTime').value=(t.settings&&t.settings.startTime)||'08:00';
+  document.getElementById('bufPre').value=(t.settings&&t.settings.bufPre)||'90';
+  document.getElementById('bufPost').value=(t.settings&&t.settings.bufPost)||'30';
+  stops=stripStops(t.stops);
+  uid=Math.max(1,...stops.map(s=>parseInt(String(s.id).replace(/\D/g,''),10)||0))+1;
+  roadSig=''; recompute(); renderTripSelect(); renderOptions();
+}
+/* save() is called on every recompute → keeps the current trip current */
+function save(){ readWorkingIntoTrip(); library.orsKey=getOrsKey(); saveLibrary(); renderSavedNote(); }
+function renderSavedNote(){ const el=document.getElementById('savedNote'); const t=currentTrip();
+  if(el&&t) el.textContent=`${Object.keys(library.trips).length} trip(s) saved · ${t.stops.length} stops in this one`; }
+function onTripName(){ const t=currentTrip(); if(t) t.name=document.getElementById('tripName').value;
+  saveLibrary(); renderTripSelect(); }
+function renderTripSelect(){ const sel=document.getElementById('tripSelect'); if(!sel) return;
+  sel.innerHTML=library.order.map(id=>{ const t=library.trips[id]; if(!t) return '';
+    return `<option value="${id}" ${id===library.currentId?'selected':''}>${esc(t.name)} (${t.stops.length})</option>`; }).join(''); }
+
+function switchTrip(id){ if(id===library.currentId||!library.trips[id]) return;
+  readWorkingIntoTrip(); saveLibrary(); library.currentId=id; applyTripToWorking(library.trips[id]); saveLibrary(); }
+function newTrip(){ readWorkingIntoTrip(); saveLibrary();
+  const t=blankTrip('Untitled trip'); library.trips[t.id]=t; library.order.push(t.id); library.currentId=t.id;
+  applyTripToWorking(t); saveLibrary(); }
+function saveAsNewTrip(){ readWorkingIntoTrip();
+  const nm=prompt('Save current trip as:', (currentTrip()?currentTrip().name:'Trip')+' copy'); if(nm===null) return;
+  const cur=currentTrip(), t=blankTrip(nm.trim()||'Trip copy');
+  t.settings={...cur.settings}; t.stops=stripStops(cur.stops);
+  t.options=(cur.options||[]).map(o=>({...o,stops:stripStops(o.stops)}));
+  library.trips[t.id]=t; library.order.push(t.id); library.currentId=t.id;
+  applyTripToWorking(t); saveLibrary(); }
+function duplicateTrip(){ readWorkingIntoTrip(); const cur=currentTrip(); if(!cur) return;
+  const t=blankTrip(cur.name+' copy'); t.settings={...cur.settings}; t.stops=stripStops(cur.stops);
+  t.options=(cur.options||[]).map(o=>({...o,stops:stripStops(o.stops)}));
+  library.trips[t.id]=t; library.order.push(t.id); library.currentId=t.id;
+  applyTripToWorking(t); saveLibrary(); }
+function deleteTrip(){ const id=library.currentId; if(!id) return;
+  if(library.order.length<=1){ alert('This is your only trip — start a new one first.'); return; }
+  if(!confirm('Delete trip "'+library.trips[id].name+'"? This cannot be undone.')) return;
+  delete library.trips[id]; library.order=library.order.filter(x=>x!==id);
+  library.currentId=library.order[0]; applyTripToWorking(library.trips[library.currentId]); saveLibrary(); }
+
+/* ── itinerary options (variant snapshots within a trip) ───── */
+function saveOption(){ const t=currentTrip(); if(!t) return; readWorkingIntoTrip();
+  const nm=prompt('Name this itinerary option:', 'Option '+(((t.options||[]).length)+1)); if(nm===null) return;
+  (t.options=t.options||[]).push({id:newId('o'),name:nm.trim()||('Option '+((t.options.length)+1)),
+    createdAt:Date.now(), travelMin:Math.round(totalTravelMin()), stops:stripStops(stops)});
+  saveLibrary(); renderOptions(); }
+function loadOption(oid){ const t=currentTrip(); const o=(t&&t.options||[]).find(x=>x.id===oid); if(!o) return;
+  stops=stripStops(o.stops); roadSig=''; recompute(); }
+function deleteOption(oid){ const t=currentTrip(); if(!t) return;
+  t.options=(t.options||[]).filter(x=>x.id!==oid); saveLibrary(); renderOptions(); }
+function renderOptions(){ const box=document.getElementById('optionsBar'); if(!box) return;
+  const t=currentTrip(), opts=(t&&t.options)||[];
+  box.innerHTML=opts.map(o=>`<span class="opt-chip" onclick="loadOption('${o.id}')" title="Load this saved arrangement">`+
+      `${esc(o.name)} <span class="opt-t">${fmtDur(o.travelMin||0)}</span>`+
+      `<span class="opt-x" onclick="event.stopPropagation();deleteOption('${o.id}')" title="Delete option">×</span></span>`).join('')
+    + `<button class="opt-add" onclick="saveOption()" title="Snapshot the current order/modes/timing as an option to compare">+ Save option</button>`; }
+function loadLibrary(){
+  try{ const d=JSON.parse(localStorage.getItem(LSK)||'null');
+    if(d&&d.trips&&Object.keys(d.trips).length){
+      library=Object.assign({trips:{},order:[],currentId:null,orsKey:''},d);
+      if(!library.order||!library.order.length) library.order=Object.keys(library.trips);
+      library.order=library.order.filter(id=>library.trips[id]);
+      if(!library.currentId||!library.trips[library.currentId]) library.currentId=library.order[0];
+      return true; } }catch(e){}
+  try{ const old=JSON.parse(localStorage.getItem('tsi-trip')||'null');   // migrate the old single-trip format
+    if(old&&old.stops&&old.stops.length){ const t=blankTrip(old.name||'My trip');
+      t.settings={startDate:old.startDate||todayISO(),startTime:old.startTime||'08:00',bufPre:old.bufPre||'90',bufPost:old.bufPost||'30'};
+      t.stops=stripStops(old.stops); library={trips:{[t.id]:t},order:[t.id],currentId:t.id,orsKey:old.orsKey||''};
+      return true; } }catch(e){}
+  return false;
 }
 
 /* ── demo trip ─────────────────────────────────────────────── */
@@ -991,8 +1092,15 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
 (function init(){
   if(localStorage.getItem('tsi-theme')==='dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('themebtn').textContent='Light'; }
   if(!document.getElementById('startDate').value) document.getElementById('startDate').value=todayISO();
-  const had=load();
-  if(had) recompute(); else loadDemo();
+  if(loadLibrary()){
+    if(library.orsKey) document.getElementById('orsKey').value=library.orsKey;
+    applyTripToWorking(currentTrip());
+  } else {
+    const t=blankTrip('Mill visits — DE/NL');
+    library={trips:{[t.id]:t},order:[t.id],currentId:t.id,orsKey:''};
+    loadDemo();                       // fills the working itinerary; recompute()→save() persists it into this trip
+    renderTripSelect(); renderOptions();
+  }
   window.addEventListener('resize',()=>{ if(map) map.invalidateSize(); });
 })();
 </script>
