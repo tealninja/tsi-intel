@@ -178,7 +178,10 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .stop .handle{cursor:grab;color:var(--color-text-muted);font-size:14px;line-height:1;padding-top:2px;user-select:none}
 .stop .ic{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   flex-shrink:0;color:#fff}
+.stop .ic{position:relative}
 .stop .ic svg{width:14px;height:14px}
+.note-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;
+  background:var(--tsi-dried-wood);border:1.5px solid var(--color-surface)}
 .stop .main{flex:1;min-width:0}
 .stop .nm{font-size:13.5px;color:var(--color-text-primary);width:100%;font-family:var(--font-ui);
   border:1px solid transparent;background:transparent;padding:1px 4px;border-radius:3px;text-overflow:ellipsis}
@@ -229,6 +232,33 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .block.wait{background:var(--tl-wait);color:var(--color-text-primary)}
 .block.sleep{background:var(--tl-sleep)}
 .block.flex{background:var(--tl-flex);color:var(--color-text-secondary);border-style:dashed}
+/* timeline + detail two-column */
+.tl-main{display:grid;grid-template-columns:minmax(230px,340px) 1fr;gap:18px;align-items:start}
+@media(max-width:1100px){.tl-main{grid-template-columns:1fr}}
+.detail-panel{border:var(--hair) solid var(--color-border-mid);border-radius:var(--radius-lg);
+  padding:14px;background:var(--color-surface);position:sticky;top:0}
+.detail-empty{color:var(--color-text-muted);font-size:12.5px;line-height:1.55;padding:26px 10px;text-align:center}
+.detail-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+.detail-head .ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.detail-head .ic svg{width:17px;height:17px}
+.dt-name{font-family:var(--font-display);font-size:17px;color:var(--color-heading);line-height:1.15}
+.dt-sub{font-size:11px;color:var(--color-text-secondary);font-family:var(--font-mono);margin-top:3px}
+.detail-panel label{font-size:11px;color:var(--color-text-secondary);display:block;margin:10px 0 4px;font-weight:500}
+.detail-panel textarea{width:100%;min-height:88px;resize:vertical;font-family:var(--font-ui);font-size:13px;
+  border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);padding:8px;
+  background:var(--color-surface);color:var(--color-text-primary);outline:none}
+.detail-panel textarea:focus{border-color:var(--color-accent)}
+.people{display:flex;flex-wrap:wrap;gap:6px}
+.person{display:inline-flex;align-items:center;gap:6px;background:var(--tsi-sage);color:#fff;
+  border-radius:12px;padding:2px 6px 2px 10px;font-size:12px}
+.person .px{cursor:pointer;font-size:12px;line-height:1;opacity:.85}
+.person .px:hover{opacity:1}
+.person-add{border:var(--hair) dashed var(--color-border-mid);background:transparent;border-radius:12px;
+  padding:3px 9px;font-size:12px;width:120px;color:var(--color-text-primary);outline:none}
+.person-add:focus{border-color:var(--color-accent);border-style:solid}
+.detail-later{font-size:10px;color:var(--color-text-muted);margin-top:12px;font-style:italic}
+.block.sel{outline:2px solid var(--tsi-deep-blue);outline-offset:-1px}
+.stop.selrow{border-color:var(--tsi-deep-blue)}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--color-text-secondary)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
@@ -331,14 +361,19 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
           <span class="tl-total" id="tlTotal"></span>
           <div class="daytabs" id="daytabs"></div>
         </div>
-        <div id="tlbody"></div>
-        <div class="legend">
-          <span><i style="background:var(--tl-visit)"></i>Visiting</span>
-          <span><i style="background:var(--tl-drive)"></i>Driving</span>
-          <span><i style="background:var(--tl-fly)"></i>Flying</span>
-          <span><i style="background:var(--tl-wait)"></i>Airport / station</span>
-          <span><i style="background:var(--tl-sleep)"></i>Sleeping</span>
-          <span><i style="background:var(--tl-flex);border:0.5px dashed var(--color-border-mid)"></i>Flex / open</span>
+        <div class="tl-main">
+          <div class="tl-left">
+            <div id="tlbody"></div>
+            <div class="legend">
+              <span><i style="background:var(--tl-visit)"></i>Visiting</span>
+              <span><i style="background:var(--tl-drive)"></i>Driving</span>
+              <span><i style="background:var(--tl-fly)"></i>Flying</span>
+              <span><i style="background:var(--tl-wait)"></i>Airport / station</span>
+              <span><i style="background:var(--tl-sleep)"></i>Sleeping</span>
+              <span><i style="background:var(--tl-flex);border:0.5px dashed var(--color-border-mid)"></i>Flex / open</span>
+            </div>
+          </div>
+          <div class="detail-panel" id="detail"></div>
         </div>
       </div>
     </div>
@@ -350,7 +385,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22c";
+const APP_BUILD = "tp-2026-07-22d";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -400,8 +435,9 @@ const AIRPORTS = [
 ];
 
 /* ── state ─────────────────────────────────────────────────── */
-let stops = [];          // [{id,label,lat,lon,kind,timing,duration,arriveBy,mode}]
+let stops = [];          // [{id,label,lat,lon,kind,timing,duration,arriveBy,mode,notes,people}]
 let activeDay = 0;
+let selectedStopId = null;   // stop shown in the timeline detail panel
 let map=null, markerLayer=null, lineLayer=null;
 let uid = 1;
 
@@ -520,11 +556,12 @@ function renderStops(res){
         ${s.mode==='plane'?`<button class="price-btn" onclick="showPrice(event,'${s.id}')">Get price</button>`:`<span class="t">${li.label||''}</span>`}`;
       box.appendChild(leg);
     }
-    const el=document.createElement('div'); el.className='stop'; el.draggable=true; el.dataset.id=s.id;
+    const el=document.createElement('div'); el.className='stop'+(s.id===selectedStopId?' selrow':''); el.draggable=true; el.dataset.id=s.id;
     const isVisit=VISIT_KINDS.has(s.kind);
+    const noteDot=(s.notes||(s.people&&s.people.length))?'<span class="note-dot" title="has notes/people"></span>':'';
     el.innerHTML=`
       <span class="handle" title="Drag to reorder">⋮⋮</span>
-      <span class="ic" style="background:${KIND_COLOR[s.kind]}">${ICONS[s.kind]}</span>
+      <span class="ic" style="background:${KIND_COLOR[s.kind]};cursor:pointer" onclick="selectStop('${s.id}')" title="Open notes & people">${ICONS[s.kind]}${noteDot}</span>
       <div class="main">
         <input class="nm" value="${esc(s.label)}" onchange="setLabel('${s.id}',this.value)"
           onkeydown="if(event.key==='Enter')this.blur()" title="Click to rename this stop" spellcheck="false">
@@ -696,12 +733,16 @@ function renderTimeline(res){
     const a=minOf(p.start), b=minOf(p.end);
     const h=Math.max(14,((b-a)/60)*PXH-2);
     const short=h<26;
-    html+=`<div class="block ${p.cat}" style="top:${top(a)}px;height:${h}px" title="${esc(p.title)} · ${fmtTime(p.start)}–${fmtTime(p.end)}">
+    const clickable=!!p.stopId;
+    html+=`<div class="block ${p.cat}${p.stopId&&p.stopId===selectedStopId?' sel':''}" data-stop="${p.stopId||''}"`+
+      `${clickable?` onclick="selectStop('${p.stopId}')" style="cursor:pointer;`:' style="'}top:${top(a)}px;height:${h}px"`+
+      ` title="${esc(p.title)} · ${fmtTime(p.start)}–${fmtTime(p.end)}${clickable?' · click for notes/people':''}">
       <span class="bt">${fmtTime(p.start)}–${fmtTime(p.end)}</span>
       ${short?'':`<span class="bl">${esc(p.title)}${p.sub?` · ${esc(p.sub)}`:''}</span>`}</div>`;
   });
   html+='</div>';
   body.innerHTML=html;
+  renderDetail();
 }
 
 /* ── recompute all ─────────────────────────────────────────── */
@@ -854,6 +895,37 @@ function adoptSegment(m,targetSeg){
   m.seg = (targetSeg && targetSeg!==nearestAirport(m).iata) ? targetSeg : null;
 }
 function clearSeg(id){ const s=stops.find(x=>x.id===id); if(s){ s.seg=null; recompute(); } }
+
+/* ── timeline detail panel: notes + people to visit (per stop) ── */
+function selectStop(id){ selectedStopId=id; renderDetail();
+  document.querySelectorAll('.block').forEach(b=>b.classList.toggle('sel', b.dataset.stop===id));
+  document.querySelectorAll('.stop').forEach(el=>el.classList.toggle('selrow', el.dataset.id===id)); }
+function renderDetail(){
+  const box=document.getElementById('detail'); if(!box) return;
+  const s=stops.find(x=>x.id===selectedStopId);
+  if(!s){ box.innerHTML='<div class="detail-empty">Click a stop (its icon), or a block in the timeline, to add <b>notes</b> and <b>people to visit</b> for that stop.</div>'; return; }
+  const sub=[KIND_LABEL[s.kind], s._arrival?`${fmtTime(s._arrival)}–${fmtTime(s._depart)}`:'', s._arrival?fmtDayLabel(s._arrival):''].filter(Boolean).join(' · ');
+  box.innerHTML=`
+    <div class="detail-head">
+      <span class="ic" style="background:${KIND_COLOR[s.kind]}">${ICONS[s.kind]}</span>
+      <div><div class="dt-name">${esc(s.label)}</div><div class="dt-sub">${esc(sub)}</div></div>
+    </div>
+    <label>Notes</label>
+    <textarea id="dtNotes" placeholder="Agenda, objectives, logistics, things to bring…" oninput="setNotes(this.value)">${esc(s.notes||'')}</textarea>
+    <label>People to visit</label>
+    <div class="people" id="dtPeople">
+      ${(s.people||[]).map((pp,i)=>`<span class="person">${esc(pp)}<span class="px" onclick="removePerson(${i})" title="Remove">×</span></span>`).join('')}
+      <input class="person-add" placeholder="+ add name" onkeydown="if(event.key==='Enter'){addPerson(this.value);this.value='';}">
+    </div>
+    <div class="detail-later">Later: link these to CRM contacts.</div>`;
+}
+function setNotes(v){ const s=stops.find(x=>x.id===selectedStopId); if(!s) return; s.notes=v; save(); }
+function addPerson(name){ name=(name||'').trim(); if(!name) return;
+  const s=stops.find(x=>x.id===selectedStopId); if(!s) return;
+  (s.people=s.people||[]).push(name); save(); renderDetail(); renderStopsDot(s.id); }
+function removePerson(i){ const s=stops.find(x=>x.id===selectedStopId); if(!s||!s.people) return;
+  s.people.splice(i,1); save(); renderDetail(); renderStopsDot(s.id); }
+function renderStopsDot(){ const res=computeItinerary(); renderStops(res); }   // refresh the note-dot on the list
 function wireDnD(el){
   el.addEventListener('dragstart',e=>{dragId=el.dataset.id;dragCopy=e.ctrlKey||e.metaKey||e.altKey;
     el.classList.add('drag');e.dataTransfer.effectAllowed='copyMove';});
@@ -993,7 +1065,8 @@ function newId(p){ return p+Date.now().toString(36)+Math.floor(Math.random()*466
 function blankTrip(name){ return {id:newId('t'),name:name||'Untitled trip',updatedAt:Date.now(),
   settings:{startDate:todayISO(),startTime:'08:00',bufPre:'90',bufPost:'30'},stops:[],options:[]}; }
 function currentTrip(){ return library.trips[library.currentId]; }
-function stripStops(arr){ return (arr||[]).map(s=>{ const c={...s}; delete c._arrival; delete c._depart; return c; }); }
+function stripStops(arr){ return (arr||[]).map(s=>{ const c={...s}; delete c._arrival; delete c._depart;
+  if(Array.isArray(c.people)) c.people=c.people.slice(); return c; }); }
 
 function saveLibrary(){ try{ localStorage.setItem(LSK,JSON.stringify(library)); }catch(e){} }
 function readWorkingIntoTrip(){

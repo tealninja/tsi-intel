@@ -40,6 +40,10 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   transit=teal lightness steps for drive/fly/wait, sleep=deep-blue, flex=gray) — on the
   five-anchor palette, no 6th colour. Day tabs; click a day to see the hour-by-hour blocks.
 - [x] **Get price** button on plane legs → popover (currently a **STUB** with mock fares).
+- [x] **Timeline detail panel** — the wide empty space beside the day timeline now holds a
+  detail panel: click a stop's icon or its timeline block → stop header (kind/times) + editable
+  **Notes** + **People to visit** (name chips, add/remove). A dried-wood dot marks stops with
+  notes/people. Persists per stop with the trip. Next: link people to CRM contacts.
 - [x] localStorage persistence + light/dark, TSI tokens copied inline, no shadows, mono times.
 - [x] **Saved-trips library + itinerary options** (localStorage) — a **Trips** panel: named
   trips with a selector, New / Save as… / Duplicate / Delete; the working trip auto-saves.
