@@ -350,7 +350,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22b";
+const APP_BUILD = "tp-2026-07-22c";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -847,13 +847,11 @@ function clearDrop(){ document.querySelectorAll('.stop.drop-above,.stop.drop-bel
   .forEach(x=>x.classList.remove('drop-above','drop-below')); }
 function dropSide(el,e){ const r=el.getBoundingClientRect(); return (e.clientY-r.top)<r.height/2?'above':'below'; }
 function redefaultModes(){ stops.forEach((s,i)=>{ if(i>0 && s.mode==='car' && haversine(stops[i-1],s)>500) s.mode='plane'; }); }
-/* after a single-stop drop: adopt the effective segment of the neighbour it landed next to,
-   so dropping into a block joins that block; clear the pin if it's naturally in that catchment */
-function adoptSegment(m){
-  const i=stops.indexOf(m); if(i<0) return;
-  const nb = stops[i-1] || stops[i+1];
-  const key = nb ? effSeg(nb) : null;
-  m.seg = (key && key!==nearestAirport(m).iata) ? key : null;
+/* after a single-stop drop: adopt the segment of the STOP IT WAS DROPPED ONTO (the target),
+   regardless of above/below — dropping onto a segment-2 item joins segment 2 even when the
+   item physically above belongs to segment 1. Clear the pin if it's naturally in that catchment. */
+function adoptSegment(m,targetSeg){
+  m.seg = (targetSeg && targetSeg!==nearestAirport(m).iata) ? targetSeg : null;
 }
 function clearSeg(id){ const s=stops.find(x=>x.id===id); if(s){ s.seg=null; recompute(); } }
 function wireDnD(el){
@@ -872,6 +870,7 @@ function wireDnD(el){
     const copy=dragCopy||e.ctrlKey||e.metaKey||e.altKey;
     const from=stops.findIndex(s=>s.id===dragId), to=stops.findIndex(s=>s.id===el.dataset.id);
     if(from<0||to<0){return;}
+    const targetSeg=effSeg(stops[to]);                    // segment of the item dropped onto (capture before mutating)
     let insertAt = side==='above'?to:to+1;
     let moved;
     if(copy){                                             // Ctrl/Alt-drag → duplicate the stop
@@ -881,7 +880,7 @@ function wireDnD(el){
       if(from<insertAt) insertAt--;                       // account for the removed item
       stops.splice(insertAt,0,m); moved=m;
     }
-    adoptSegment(moved);                                  // pin to the segment it was dropped into
+    adoptSegment(moved,targetSeg);                        // join the segment you dropped onto
     redefaultModes(); recompute();
   });
 }
