@@ -257,6 +257,29 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
   padding:3px 9px;font-size:12px;width:120px;color:var(--color-text-primary);outline:none}
 .person-add:focus{border-color:var(--color-accent);border-style:solid}
 .detail-later{font-size:10px;color:var(--color-text-muted);margin-top:12px;font-style:italic}
+/* rich-text notes + mentions/tags */
+.rt-hint{font-size:9.5px;color:var(--color-text-muted);font-weight:400;text-transform:none;letter-spacing:0}
+.rt-toolbar{display:flex;gap:4px;margin-bottom:5px}
+.rt-toolbar button{border:var(--hair) solid var(--color-border-mid);background:transparent;border-radius:3px;
+  width:26px;height:24px;font-size:12px;color:var(--color-text-secondary)}
+.rt-toolbar button:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
+.rt-editor{min-height:80px;border:1px solid var(--color-border-mid);border-radius:var(--radius-sm);padding:8px;
+  font-size:13px;line-height:1.55;background:var(--color-surface);color:var(--color-text-primary);outline:none;overflow:auto}
+.rt-editor:focus{border-color:var(--color-accent)}
+.rt-editor:empty:before{content:attr(data-placeholder);color:var(--color-text-muted)}
+.rt-editor ul{margin:4px 0;padding-left:20px}
+.mention{background:rgba(0,146,159,.15);color:var(--tsi-teal);border-radius:4px;padding:0 4px;font-weight:500;white-space:nowrap}
+.tag{background:rgba(128,152,72,.18);color:var(--tsi-sage);border-radius:4px;padding:0 4px;white-space:nowrap}
+[data-theme="dark"] .mention{background:rgba(0,186,200,.2);color:var(--tsi-teal-dark)}
+[data-theme="dark"] .tag{background:rgba(128,152,72,.28);color:rgb(170,190,120)}
+.tag-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.mention-pop{position:fixed;z-index:500;background:var(--color-surface);border:1px solid var(--color-border-mid);
+  border-radius:var(--radius-sm);min-width:190px;max-height:220px;overflow:auto;display:none}
+.mention-pop.show{display:block}
+.mention-pop .mi{padding:6px 9px;font-size:12.5px;cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.mention-pop .mi.on,.mention-pop .mi:hover{background:var(--color-bg)}
+.mention-pop .mi .mi-sub{font-size:10.5px;color:var(--color-text-muted)}
+.mention-pop .mi .mi-new{color:var(--tsi-sage)}
 .block.sel{outline:2px solid var(--tsi-deep-blue);outline-offset:-1px}
 .stop.selrow{border-color:var(--tsi-deep-blue)}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--color-text-secondary)}
@@ -381,11 +404,12 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 </div>
 
 <div class="pop" id="pop"></div>
+<div class="mention-pop" id="mentionPop"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22d";
+const APP_BUILD = "tp-2026-07-22e";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -435,7 +459,16 @@ const AIRPORTS = [
 ];
 
 /* ── state ─────────────────────────────────────────────────── */
-let stops = [];          // [{id,label,lat,lon,kind,timing,duration,arriveBy,mode,notes,people}]
+/* mock contacts for @mentions — later: real CRM contacts from tsi-intel */
+const MOCK_CONTACTS = [
+  {id:'c1',name:'Jana Vogel',role:'Plant manager · Kappa Papier'},
+  {id:'c2',name:'Piet Bakker',role:'Procurement · Rijn Board'},
+  {id:'c3',name:'Klaus Meier',role:'Ops director · Ruhr Kraft'},
+  {id:'c4',name:'Sofie De Vos',role:'Sustainability · Schelde Tissue'},
+  {id:'c5',name:'Lars Andersen',role:'CEO · Nordsee Fibre'},
+  {id:'c6',name:'Marta Ruiz',role:'Buyer · Maas Liner'}
+];
+let stops = [];          // [{id,label,lat,lon,kind,timing,duration,arriveBy,mode,notes,people,tags,mentions}]
 let activeDay = 0;
 let selectedStopId = null;   // stop shown in the timeline detail panel
 let map=null, markerLayer=null, lineLayer=null;
@@ -558,7 +591,7 @@ function renderStops(res){
     }
     const el=document.createElement('div'); el.className='stop'+(s.id===selectedStopId?' selrow':''); el.draggable=true; el.dataset.id=s.id;
     const isVisit=VISIT_KINDS.has(s.kind);
-    const noteDot=(s.notes||(s.people&&s.people.length))?'<span class="note-dot" title="has notes/people"></span>':'';
+    const noteDot=hasStopDetail(s)?'<span class="note-dot" title="has notes / people / tags"></span>':'';
     el.innerHTML=`
       <span class="handle" title="Drag to reorder">⋮⋮</span>
       <span class="ic" style="background:${KIND_COLOR[s.kind]};cursor:pointer" onclick="selectStop('${s.id}')" title="Open notes & people">${ICONS[s.kind]}${noteDot}</span>
@@ -910,8 +943,15 @@ function renderDetail(){
       <span class="ic" style="background:${KIND_COLOR[s.kind]}">${ICONS[s.kind]}</span>
       <div><div class="dt-name">${esc(s.label)}</div><div class="dt-sub">${esc(sub)}</div></div>
     </div>
-    <label>Notes</label>
-    <textarea id="dtNotes" placeholder="Agenda, objectives, logistics, things to bring…" oninput="setNotes(this.value)">${esc(s.notes||'')}</textarea>
+    <label>Notes <span class="rt-hint">rich text · <b>@</b> mentions a contact · <b>#</b> adds a tag</span></label>
+    <div class="rt-toolbar">
+      <button type="button" onmousedown="rtCmd(event,'bold')" title="Bold"><b>B</b></button>
+      <button type="button" onmousedown="rtCmd(event,'italic')" title="Italic"><i>I</i></button>
+      <button type="button" onmousedown="rtCmd(event,'insertUnorderedList')" title="Bullet list">•</button>
+    </div>
+    <div class="rt-editor" id="dtNotes" contenteditable="true" data-placeholder="Agenda, objectives, logistics…  @name  #tag"
+      oninput="onNotesInput(event)" onkeydown="onNotesKey(event)" onblur="saveNotesFromEditor()">${s.notes||''}</div>
+    ${(s.tags&&s.tags.length)?`<div class="tag-row">${s.tags.map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>`:''}
     <label>People to visit</label>
     <div class="people" id="dtPeople">
       ${(s.people||[]).map((pp,i)=>`<span class="person">${esc(pp)}<span class="px" onclick="removePerson(${i})" title="Remove">×</span></span>`).join('')}
@@ -919,13 +959,83 @@ function renderDetail(){
     </div>
     <div class="detail-later">Later: link these to CRM contacts.</div>`;
 }
-function setNotes(v){ const s=stops.find(x=>x.id===selectedStopId); if(!s) return; s.notes=v; save(); }
+/* rich-text notes with @mentions + #tags (contenteditable) */
+let _mItems=[], _mIdx=0, _curTok=null;
+function rtCmd(e,cmd){ e.preventDefault(); document.execCommand(cmd,false,null); saveNotesFromEditor(); }
+function allTags(){ const set=new Set(); stops.forEach(s=>(s.tags||[]).forEach(t=>set.add(t))); return [...set]; }
+function saveNotesFromEditor(){
+  const ed=document.getElementById('dtNotes'), s=stops.find(x=>x.id===selectedStopId); if(!ed||!s) return;
+  s.notes=ed.innerHTML;
+  s.tags=[...new Set([...ed.querySelectorAll('.tag')].map(t=>t.textContent.replace(/^#/,'').trim()).filter(Boolean))];
+  s.mentions=[...ed.querySelectorAll('.mention')].map(m=>({id:m.dataset.id||null,name:m.textContent.replace(/^@/,'').trim()}));
+  save(); updateNoteDot(s);
+}
+function caretToken(){
+  const sel=window.getSelection(); if(!sel.rangeCount) return null;
+  const r=sel.getRangeAt(0); if(!r.collapsed||r.startContainer.nodeType!==3) return null;
+  const text=r.startContainer.textContent.slice(0,r.startOffset);
+  const m=text.match(/(?:^|\s| )([@#])([\wÀ-ɏ.-]*)$/);
+  if(!m) return null;
+  return { trigger:m[1], query:m[2], node:r.startContainer, start:r.startOffset-(m[2].length+1), end:r.startOffset };
+}
+function onNotesInput(){
+  saveNotesFromEditor();
+  const tok=caretToken();
+  if(!tok){ hideMentionPop(); return; }
+  _curTok=tok;
+  if(tok.trigger==='@'){
+    const q=tok.query.toLowerCase();
+    _mItems=MOCK_CONTACTS.filter(c=>c.name.toLowerCase().includes(q)).slice(0,6)
+      .map(c=>({kind:'mention',label:c.name,id:c.id,sub:c.role}));
+  } else {
+    const q=tok.query.toLowerCase(), tags=allTags().filter(t=>t.toLowerCase().includes(q));
+    _mItems=tags.slice(0,6).map(t=>({kind:'tag',label:t}));
+    if(tok.query && !tags.some(t=>t.toLowerCase()===q)) _mItems.unshift({kind:'tag',label:tok.query,create:true});
+  }
+  if(!_mItems.length){ hideMentionPop(); return; }
+  _mIdx=0; positionPop(); paintPop();
+}
+function onNotesKey(e){
+  const pop=document.getElementById('mentionPop'); if(!pop.classList.contains('show')) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _mIdx=Math.min(_mIdx+1,_mItems.length-1); paintPop(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); _mIdx=Math.max(_mIdx-1,0); paintPop(); }
+  else if(e.key==='Enter'||e.key==='Tab'){ e.preventDefault(); pickPop(_mIdx); }
+  else if(e.key==='Escape'){ hideMentionPop(); }
+}
+function positionPop(){
+  const pop=document.getElementById('mentionPop'); const sel=window.getSelection();
+  let rect=sel.rangeCount?sel.getRangeAt(0).getBoundingClientRect():null;
+  if(!rect||(!rect.left&&!rect.top)){ const ed=document.getElementById('dtNotes'); rect=ed.getBoundingClientRect(); }
+  pop.style.left=Math.min(rect.left,window.innerWidth-210)+'px';
+  pop.style.top=Math.min(rect.bottom+4,window.innerHeight-230)+'px';
+}
+function paintPop(){
+  const pop=document.getElementById('mentionPop');
+  pop.innerHTML=_mItems.map((it,i)=>`<div class="mi ${i===_mIdx?'on':''}" onmousedown="event.preventDefault();pickPop(${i})">
+    <span class="${it.kind==='tag'?'mi-new':''}">${it.create?'Create ':''}${it.kind==='tag'?'#':'@'}${esc(it.label)}</span>
+    ${it.sub?`<span class="mi-sub">${esc(it.sub)}</span>`:''}</div>`).join('');
+  pop.classList.add('show');
+}
+function hideMentionPop(){ const p=document.getElementById('mentionPop'); if(p){p.classList.remove('show');} _mItems=[]; }
+function pickPop(i){
+  const it=_mItems[i], tok=_curTok; if(!it||!tok){ hideMentionPop(); return; }
+  const range=document.createRange();
+  range.setStart(tok.node,tok.start); range.setEnd(tok.node,tok.end); range.deleteContents();
+  const chip=document.createElement('span');
+  chip.className=it.kind; chip.contentEditable='false';
+  chip.textContent=(it.kind==='mention'?'@':'#')+it.label;
+  if(it.id) chip.dataset.id=it.id;
+  range.insertNode(chip);
+  const space=document.createTextNode(' '); chip.after(space);
+  const nr=document.createRange(); nr.setStartAfter(space); nr.collapse(true);
+  const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(nr);
+  hideMentionPop(); saveNotesFromEditor();
+}
 function addPerson(name){ name=(name||'').trim(); if(!name) return;
   const s=stops.find(x=>x.id===selectedStopId); if(!s) return;
-  (s.people=s.people||[]).push(name); save(); renderDetail(); renderStopsDot(s.id); }
+  (s.people=s.people||[]).push(name); save(); renderDetail(); updateNoteDot(s); }
 function removePerson(i){ const s=stops.find(x=>x.id===selectedStopId); if(!s||!s.people) return;
-  s.people.splice(i,1); save(); renderDetail(); renderStopsDot(s.id); }
-function renderStopsDot(){ const res=computeItinerary(); renderStops(res); }   // refresh the note-dot on the list
+  s.people.splice(i,1); save(); renderDetail(); updateNoteDot(s); }
 function wireDnD(el){
   el.addEventListener('dragstart',e=>{dragId=el.dataset.id;dragCopy=e.ctrlKey||e.metaKey||e.altKey;
     el.classList.add('drag');e.dataTransfer.effectAllowed='copyMove';});
@@ -1067,6 +1177,14 @@ function blankTrip(name){ return {id:newId('t'),name:name||'Untitled trip',updat
 function currentTrip(){ return library.trips[library.currentId]; }
 function stripStops(arr){ return (arr||[]).map(s=>{ const c={...s}; delete c._arrival; delete c._depart;
   if(Array.isArray(c.people)) c.people=c.people.slice(); return c; }); }
+function hasStopDetail(s){
+  const txt=s.notes?s.notes.replace(/<[^>]*>/g,'').replace(/\u00A0|&nbsp;/g,' ').trim():'';
+  return txt.length>0 || (s.people&&s.people.length>0) || (s.tags&&s.tags.length>0); }
+function updateNoteDot(s){                     // live dot refresh without re-rendering the whole list
+  const ic=document.querySelector('.stop[data-id="'+s.id+'"] .ic'); if(!ic) return;
+  let dot=ic.querySelector('.note-dot');
+  if(hasStopDetail(s)&&!dot){ dot=document.createElement('span'); dot.className='note-dot'; dot.title='has notes / people / tags'; ic.appendChild(dot); }
+  else if(!hasStopDetail(s)&&dot){ dot.remove(); } }
 
 function saveLibrary(){ try{ localStorage.setItem(LSK,JSON.stringify(library)); }catch(e){} }
 function readWorkingIntoTrip(){

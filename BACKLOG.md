@@ -44,6 +44,12 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   detail panel: click a stop's icon or its timeline block → stop header (kind/times) + editable
   **Notes** + **People to visit** (name chips, add/remove). A dried-wood dot marks stops with
   notes/people. Persists per stop with the trip. Next: link people to CRM contacts.
+- [x] **Rich-text notes with @mentions + #tags** — Notes is now a contenteditable rich-text
+  field (B / I / bullet toolbar). Typing **@** autocompletes contacts (mock `MOCK_CONTACTS`
+  now → real CRM on merge) and inserts a teal mention chip; typing **#** suggests existing tags
+  or creates a new one as a sage tag chip. Mentions + tags are extracted (`s.mentions`, `s.tags`)
+  for later filtering/linking; a tag row shows on the stop. Persists per stop.
+  ⚠ Notes are stored as raw HTML (own local data) — **sanitise on the merge into D1** before it's shared.
 - [x] localStorage persistence + light/dark, TSI tokens copied inline, no shadows, mono times.
 - [x] **Saved-trips library + itinerary options** (localStorage) — a **Trips** panel: named
   trips with a selector, New / Save as… / Duplicate / Delete; the working trip auto-saves.
