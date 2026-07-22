@@ -409,7 +409,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22e";
+const APP_BUILD = "tp-2026-07-22f";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -963,6 +963,7 @@ function renderDetail(){
 let _mItems=[], _mIdx=0, _curTok=null;
 function rtCmd(e,cmd){ e.preventDefault(); document.execCommand(cmd,false,null); saveNotesFromEditor(); }
 function allTags(){ const set=new Set(); stops.forEach(s=>(s.tags||[]).forEach(t=>set.add(t))); return [...set]; }
+function allContacts(){ return MOCK_CONTACTS.concat(library.contacts||[]); }   // mock + user-added
 function saveNotesFromEditor(){
   const ed=document.getElementById('dtNotes'), s=stops.find(x=>x.id===selectedStopId); if(!ed||!s) return;
   s.notes=ed.innerHTML;
@@ -974,9 +975,13 @@ function caretToken(){
   const sel=window.getSelection(); if(!sel.rangeCount) return null;
   const r=sel.getRangeAt(0); if(!r.collapsed||r.startContainer.nodeType!==3) return null;
   const text=r.startContainer.textContent.slice(0,r.startOffset);
-  const m=text.match(/(?:^|\s| )([@#])([\wÀ-ɏ.-]*)$/);
+  // allow spaces so multi-word names work (e.g. "@Zoe Nakamura"); bail once it stops looking like a name
+  const m=text.match(/(?:^|\s)([@#])([\p{L}\p{N}.'\- ]*)$/u);
   if(!m) return null;
-  return { trigger:m[1], query:m[2], node:r.startContainer, start:r.startOffset-(m[2].length+1), end:r.startOffset };
+  const query=m[2];
+  if(/^\s/.test(query) || /\s{2,}$/.test(query) || query.length>32
+     || query.trim().split(/\s+/).filter(Boolean).length>3) return null;
+  return { trigger:m[1], query, node:r.startContainer, start:r.startOffset-(query.length+1), end:r.startOffset };
 }
 function onNotesInput(){
   saveNotesFromEditor();
@@ -984,13 +989,15 @@ function onNotesInput(){
   if(!tok){ hideMentionPop(); return; }
   _curTok=tok;
   if(tok.trigger==='@'){
-    const q=tok.query.toLowerCase();
-    _mItems=MOCK_CONTACTS.filter(c=>c.name.toLowerCase().includes(q)).slice(0,6)
-      .map(c=>({kind:'mention',label:c.name,id:c.id,sub:c.role}));
+    const q=tok.query.trim().toLowerCase();
+    const matches=allContacts().filter(c=>c.name.toLowerCase().includes(q));
+    _mItems=matches.slice(0,6).map(c=>({kind:'mention',label:c.name,id:c.id,sub:c.role}));
+    if(tok.query.trim() && !matches.some(c=>c.name.toLowerCase()===q))
+      _mItems.unshift({kind:'mention',label:tok.query.trim(),create:true,sub:'add as a new contact'});
   } else {
-    const q=tok.query.toLowerCase(), tags=allTags().filter(t=>t.toLowerCase().includes(q));
+    const q=tok.query.trim().toLowerCase(), tags=allTags().filter(t=>t.toLowerCase().includes(q));
     _mItems=tags.slice(0,6).map(t=>({kind:'tag',label:t}));
-    if(tok.query && !tags.some(t=>t.toLowerCase()===q)) _mItems.unshift({kind:'tag',label:tok.query,create:true});
+    if(tok.query.trim() && !tags.some(t=>t.toLowerCase()===q)) _mItems.unshift({kind:'tag',label:tok.query.trim(),create:true});
   }
   if(!_mItems.length){ hideMentionPop(); return; }
   _mIdx=0; positionPop(); paintPop();
@@ -1019,12 +1026,16 @@ function paintPop(){
 function hideMentionPop(){ const p=document.getElementById('mentionPop'); if(p){p.classList.remove('show');} _mItems=[]; }
 function pickPop(i){
   const it=_mItems[i], tok=_curTok; if(!it||!tok){ hideMentionPop(); return; }
+  let id=it.id||null;
+  if(it.kind==='mention' && it.create){          // add a brand-new contact to the reusable pool
+    const c={id:newId('c'), name:it.label}; (library.contacts=library.contacts||[]).push(c); saveLibrary(); id=c.id;
+  }
   const range=document.createRange();
   range.setStart(tok.node,tok.start); range.setEnd(tok.node,tok.end); range.deleteContents();
   const chip=document.createElement('span');
   chip.className=it.kind; chip.contentEditable='false';
   chip.textContent=(it.kind==='mention'?'@':'#')+it.label;
-  if(it.id) chip.dataset.id=it.id;
+  if(id) chip.dataset.id=id;
   range.insertNode(chip);
   const space=document.createTextNode(' '); chip.after(space);
   const nr=document.createRange(); nr.setStartAfter(space); nr.collapse(true);
@@ -1170,7 +1181,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('.pop')&&!e.target.c
    trip    = { id, name, updatedAt, settings:{startDate,startTime,bufPre,bufPost},
                stops:[…], options:[ {id,name,createdAt,travelMin,stops:[…]} ] } */
 const LSK='tsi-trips';
-let library={trips:{},order:[],currentId:null,orsKey:''};
+let library={trips:{},order:[],currentId:null,orsKey:'',contacts:[]};
 function newId(p){ return p+Date.now().toString(36)+Math.floor(Math.random()*46656).toString(36); }
 function blankTrip(name){ return {id:newId('t'),name:name||'Untitled trip',updatedAt:Date.now(),
   settings:{startDate:todayISO(),startTime:'08:00',bufPre:'90',bufPost:'30'},stops:[],options:[]}; }
@@ -1256,7 +1267,8 @@ function renderOptions(){ const box=document.getElementById('optionsBar'); if(!b
 function loadLibrary(){
   try{ const d=JSON.parse(localStorage.getItem(LSK)||'null');
     if(d&&d.trips&&Object.keys(d.trips).length){
-      library=Object.assign({trips:{},order:[],currentId:null,orsKey:''},d);
+      library=Object.assign({trips:{},order:[],currentId:null,orsKey:'',contacts:[]},d);
+      if(!library.contacts) library.contacts=[];
       if(!library.order||!library.order.length) library.order=Object.keys(library.trips);
       library.order=library.order.filter(id=>library.trips[id]);
       if(!library.currentId||!library.trips[library.currentId]) library.currentId=library.order[0];
@@ -1264,7 +1276,7 @@ function loadLibrary(){
   try{ const old=JSON.parse(localStorage.getItem('tsi-trip')||'null');   // migrate the old single-trip format
     if(old&&old.stops&&old.stops.length){ const t=blankTrip(old.name||'My trip');
       t.settings={startDate:old.startDate||todayISO(),startTime:old.startTime||'08:00',bufPre:old.bufPre||'90',bufPost:old.bufPost||'30'};
-      t.stops=stripStops(old.stops); library={trips:{[t.id]:t},order:[t.id],currentId:t.id,orsKey:old.orsKey||''};
+      t.stops=stripStops(old.stops); library={trips:{[t.id]:t},order:[t.id],currentId:t.id,orsKey:old.orsKey||'',contacts:[]};
       return true; } }catch(e){}
   return false;
 }
@@ -1311,7 +1323,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
     applyTripToWorking(currentTrip());
   } else {
     const t=blankTrip('Mill visits — DE/NL');
-    library={trips:{[t.id]:t},order:[t.id],currentId:t.id,orsKey:''};
+    library={trips:{[t.id]:t},order:[t.id],currentId:t.id,orsKey:'',contacts:[]};
     loadDemo();                       // fills the working itinerary; recompute()→save() persists it into this trip
     renderTripSelect(); renderOptions();
   }

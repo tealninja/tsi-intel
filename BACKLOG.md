@@ -50,6 +50,10 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   or creates a new one as a sage tag chip. Mentions + tags are extracted (`s.mentions`, `s.tags`)
   for later filtering/linking; a tag row shows on the stop. Persists per stop.
   ⚠ Notes are stored as raw HTML (own local data) — **sanitise on the merge into D1** before it's shared.
+- [x] **@ can add a NEW contact** — if the name isn't in the list, the popup offers "Create
+  @Name" (like #tags); creating adds it to a reusable, persisted contacts pool (`library.contacts`).
+  Tokenizer now allows **multi-word names** ("@Zoe Nakamura") — spaces no longer close the popup;
+  it bails only once the text stops looking like a name (>3 words / >32 chars).
 - [x] localStorage persistence + light/dark, TSI tokens copied inline, no shadows, mono times.
 - [x] **Saved-trips library + itinerary options** (localStorage) — a **Trips** panel: named
   trips with a selector, New / Save as… / Duplicate / Delete; the working trip auto-saves.
