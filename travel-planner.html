@@ -144,6 +144,12 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .cluster-bar{position:absolute;left:17px;width:4px;border-radius:2px;background:var(--tsi-teal);opacity:.5;cursor:grab}
 .cluster-bar:hover,.cluster-lbl:hover{opacity:1}
 .cluster-bar.gdrag,.cluster-lbl.gdrag{opacity:.3}
+.cluster-bar.pinned{background:repeating-linear-gradient(180deg,var(--tsi-teal) 0 6px,transparent 6px 10px)}
+.seg-pin{display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--tsi-teal);
+  border:var(--hair) solid var(--tsi-teal);border-radius:3px;padding:1px 3px 1px 4px}
+.seg-pin svg{width:10px;height:10px}
+.seg-pin .seg-x{cursor:pointer;color:var(--color-text-muted);font-size:12px;line-height:1}
+.seg-pin .seg-x:hover{color:var(--tsi-coral)}
 .cluster-lbl{position:absolute;left:1px;width:13px;writing-mode:vertical-rl;font-size:9px;letter-spacing:.02em;
   color:var(--tsi-teal);white-space:nowrap;overflow:hidden;opacity:.85;cursor:grab}
 .leg{display:flex;align-items:center;gap:8px;padding:7px 0 7px 34px;font-size:11.5px;color:var(--color-text-secondary);position:relative}
@@ -344,7 +350,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22a";
+const APP_BUILD = "tp-2026-07-22b";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -364,6 +370,7 @@ const KIND_COLOR = {mill:'rgb(128,152,72)',office:'rgb(25,68,108)',airport:'rgb(
   station:'rgb(0,146,159)',hotel:'rgb(25,68,108)',place:'rgb(100,100,100)'};
 const KIND_LABEL = {mill:'Mill',office:'Office',airport:'Airport',station:'Station',hotel:'Hotel',place:'Place'};
 const VISIT_KINDS = new Set(['mill','office','place']);   // things you "visit" (have a duration)
+const PIN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 17v5M9 4h6l-1 6 2.5 3.5h-9L10 10z"/></svg>';
 const MODE_ICONS = {
   car:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12l1.4-4.3A2 2 0 0 1 8.3 6h7.4a2 2 0 0 1 1.9 1.7L19 12v5H5z"/><circle cx="7.5" cy="17" r="1.4"/><circle cx="16.5" cy="17" r="1.4"/></svg>',
   plane:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15l-8-3V5a1.5 1.5 0 0 0-3 0v7l-8 3v2l8-2v3l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-3l8 2z"/></svg>',
@@ -534,6 +541,7 @@ function renderStops(res){
             <input class="dur mono" type="number" min="0" step="15" value="${s.duration||90}" onchange="setDuration('${s.id}',this.value)" title="Visit minutes"><span class="t">min</span>
           `:s.kind==='hotel'?`<span class="chip-fixed">overnight → ${HOTEL_CHECKOUT}</span>`:`
             <input class="dur mono" type="number" min="0" step="15" value="${s.duration||30}" onchange="setDuration('${s.id}',this.value)"><span class="t">min wait</span>`}
+          ${s.seg?`<span class="seg-pin" title="Pinned to segment ${esc(s.seg)} (overrides its ${esc(nearestAirport(s).iata)} catchment) — click × to reset to auto">${PIN_SVG}${esc(s.seg)}<span class="seg-x" onclick="clearSeg('${s.id}')">×</span></span>`:''}
         </div>
         ${s._arrival?`<div class="times">${fmtTime(s._arrival)}–${fmtTime(s._depart)} · ${fmtDayLabel(s._arrival)}</div>`:''}
         ${res.warn[s.id]?`<div class="warn">⚠ ${esc(res.warn[s.id])}</div>`:''}
@@ -547,17 +555,21 @@ function renderStops(res){
   });
   drawClusterBars(box);
 }
-/* consecutive stops sharing the same nearest-airport catchment = one "airport base"
-   (e.g. everything based out of AMS). Returns [start,end] index ranges. */
+/* effective segment of a stop = a manual pin (s.seg) if set, else its nearest-airport
+   catchment. Lets you drag an activity into another segment "for organisation" and
+   have it stay there regardless of geography. */
+function effSeg(s){ return s.seg || nearestAirport(s).iata; }
+/* consecutive stops sharing the same effective segment = one base block.
+   Returns [start,end] index ranges. */
 function airportClusters(){
   const cl=[]; if(!stops.length) return cl;
   let start=0;
   for(let i=1;i<stops.length;i++){
-    if(nearestAirport(stops[i]).iata !== nearestAirport(stops[i-1]).iata){ cl.push([start,i-1]); start=i; }
+    if(effSeg(stops[i]) !== effSeg(stops[i-1])){ cl.push([start,i-1]); start=i; }
   }
   cl.push([start,stops.length-1]); return cl;
 }
-/* vertical bar grouping each airport-base block, labelled with the IATA (+ hotel if any) */
+/* vertical bar grouping each base block, labelled with the segment key (+ hotel if any) */
 function drawClusterBars(box){
   box.querySelectorAll('.cluster-bar,.cluster-lbl').forEach(x=>x.remove());
   airportClusters().forEach(([a,b])=>{
@@ -566,11 +578,12 @@ function drawClusterBars(box){
     const l=box.querySelector(`.stop[data-id="${stops[b].id}"]`);
     if(!f||!l) return;
     const top=f.offsetTop, h=l.offsetTop+l.offsetHeight-top;
-    const iata=nearestAirport(stops[a]).iata;
+    const iata=effSeg(stops[a]);
+    const pinned=stops.slice(a,b+1).some(s=>s.seg);     // block contains a manually-pinned stop
     let hotel=null; for(let k=a;k<=b;k++){ if(stops[k].kind==='hotel'){ hotel=stops[k].label; break; } }
     const gids=stops.slice(a,b+1).map(s=>s.id);
-    const tip=`Based near ${iata}`+(hotel?` · ${hotel}`:'')+` — ${b-a+1} stops · drag to move the whole block`;
-    const bar=document.createElement('div'); bar.className='cluster-bar';
+    const tip=`Segment ${iata}`+(hotel?` · ${hotel}`:'')+` — ${b-a+1} stops · drag the bar to move the whole block`+(pinned?' · contains manually-pinned stops':'');
+    const bar=document.createElement('div'); bar.className='cluster-bar'+(pinned?' pinned':'');
     bar.style.top=top+'px'; bar.style.height=h+'px'; bar.title=tip;
     wireGroupDrag(bar,gids); box.appendChild(bar);
     const lbl=document.createElement('div'); lbl.className='cluster-lbl';
@@ -834,6 +847,15 @@ function clearDrop(){ document.querySelectorAll('.stop.drop-above,.stop.drop-bel
   .forEach(x=>x.classList.remove('drop-above','drop-below')); }
 function dropSide(el,e){ const r=el.getBoundingClientRect(); return (e.clientY-r.top)<r.height/2?'above':'below'; }
 function redefaultModes(){ stops.forEach((s,i)=>{ if(i>0 && s.mode==='car' && haversine(stops[i-1],s)>500) s.mode='plane'; }); }
+/* after a single-stop drop: adopt the effective segment of the neighbour it landed next to,
+   so dropping into a block joins that block; clear the pin if it's naturally in that catchment */
+function adoptSegment(m){
+  const i=stops.indexOf(m); if(i<0) return;
+  const nb = stops[i-1] || stops[i+1];
+  const key = nb ? effSeg(nb) : null;
+  m.seg = (key && key!==nearestAirport(m).iata) ? key : null;
+}
+function clearSeg(id){ const s=stops.find(x=>x.id===id); if(s){ s.seg=null; recompute(); } }
 function wireDnD(el){
   el.addEventListener('dragstart',e=>{dragId=el.dataset.id;dragCopy=e.ctrlKey||e.metaKey||e.altKey;
     el.classList.add('drag');e.dataTransfer.effectAllowed='copyMove';});
@@ -851,13 +873,15 @@ function wireDnD(el){
     const from=stops.findIndex(s=>s.id===dragId), to=stops.findIndex(s=>s.id===el.dataset.id);
     if(from<0||to<0){return;}
     let insertAt = side==='above'?to:to+1;
+    let moved;
     if(copy){                                             // Ctrl/Alt-drag → duplicate the stop
-      stops.splice(insertAt,0,cloneStop(stops[from]));
+      moved=cloneStop(stops[from]); stops.splice(insertAt,0,moved);
     } else {
       const [m]=stops.splice(from,1);
       if(from<insertAt) insertAt--;                       // account for the removed item
-      stops.splice(insertAt,0,m);
+      stops.splice(insertAt,0,m); moved=m;
     }
+    adoptSegment(moved);                                  // pin to the segment it was dropped into
     redefaultModes(); recompute();
   });
 }

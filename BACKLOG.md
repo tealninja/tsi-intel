@@ -75,6 +75,12 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
 - [x] **Drag a whole airport-base block together** — the cluster bar/IATA label is a grip;
   dragging it moves the entire catchment group (all its stops, kept intact + ordered) to a
   new position at once. Drops onto any stop outside the block.
+- [x] **Drag activities between segments (hybrid auto + manual pin)** — segments still
+  auto-group by nearest airport, but dropping a stop into another block **pins** it to that
+  segment (a `seg` override), so you can organise activities across catchments regardless of
+  geography. Pinned stops show a teal pin badge with the segment key + a × to reset to auto;
+  the block bar goes dashed when it holds pinned stops. `seg` persists with the trip. Routing
+  is unaffected (organisation only).
 - [x] **Suggest / optimise order** — "↳ Optimise order" button runs nearest-neighbour over
   the travel-time matrix (real road times where cached, else haversine), keeps stop[0] as the
   origin, **preserves the relative order of fixed appointments**, and 2-opts when there are no
