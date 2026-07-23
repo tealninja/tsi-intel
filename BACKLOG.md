@@ -40,6 +40,9 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   transit=teal lightness steps for drive/fly/wait, sleep=deep-blue, flex=gray) — on the
   five-anchor palette, no 6th colour. Day tabs; click a day to see the hour-by-hour blocks.
 - [x] **Get price** button on plane legs → popover (currently a **STUB** with mock fares).
+- [x] **Flights drawn as great-circle arcs** — plane legs now render the flight as a
+  great-circle arc between the **nearest airports** (curves on the Mercator map), with thin
+  dashed stop→airport hops and small airport markers (IATA tooltips). Antimeridian-safe.
 - [x] **Timeline detail panel** — the wide empty space beside the day timeline now holds a
   detail panel: click a stop's icon or its timeline block → stop header (kind/times) + editable
   **Notes** + **People to visit** (name chips, add/remove). A dried-wood dot marks stops with

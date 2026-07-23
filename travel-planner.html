@@ -409,7 +409,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22f";
+const APP_BUILD = "tp-2026-07-22g";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -485,6 +485,24 @@ function nearestAirport(pt){
   let best=AIRPORTS[0], bd=Infinity;
   for(const a of AIRPORTS){ const d=haversine(pt,a); if(d<bd){bd=d;best=a;} }
   return best;
+}
+/* great-circle path between two points as [lat,lon] samples (curves on a Mercator map) */
+function greatCircle(a,b,n=48){
+  const R=Math.PI/180, D=180/Math.PI;
+  const la1=a.lat*R, lo1=a.lon*R, la2=b.lat*R, lo2=b.lon*R;
+  const d=2*Math.asin(Math.sqrt(Math.sin((la2-la1)/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin((lo2-lo1)/2)**2));
+  if(!d) return [[a.lat,a.lon],[b.lat,b.lon]];
+  const pts=[]; let prevLon=null;
+  for(let i=0;i<=n;i++){
+    const f=i/n, A=Math.sin((1-f)*d)/Math.sin(d), B=Math.sin(f*d)/Math.sin(d);
+    const x=A*Math.cos(la1)*Math.cos(lo1)+B*Math.cos(la2)*Math.cos(lo2);
+    const y=A*Math.cos(la1)*Math.sin(lo1)+B*Math.cos(la2)*Math.sin(lo2);
+    const z=A*Math.sin(la1)+B*Math.sin(la2);
+    let lon=Math.atan2(y,x)*D; const lat=Math.atan2(z,Math.sqrt(x*x+y*y))*D;
+    if(prevLon!==null){ while(lon-prevLon>180) lon-=360; while(lon-prevLon<-180) lon+=360; }  // unwrap antimeridian
+    prevLon=lon; pts.push([lat,lon]);
+  }
+  return pts;
 }
 const pad=n=>String(n).padStart(2,'0');
 function fmtTime(d){ return pad(d.getHours())+':'+pad(d.getMinutes()); }
@@ -696,14 +714,23 @@ function renderMap(){
     L.marker([s.lat,s.lon],{icon}).bindTooltip(`${i+1}. ${s.label}`).addTo(markerLayer);
     pts.push([s.lat,s.lon]);
   });
+  const aptSeen=new Set();
   for(let i=1;i<stops.length;i++){
-    const plane=stops[i].mode==='plane';
-    const geom=!plane && geomCache[roadKey(stops[i-1],stops[i])];
-    if(geom){                                    // real road path (OSRM)
-      L.polyline(geom,{color:'rgb(0,146,159)',weight:3,opacity:.75}).addTo(lineLayer);
-    } else {                                     // straight line (plane leg, or road not fetched yet)
-      L.polyline([pts[i-1],pts[i]],{color:plane?'rgb(1,94,107)':'rgb(0,146,159)',weight:2,
-        dashArray:plane?'6,6':null,opacity:.8}).addTo(lineLayer);
+    if(stops[i].mode==='plane'){
+      const dep=nearestAirport(stops[i-1]), arr=nearestAirport(stops[i]);
+      // thin dashed hops: stop → departure airport, arrival airport → stop
+      L.polyline([pts[i-1],[dep.lat,dep.lon]],{color:'rgb(0,146,159)',weight:1.5,opacity:.5,dashArray:'3,5'}).addTo(lineLayer);
+      L.polyline([[arr.lat,arr.lon],pts[i]],{color:'rgb(0,146,159)',weight:1.5,opacity:.5,dashArray:'3,5'}).addTo(lineLayer);
+      // the flight itself — great-circle arc between airports
+      L.polyline(greatCircle(dep,arr),{color:'rgb(1,94,107)',weight:2.5,opacity:.9}).addTo(lineLayer);
+      [dep,arr].forEach(ap=>{ if(aptSeen.has(ap.iata)) return; aptSeen.add(ap.iata);
+        const html=`<div style="width:19px;height:19px;border-radius:50%;background:rgb(1,94,107);color:#fff;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff">${MODE_ICONS.plane}</div>`;
+        L.marker([ap.lat,ap.lon],{icon:L.divIcon({html,className:'',iconSize:[19,19],iconAnchor:[9,9]}),zIndexOffset:-100})
+          .bindTooltip(ap.iata+' · '+ap.name).addTo(markerLayer); });
+    } else {
+      const geom=geomCache[roadKey(stops[i-1],stops[i])];
+      if(geom) L.polyline(geom,{color:'rgb(0,146,159)',weight:3,opacity:.75}).addTo(lineLayer);        // OSRM road path
+      else L.polyline([pts[i-1],pts[i]],{color:'rgb(0,146,159)',weight:2,opacity:.8}).addTo(lineLayer); // straight (not fetched yet)
     }
   }
   if(pts.length) map.fitBounds(pts,{padding:[40,40],maxZoom:9});
