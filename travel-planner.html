@@ -354,6 +354,19 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
   font-family:var(--font-mono);cursor:pointer;white-space:nowrap}
 .leg .flight-sel .fx{color:var(--color-text-muted);font-size:12px;font-family:var(--font-ui)}
 .leg .flight-sel .fx:hover{color:var(--tsi-coral)}
+/* ── mobile polish: flight modal + detail panel ── */
+@media(max-width:820px){
+  .modal-back{padding:10px}
+  .modal{width:100%;max-height:90vh}
+  .modal-filters{gap:8px}
+  .modal-filters > div{flex:1 1 44%}
+  .modal-filters select{width:100%}
+  .fl-row{grid-template-columns:34px 1fr auto;padding:12px 8px;gap:10px}
+  .fl-dur{display:none}                       /* dep–arr already implies duration on a phone */
+  .fl-times{font-size:14px}
+  .detail-panel{position:static}
+  .mention-pop{max-width:calc(100vw - 20px)}
+}
 </style>
 </head>
 <body>
@@ -471,7 +484,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22j";
+const APP_BUILD = "tp-2026-07-22k";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -1490,6 +1503,22 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
     renderTripSelect(); renderOptions();
   }
   window.addEventListener('resize',()=>{ if(map) map.invalidateSize(); });
+})();
+
+/* ── swipe left/right to move between mobile views (Plan ↔ Map ↔ Timeline) ── */
+(function initSwipe(){
+  const body=document.querySelector('.body'); if(!body) return;
+  const order=['plan','map','timeline']; let x0=null,y0=null,onMap=false;
+  body.addEventListener('touchstart',e=>{ if(e.touches.length!==1){x0=null;return;}
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; onMap=!!e.target.closest('#map'); },{passive:true});
+  body.addEventListener('touchend',e=>{
+    if(x0==null || window.innerWidth>820 || onMap) { x0=null; return; }   // desktop / map-pan → ignore
+    const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0; x0=null;
+    if(Math.abs(dx)<60 || Math.abs(dx)<Math.abs(dy)*1.6) return;          // need a clear horizontal flick
+    const cur=document.querySelector('.app').getAttribute('data-mv')||'plan';
+    const i=Math.min(2,Math.max(0, order.indexOf(cur) + (dx<0?1:-1)));
+    setMobileView(order[i]);
+  },{passive:true});
 })();
 </script>
 </body>

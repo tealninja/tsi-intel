@@ -72,6 +72,9 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   non-wrapping header; a bottom **Plan / Map / Timeline** switcher shows one focused view at a
   time (each fills the screen; map gets `invalidateSize`); and every stop has **↑/↓ arrows**
   for touch-friendly reorder (drag still works on desktop). Desktop layout unchanged.
+- [x] **Mobile polish** — swipe left/right to move between Plan/Map/Timeline (ignores vertical
+  drags and map-pan gestures); flight modal goes near-full-screen with 2x2 filters and 44px
+  tap-target rows (duration hidden on phones); detail panel un-stickied; mention popup width-capped.
 - [x] **Saved-trips library + itinerary options** (localStorage) — a **Trips** panel: named
   trips with a selector, New / Save as… / Duplicate / Delete; the working trip auto-saves.
   Within a trip, **options** are variant snapshots (order/modes/timing) shown as chips with
