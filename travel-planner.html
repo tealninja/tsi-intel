@@ -442,7 +442,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22h";
+const APP_BUILD = "tp-2026-07-22i";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -519,21 +519,21 @@ function nearestAirport(pt){
   for(const a of AIRPORTS){ const d=haversine(pt,a); if(d<bd){bd=d;best=a;} }
   return best;
 }
-/* great-circle path between two points as [lat,lon] samples (curves on a Mercator map) */
-function greatCircle(a,b,n=48){
-  const R=Math.PI/180, D=180/Math.PI;
-  const la1=a.lat*R, lo1=a.lon*R, la2=b.lat*R, lo2=b.lon*R;
-  const d=2*Math.asin(Math.sqrt(Math.sin((la2-la1)/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin((lo2-lo1)/2)**2));
-  if(!d) return [[a.lat,a.lon],[b.lat,b.lon]];
-  const pts=[]; let prevLon=null;
-  for(let i=0;i<=n;i++){
-    const f=i/n, A=Math.sin((1-f)*d)/Math.sin(d), B=Math.sin(f*d)/Math.sin(d);
-    const x=A*Math.cos(la1)*Math.cos(lo1)+B*Math.cos(la2)*Math.cos(lo2);
-    const y=A*Math.cos(la1)*Math.sin(lo1)+B*Math.cos(la2)*Math.sin(lo2);
-    const z=A*Math.sin(la1)+B*Math.sin(la2);
-    let lon=Math.atan2(y,x)*D; const lat=Math.atan2(z,Math.sqrt(x*x+y*y))*D;
-    if(prevLon!==null){ while(lon-prevLon>180) lon-=360; while(lon-prevLon<-180) lon+=360; }  // unwrap antimeridian
-    prevLon=lon; pts.push([lat,lon]);
+/* flight arc for the map — a visible curved path (quadratic bézier bulging toward the
+   pole). A true great circle is dead-straight on short hops (BRU→BRE deviates 0.04°),
+   so we draw a legibility arc scaled to distance with a minimum bulge. */
+function flightArc(a,b,n=64){
+  const mx=(a.lon+b.lon)/2, my=(a.lat+b.lat)/2;          // midpoint (x=lon, y=lat)
+  const vx=b.lon-a.lon, vy=b.lat-a.lat, len=Math.hypot(vx,vy)||1e-6;
+  let px=-vy/len, py=vx/len;                             // unit perpendicular
+  if(py<0){ px=-px; py=-py; }                            // bulge toward higher latitude
+  const off=Math.min(Math.max(len*0.16,0.5),7);         // visible even on short hops, capped on long ones
+  const cx=mx+px*off, cy=my+py*off;                      // bézier control point
+  const pts=[];
+  for(let i=0;i<=n;i++){ const t=i/n, u=1-t;
+    const lon=u*u*a.lon + 2*u*t*cx + t*t*b.lon;
+    const lat=u*u*a.lat + 2*u*t*cy + t*t*b.lat;
+    pts.push([lat,lon]);
   }
   return pts;
 }
@@ -770,7 +770,7 @@ function renderMap(){
       L.polyline([pts[i-1],[dep.lat,dep.lon]],{color:'rgb(0,146,159)',weight:1.5,opacity:.5,dashArray:'3,5'}).addTo(lineLayer);
       L.polyline([[arr.lat,arr.lon],pts[i]],{color:'rgb(0,146,159)',weight:1.5,opacity:.5,dashArray:'3,5'}).addTo(lineLayer);
       // the flight itself — great-circle arc between airports
-      L.polyline(greatCircle(dep,arr),{color:'rgb(1,94,107)',weight:2.5,opacity:.9}).addTo(lineLayer);
+      L.polyline(flightArc(dep,arr),{color:'rgb(1,94,107)',weight:2.5,opacity:.9,smoothFactor:1}).addTo(lineLayer);
       [dep,arr].forEach(ap=>{ if(aptSeen.has(ap.iata)) return; aptSeen.add(ap.iata);
         const html=`<div style="width:19px;height:19px;border-radius:50%;background:rgb(1,94,107);color:#fff;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff">${MODE_ICONS.plane}</div>`;
         L.marker([ap.lat,ap.lon],{icon:L.divIcon({html,className:'',iconSize:[19,19],iconAnchor:[9,9]}),zIndexOffset:-100})

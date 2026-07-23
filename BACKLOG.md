@@ -47,9 +47,11 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   match), warns if you can't reach the airport in time, and shows the flight as a chip on the
   leg (clear to revert to estimate). Persists per stop. Flights are still mock (`genFlights`) →
   swap for the server-side Google-Flights fetch.
-- [x] **Flights drawn as great-circle arcs** — plane legs now render the flight as a
-  great-circle arc between the **nearest airports** (curves on the Mercator map), with thin
-  dashed stop→airport hops and small airport markers (IATA tooltips). Antimeridian-safe.
+- [x] **Flights drawn as curved arcs** — plane legs render the flight as a visible curved
+  arc between the **nearest airports**, with thin dashed stop→airport hops and small airport
+  markers (IATA tooltips). NB: a *true* great circle is dead-straight on short hops (BRU→BRE
+  deviates only 0.04°), so we draw a legibility arc (bézier bulging poleward, scaled to
+  distance with a min bulge) so every flight reads as a flight path, short or long.
 - [x] **Timeline detail panel** — the wide empty space beside the day timeline now holds a
   detail panel: click a stop's icon or its timeline block → stop header (kind/times) + editable
   **Notes** + **People to visit** (name chips, add/remove). A dried-wood dot marks stops with
