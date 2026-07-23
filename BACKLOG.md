@@ -47,6 +47,10 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   match), warns if you can't reach the airport in time, and shows the flight as a chip on the
   leg (clear to revert to estimate). Persists per stop. Flights are still mock (`genFlights`) →
   swap for the server-side Google-Flights fetch.
+- [x] **Inline "+ Add stop to this day"** — the day timeline ends with a + button that sets an
+  insertion point (the day's last non-hotel stop, so new stops land *before* the overnight),
+  focuses the add-stop search, and shows an "Inserting after X · cancel" hint. The next stop
+  added via Search/Mills/Stays lands in that day instead of at the end of the trip.
 - [x] **Hotels / "Stays" tab** — Add-stop gains a third tab **Stays**: mock hotels ranked by
   distance to your last stop, each with €/night + rating; click to add as an overnight hotel
   stop (price/rating shown in the detail panel). Real hotels via **Tripadvisor** on merge.

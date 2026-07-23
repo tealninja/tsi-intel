@@ -307,6 +307,12 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .mention-pop .mi .mi-new{color:var(--tsi-sage)}
 .block.sel{outline:2px solid var(--tsi-deep-blue);outline-offset:-1px}
 .stop.selrow{border-color:var(--tsi-deep-blue)}
+.tl-add{margin:10px 0 4px 4px;background:transparent;border:var(--hair) dashed var(--color-border-mid);
+  color:var(--color-text-secondary);border-radius:var(--radius-sm);padding:7px 14px;font-size:12px;cursor:pointer}
+.tl-add:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
+.insert-hint{font-size:11px;color:var(--tsi-teal);background:rgba(0,146,159,.08);
+  border:var(--hair) solid var(--tsi-teal);border-radius:var(--radius-sm);padding:5px 8px;margin-bottom:8px}
+.insert-hint .ins-x{color:var(--tsi-coral);cursor:pointer;margin-left:6px;text-decoration:underline}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--color-text-secondary)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 .legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
@@ -421,6 +427,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 
       <div class="card">
         <h3>Add stop</h3>
+        <div id="insertHint" class="insert-hint" style="display:none"></div>
         <div class="tabs">
           <button id="tabSearch" class="on" onclick="setTab('search')">Search</button>
           <button id="tabMills" onclick="setTab('mills')">Mills</button>
@@ -488,7 +495,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22l";
+const APP_BUILD = "tp-2026-07-22m";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -915,6 +922,11 @@ function renderTimeline(res){
       ${short?'':`<span class="bl">${esc(p.title)}${p.sub?` · ${esc(p.sub)}`:''}</span>`}</div>`;
   });
   html+='</div>';
+  // target the day's last NON-hotel stop so a new stop slots before the overnight; else last stop
+  const dayStopIds=[...filled].filter(pp=>pp.stopId).map(pp=>pp.stopId);
+  const lastNonHotel=[...dayStopIds].reverse().find(sid=>{ const st=stops.find(s=>s.id===sid); return st&&st.kind!=='hotel'; });
+  const lastStopId=lastNonHotel||dayStopIds[dayStopIds.length-1]||'';
+  html+=`<button class="tl-add" onclick="addAfter('${lastStopId}')">+ Add stop to this day</button>`;
   body.innerHTML=html;
   renderDetail();
 }
@@ -994,11 +1006,30 @@ async function maybeRefreshMatrix(){
 
 /* ── stop mutations ────────────────────────────────────────── */
 function defaultMode(prev,s){ return haversine(prev,s)>500?'plane':'car'; }
+let insertAfterId=null;                       // when set, the next added stop lands after this stop
 function addStop(o){
   const s={id:'s'+(uid++),label:o.label,lat:+o.lat,lon:+o.lon,kind:o.kind||'place',
     timing:'flex',duration:VISIT_KINDS.has(o.kind||'place')?90:30,arriveBy:'09:00',mode:'car'};
-  if(stops.length) s.mode=defaultMode(stops[stops.length-1],s);
-  stops.push(s); recompute();
+  let at=stops.length;
+  if(insertAfterId){ const idx=stops.findIndex(x=>x.id===insertAfterId); if(idx>=0) at=idx+1; insertAfterId=null; }
+  stops.splice(at,0,s);
+  redefaultModes();                           // set car/plane across all legs incl. the two new ones
+  recompute(); renderInsertHint();
+}
+/* "+ Add stop to this day" → set the insertion point, then focus the add-stop search */
+function addAfter(id){
+  insertAfterId = id || (stops.length?stops[stops.length-1].id:null);
+  renderInsertHint();
+  if(window.innerWidth<=820) setMobileView('plan');
+  setTab('search');
+  const g=document.getElementById('geo'); if(g){ g.scrollIntoView({block:'center'}); g.focus(); }
+}
+function cancelInsert(){ insertAfterId=null; renderInsertHint(); }
+function renderInsertHint(){
+  const el=document.getElementById('insertHint'); if(!el) return;
+  const s=insertAfterId&&stops.find(x=>x.id===insertAfterId);
+  if(s){ el.innerHTML=`Inserting after <b>${esc(s.label)}</b> — add below <span class="ins-x" onclick="cancelInsert()">cancel</span>`; el.style.display=''; }
+  else el.style.display='none';
 }
 function removeStop(id){ stops=stops.filter(s=>s.id!==id); recompute(); }
 function setMode(id,m){ const s=stops.find(x=>x.id===id); if(s){s.mode=m;recompute();} }
