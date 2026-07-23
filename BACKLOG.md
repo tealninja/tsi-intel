@@ -67,6 +67,11 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   Tokenizer now allows **multi-word names** ("@Zoe Nakamura") — spaces no longer close the popup;
   it bails only once the text stops looking like a name (>3 words / >32 chars).
 - [x] localStorage persistence + light/dark, TSI tokens copied inline, no shadows, mono times.
+- [x] **Mobile optimised** — was one endless vertical scroll (rail → map → timeline → detail)
+  with a wrapping header and no touch reorder (HTML5 drag is mouse-only). Now: compact
+  non-wrapping header; a bottom **Plan / Map / Timeline** switcher shows one focused view at a
+  time (each fills the screen; map gets `invalidateSize`); and every stop has **↑/↓ arrows**
+  for touch-friendly reorder (drag still works on desktop). Desktop layout unchanged.
 - [x] **Saved-trips library + itinerary options** (localStorage) — a **Trips** panel: named
   trips with a selector, New / Save as… / Duplicate / Delete; the working trip auto-saves.
   Within a trip, **options** are variant snapshots (order/modes/timing) shown as chips with

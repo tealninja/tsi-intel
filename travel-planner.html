@@ -69,15 +69,34 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .app{display:flex;flex-direction:column;height:100%}
 .hdr{height:48px;flex-shrink:0;background:var(--tsi-deep-slate);display:flex;align-items:center;
   gap:12px;padding:0 16px;color:#fff}
-.hdr .brand{font-family:var(--font-display);font-size:18px;color:#fff;letter-spacing:.2px}
+.hdr .brand{font-family:var(--font-display);font-size:18px;color:#fff;letter-spacing:.2px;white-space:nowrap}
 .hdr .brand b{color:var(--tsi-dried-wood);font-weight:400}
-.hdr .stamp{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.4)}
+.hdr .stamp{font-family:var(--font-mono);font-size:10px;color:rgba(255,255,255,.4);white-space:nowrap}
 .hdr .spacer{flex:1}
 .hdr button{background:transparent;border:var(--hair) solid rgba(255,255,255,.3);color:rgba(255,255,255,.85);
-  border-radius:var(--radius-sm);padding:5px 10px;font-size:12px}
+  border-radius:var(--radius-sm);padding:5px 10px;font-size:12px;white-space:nowrap}
 .hdr button:hover{border-color:rgba(255,255,255,.6)}
 .body{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0}
-@media(max-width:820px){.body{grid-template-columns:1fr;overflow:auto}}
+/* ── mobile: 3 focused views instead of one long scroll ── */
+.mobile-nav{display:none}
+@media(max-width:820px){
+  .hdr{gap:8px;padding:0 12px}
+  .hdr .brand{font-size:15px}
+  .hdr .stamp{display:none}
+  .hdr button{padding:5px 9px;font-size:11px}
+  .body{display:flex;flex-direction:column;overflow:hidden}
+  .rail{border-right:none;flex:1;min-height:0}
+  .pane{flex:1;min-height:0}
+  .tl-main{grid-template-columns:1fr}
+  .mobile-nav{display:flex;flex-shrink:0;background:var(--tsi-deep-slate);border-top:var(--hair) solid rgba(255,255,255,.12)}
+  .mobile-nav button{flex:1;background:transparent;border:none;color:rgba(255,255,255,.6);
+    padding:11px 6px;font-size:12px;border-top:2px solid transparent}
+  .mobile-nav button.on{color:#fff;border-top-color:var(--tsi-teal)}
+  .app[data-mv="plan"] .pane{display:none}
+  .app[data-mv="map"] .rail, .app[data-mv="map"] .tl{display:none}
+  .app[data-mv="map"] #map{flex:1;height:auto;min-height:0}
+  .app[data-mv="timeline"] .rail, .app[data-mv="timeline"] #map{display:none}
+}
 
 /* ── left rail ── */
 .rail{border-right:var(--hair) solid var(--color-border-mid);overflow-y:auto;padding:16px;
@@ -175,7 +194,12 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
   background:var(--tsi-teal);border-radius:2px;z-index:6}
 .stop.drop-above::before{top:-5px}
 .stop.drop-below::after{bottom:-5px}
-.stop .handle{cursor:grab;color:var(--color-text-muted);font-size:14px;line-height:1;padding-top:2px;user-select:none}
+.stop .handle{display:flex;flex-direction:column;gap:0;cursor:grab;padding-top:1px;user-select:none}
+.stop .handle .mv{background:transparent;border:none;color:var(--color-text-muted);font-size:10px;line-height:1.05;
+  padding:1px 2px;cursor:pointer}
+.stop .handle .mv:hover{color:var(--tsi-teal)}
+.stop .handle .grip{color:var(--color-text-muted);font-size:11px;line-height:1;text-align:center}
+@media(max-width:820px){.stop .handle .grip{display:none}}
 .stop .ic{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   flex-shrink:0;color:#fff}
 .stop .ic{position:relative}
@@ -433,6 +457,11 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
       </div>
     </div>
   </div>
+  <nav class="mobile-nav">
+    <button data-v="plan" class="on" onclick="setMobileView('plan')">Plan</button>
+    <button data-v="map" onclick="setMobileView('map')">Map</button>
+    <button data-v="timeline" onclick="setMobileView('timeline')">Timeline</button>
+  </nav>
 </div>
 
 <div class="pop" id="pop"></div>
@@ -442,7 +471,7 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22i";
+const APP_BUILD = "tp-2026-07-22j";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -659,7 +688,11 @@ function renderStops(res){
     const isVisit=VISIT_KINDS.has(s.kind);
     const noteDot=hasStopDetail(s)?'<span class="note-dot" title="has notes / people / tags"></span>':'';
     el.innerHTML=`
-      <span class="handle" title="Drag to reorder">⋮⋮</span>
+      <span class="handle" title="Drag, or use arrows, to reorder">
+        <button class="mv" onclick="moveStop('${s.id}',-1)" title="Move up">▲</button>
+        <span class="grip">⋮⋮</span>
+        <button class="mv" onclick="moveStop('${s.id}',1)" title="Move down">▼</button>
+      </span>
       <span class="ic" style="background:${KIND_COLOR[s.kind]};cursor:pointer" onclick="selectStop('${s.id}')" title="Open notes & people">${ICONS[s.kind]}${noteDot}</span>
       <div class="main">
         <input class="nm" value="${esc(s.label)}" onchange="setLabel('${s.id}',this.value)"
@@ -945,6 +978,8 @@ function setLabel(id,v){ const s=stops.find(x=>x.id===id); if(s){ const t=(v||''
 function cloneStop(s){ const c={...s}; delete c._arrival; delete c._depart; c.id='s'+(uid++); return c; }
 function duplicateStop(id){ const i=stops.findIndex(s=>s.id===id); if(i<0) return;
   stops.splice(i+1,0,cloneStop(stops[i])); recompute(); }
+function moveStop(id,dir){ const i=stops.findIndex(s=>s.id===id), j=i+dir;   // ↑/↓ reorder (touch-friendly)
+  if(i<0||j<0||j>=stops.length) return; const [m]=stops.splice(i,1); stops.splice(j,0,m); redefaultModes(); recompute(); }
 
 /* ── suggest order — nearest-neighbour over the travel-time matrix ──
    Keeps stop[0] as the origin; preserves the relative order of FIXED appointments
@@ -1423,6 +1458,11 @@ function loadDemo(){
   recompute();
 }
 
+/* ── mobile view switcher (Plan / Map / Timeline) ──────────── */
+function setMobileView(v){ const app=document.querySelector('.app'); app.setAttribute('data-mv',v);
+  document.querySelectorAll('.mobile-nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v==='map'&&map) setTimeout(()=>{ map.invalidateSize(); },60); }
+
 /* ── theme ─────────────────────────────────────────────────── */
 function toggleTheme(){
   const on=document.documentElement.getAttribute('data-theme')==='dark';
@@ -1437,6 +1477,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
 
 /* ── boot ──────────────────────────────────────────────────── */
 (function init(){
+  document.querySelector('.app').setAttribute('data-mv','plan');   // mobile default view
   if(localStorage.getItem('tsi-theme')==='dark'){ document.documentElement.setAttribute('data-theme','dark'); document.getElementById('themebtn').textContent='Light'; }
   if(!document.getElementById('startDate').value) document.getElementById('startDate').value=todayISO();
   if(loadLibrary()){
