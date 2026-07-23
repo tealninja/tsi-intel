@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
+const APP_BUILD = '#169 · 2026-07-23 · shipping port → generic shipping location (port or direct-to-customer)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -10005,7 +10005,7 @@ function renderAcctMain(siteId) {
             ${(site.plantTags&&site.plantTags.length?site.plantTags:(site.plantType?[site.plantType]:[])).map(t=>`<span class="acct-ptag">${qesc(t)}</span>`).join('')}
             ${site.locType!=='corporate'&&fmtCapacity(site)?`<span class="acct-cap" title="Nameplate capacity">⚙ ${qesc(fmtCapacity(site))}</span>`:''}
             <span>📍 ${site.loc||'—'}</span>
-            ${site.locType!=='corporate'&&site.shippingPort?`<span class="acct-port" title="Shipping port">🚢 ${qesc(site.shippingPort)}</span>`:''}
+            ${site.locType!=='corporate'&&site.shippingPort?`<span class="acct-port" title="Shipping location">📦 ${qesc(site.shippingPort)}</span>`:''}
             ${group?`<span style="color:var(--tsi-teal)">${group.name}</span>`:''}
             ${(!site.lat||!site.lon)?'<span style="color:var(--tsi-coral)">⚠ No coordinates — map/climate unavailable</span>':''}
           </div>
@@ -13495,13 +13495,13 @@ function renderAcctMap() {
     _acctMapMarkers.push(marker);
     bounds.push([s.lat, s.lon]);
 
-    // ── Shipping port (⚓ export mills) — boat marker at the port, dashed
-    //    connector back to the mill. Only when the port has been geocoded.
+    // ── Shipping location (port or direct-to-customer) — package marker at the
+    //    destination, dashed connector back to the site. Only when it's geocoded.
     if (s.portLat != null && s.portLon != null) {
       const boat = L.marker([s.portLat, s.portLon], {
-        icon: L.divIcon({ className: 'acct-port-marker', html: '🚢', iconSize: [22, 22], iconAnchor: [11, 11] })
-      }).bindPopup(`<div style="min-width:150px"><b>${qesc(s.shippingPort || 'Shipping port')}</b><br>
-        <span style="color:var(--color-text-muted);font-size:11px">Export port · ${qesc(s.name)}</span></div>`);
+        icon: L.divIcon({ className: 'acct-port-marker', html: '📦', iconSize: [22, 22], iconAnchor: [11, 11] })
+      }).bindPopup(`<div style="min-width:150px"><b>${qesc(s.shippingPort || 'Shipping location')}</b><br>
+        <span style="color:var(--color-text-muted);font-size:11px">Shipping location · ${qesc(s.name)}</span></div>`);
       boat.addTo(_acctMap);
       _acctMapMarkers.push(boat);
       const line = L.polyline([[s.lat, s.lon], [s.portLat, s.portLon]],
@@ -13695,7 +13695,7 @@ function exportMapPng2(mapVarName) {
 let _siteDrawerEditId = null;
 let _siteDrawerLat    = null;
 let _siteDrawerLon    = null;
-let _sitePortLat      = null;   // geocoded shipping-port coords (for the map boat marker)
+let _sitePortLat      = null;   // geocoded shipping-location coords (for the map marker)
 let _sitePortLon      = null;
 let _siteMap          = null;
 let _siteGeoResults   = [];
@@ -13876,7 +13876,7 @@ function openSiteDrawer(accountId, opts) {
     _sitePortLat = (existing.portLat!=null?existing.portLat:null);
     _sitePortLon = (existing.portLon!=null?existing.portLon:null);
     const _portSt2=document.getElementById('s-port-status');
-    if(_portSt2) _portSt2.textContent = (_sitePortLat!=null&&_sitePortLon!=null) ? `✓ Port located (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})` : '';
+    if(_portSt2) _portSt2.textContent = (_sitePortLat!=null&&_sitePortLon!=null) ? `✓ Location found (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})` : '';
     _sitePlantTags = (existing.plantTags && existing.plantTags.length)
       ? [...existing.plantTags]
       : (existing.plantType || '').split(/[\/,]/).map(s=>s.trim()).filter(Boolean);
@@ -13915,8 +13915,8 @@ function openSiteDrawer(accountId, opts) {
   setTimeout(() => document.getElementById('s-name').focus(), 280);
 }
 
-// Capacity + shipping port are production-facility attributes; hide the row for
-// corporate / HQ locations so an office isn't tagged with a nameplate or export port.
+// Capacity + shipping location are production-facility attributes; hide the row for
+// corporate / HQ locations so an office isn't tagged with a nameplate or shipping location.
 function siteLocTypeChanged() {
   const lt = document.getElementById('s-loctype')?.value || 'production';
   const row = document.getElementById('s-prod-fields');
@@ -14188,8 +14188,8 @@ function applySiteGeoResult(match) {
   initSiteMap(match.lat, match.lon);
 }
 
-// Geocode the typed shipping-port name → _sitePortLat/_sitePortLon (for the map
-// boat marker). Deliberately a button-triggered one-shot (no live dropdown) so it
+// Geocode the typed shipping-location name → _sitePortLat/_sitePortLon (for the map
+// marker). Deliberately a button-triggered one-shot (no live dropdown) so it
 // doesn't collide with the site-location autocomplete.
 async function sitePortFetch() {
   const q = document.getElementById('s-port').value.trim();
@@ -14200,9 +14200,9 @@ async function sitePortFetch() {
     const url  = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
     const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
     const data = await res.json();
-    if (!data.length) { if (st) { st.textContent = 'Port not found — try “Port of <city>”'; st.style.color = 'var(--tsi-coral)'; } return; }
+    if (!data.length) { if (st) { st.textContent = 'Location not found — try a port, city, or full address'; st.style.color = 'var(--tsi-coral)'; } return; }
     _sitePortLat = parseFloat(data[0].lat); _sitePortLon = parseFloat(data[0].lon);
-    if (st) { st.textContent = `✓ Port located (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})`; st.style.color = 'var(--tsi-succ-green)'; }
+    if (st) { st.textContent = `✓ Location found (${_sitePortLat.toFixed(3)}, ${_sitePortLon.toFixed(3)})`; st.style.color = 'var(--tsi-succ-green)'; }
   } catch { if (st) { st.textContent = 'Error — check connection'; st.style.color = 'var(--tsi-coral)'; } }
 }
 
@@ -14900,7 +14900,7 @@ TableKit.register('acct-table', {
     { i:10, label:'State',            col:'state',     sortable:true, sortVal:r=>(r.state||'').toLowerCase(), filterVal:r=>r.state||'—' },
     { i:11, label:'Country',          col:'country',   sortable:true, sortVal:r=>(r.country||'').toLowerCase(), filterVal:r=>r.country||'—' },
     { i:12, label:'Geocoded',         col:'geo',       sortable:true, sortVal:r=>r._geo, filterVal:r=>r._geo },
-    { i:13, label:'Shipping Port',    col:'port',      sortable:true, sortVal:r=>(r._port||'').toLowerCase(), filterVal:r=>r._port||'—' },
+    { i:13, label:'Shipping Location', col:'port',      sortable:true, sortVal:r=>(r._port||'').toLowerCase(), filterVal:r=>r._port||'—' },
     { i:14, label:'Opps',             col:'opps',      sortable:true, sortVal:r=>r._opps, filterVal:r=>String(r._opps) },
     { i:15, label:'Primary Contact',  col:'contact',   sortable:true, sortVal:r=>(r._contact||'').toLowerCase(), filterVal:r=>r._contact||'—' },
     { i:16, label:'Last Update',      col:'updated',   sortable:true, sortVal:r=>r._updated||'' },
@@ -15434,9 +15434,9 @@ startAdminPoll();
           </div>
         </div>
         <div class="drow">
-          <label>Shipping Port <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— export mills; shows a 🚢 on the map</span></label>
+          <label>Shipping Location <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— export port or direct-to-customer; shows a 📦 on the map</span></label>
           <div class="dloc-wrap">
-            <input class="dinput" id="s-port" placeholder="e.g. Port of Wilmington, NC" style="padding-right:64px">
+            <input class="dinput" id="s-port" placeholder="e.g. Port of Wilmington, NC — or a customer address" style="padding-right:64px">
             <button class="dloc-geo-btn" onclick="sitePortFetch()">Locate</button>
           </div>
           <div class="dloc-status" id="s-port-status"></div>
@@ -16208,7 +16208,7 @@ startAdminPoll();
             <th class="sortable" data-col="state"    style="width:90px">State<span class="sort-icon"></span></th>
             <th class="sortable" data-col="country"  style="width:100px">Country<span class="sort-icon"></span></th>
             <th class="sortable" data-col="geo"      style="width:80px">Geocoded<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="port"     style="width:130px">Shipping Port<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="port"     style="width:130px">Shipping Location<span class="sort-icon"></span></th>
             <th class="sortable" data-col="opps"     style="width:70px" title="Open opportunities keyed to this record">Opps<span class="sort-icon"></span></th>
             <th class="sortable" data-col="contact"  style="width:130px">Primary Contact<span class="sort-icon"></span></th>
             <th class="sortable" data-col="updated"  style="width:110px">Last Update<span class="sort-icon"></span></th>
@@ -19723,7 +19723,7 @@ function presoSitePort(o){
 
 // Real locator map on an individual opportunity slide — mirrors presoRenderOvMap's
 // deferred/whenReady init so it renders reliably inside the animated overlay. Shows
-// the deal pin plus a 🚢 boat marker + connector when the site has a shipping port.
+// the deal pin plus a 📦 marker + connector when the site has a shipping location.
 let _presoJobMap=null;
 // Per-opportunity map framing — presenters can pan/zoom each mill's map to get it
 // right; the center+zoom is remembered per opp (synced via the 'preso_mapviews'
@@ -19773,8 +19773,8 @@ function presoRenderJobMap(o,sec){
       L.circleMarker(c,{radius:9,color:sec.acc,fillColor:sec.acc,fillOpacity:.85,weight:2}).addTo(map);
       const port=presoSitePort(o);
       if(port){
-        L.marker([port.lat,port.lon],{icon:L.divIcon({className:'pz-port-marker',html:'🚢',iconSize:[22,22],iconAnchor:[11,11]})})
-          .addTo(map).bindTooltip(port.name||'Shipping port',{direction:'top'});
+        L.marker([port.lat,port.lon],{icon:L.divIcon({className:'pz-port-marker',html:'📦',iconSize:[22,22],iconAnchor:[11,11]})})
+          .addTo(map).bindTooltip(port.name||'Shipping location',{direction:'top'});
         L.polyline([c,[port.lat,port.lon]],{color:sec.acc,weight:1.5,opacity:.55,dashArray:'4,5'}).addTo(map);
         pts.push([port.lat,port.lon]);
       }

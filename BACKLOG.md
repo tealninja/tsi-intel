@@ -8,6 +8,15 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗒️ 2026-07-23
+- [x] **"Shipping port" → generic "Shipping location"** (build #169). A site's outbound
+  destination is no longer assumed to be an export port — it can be a port *or* a
+  direct-to-customer address. Renamed everywhere user-facing: site-drawer label +
+  helper/placeholder, account-card badge, accounts-table column, map marker popup/tooltip
+  (account map + presentation-mode job map), and geocode status text. Port-specific 🚢
+  swapped for a neutral 📦. Data keys unchanged (`shippingPort`, `portLat`, `portLon`) so
+  stored/embedded records and other branches keep working; still gated to production sites.
+
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
 - [x] Pipeline **Value** shows thousands separators (commas).
