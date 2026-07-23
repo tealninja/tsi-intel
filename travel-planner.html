@@ -298,6 +298,38 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 .pop .close{position:absolute;top:6px;right:8px;background:transparent;border:none;color:var(--color-text-muted);font-size:15px}
 .btn-primary{background:var(--tsi-teal);color:#fff;border:none;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;width:100%}
 .btn-primary:hover{background:var(--tsi-deep-blue)}
+/* flight picker modal */
+.modal-back{position:fixed;inset:0;background:rgba(18,26,36,.45);z-index:600;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-back.show{display:flex}
+.modal{background:var(--color-surface);border:1px solid var(--color-border-mid);border-radius:var(--radius-lg);
+  width:min(600px,100%);max-height:84vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{padding:13px 16px;border-bottom:var(--hair) solid var(--color-border-mid);display:flex;align-items:center;gap:10px}
+.modal-head h3{font-family:var(--font-display);font-size:19px;color:var(--color-heading)}
+.modal-head .rt{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary)}
+.modal-head .close{background:transparent;border:none;font-size:20px;line-height:1;color:var(--color-text-muted);cursor:pointer}
+.modal-filters{display:flex;flex-wrap:wrap;gap:10px;padding:10px 16px;border-bottom:var(--hair) solid var(--color-border-mid)}
+.modal-filters label{font-size:10px;color:var(--color-text-secondary);display:block;margin-bottom:3px}
+.modal-filters select{font-size:12px}
+.flight-list{overflow:auto;padding:6px}
+.fl-empty{padding:24px;text-align:center;color:var(--color-text-muted);font-size:12.5px}
+.fl-row{display:grid;grid-template-columns:40px 1fr auto auto;gap:12px;align-items:center;padding:9px 10px;
+  border-radius:var(--radius-sm);cursor:pointer;border:var(--hair) solid transparent}
+.fl-row:hover{background:var(--color-bg);border-color:var(--color-border-mid)}
+.fl-row.sel{border-color:var(--tsi-teal);background:rgba(0,146,159,.07)}
+.fl-cc{font-family:var(--font-mono);font-weight:500;color:var(--tsi-deep-blue);font-size:12.5px}
+.fl-times{font-family:var(--font-mono);font-size:13.5px;color:var(--color-text-primary)}
+.fl-meta{font-size:11px;color:var(--color-text-secondary)}
+.fl-dur{font-family:var(--font-mono);font-size:11.5px;color:var(--color-text-secondary);text-align:right}
+.fl-price{font-family:var(--font-mono);font-size:14px;color:var(--tsi-deep-blue);text-align:right;min-width:44px}
+.fl-stops-0{color:var(--tsi-sage)} .fl-stops-1{color:var(--tsi-amber)}
+.modal-foot{padding:10px 16px;border-top:var(--hair) solid var(--color-border-mid);display:flex;gap:10px;align-items:center}
+.modal-foot .stub{font-size:10px;color:var(--tsi-amber)}
+.modal-foot .mini-btn{margin-left:auto}
+.leg .flight-sel{margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:rgba(1,94,107,.1);
+  color:var(--tsi-deep-blue);border:var(--hair) solid var(--tl-fly);border-radius:12px;padding:2px 5px 2px 9px;font-size:10.5px;
+  font-family:var(--font-mono);cursor:pointer;white-space:nowrap}
+.leg .flight-sel .fx{color:var(--color-text-muted);font-size:12px;font-family:var(--font-ui)}
+.leg .flight-sel .fx:hover{color:var(--tsi-coral)}
 </style>
 </head>
 <body>
@@ -405,11 +437,12 @@ label{font-size:11px;color:var(--color-text-secondary);display:block;margin-bott
 
 <div class="pop" id="pop"></div>
 <div class="mention-pop" id="mentionPop"></div>
+<div class="modal-back" id="flightModal" onclick="closeFlightModal()"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
-const APP_BUILD = "tp-2026-07-22g";
+const APP_BUILD = "tp-2026-07-22h";
 document.getElementById('stamp').textContent = APP_BUILD;
 
 /* ── constants / knobs ─────────────────────────────────────── */
@@ -532,18 +565,29 @@ function computeItinerary(){
     if(i>0){
       const prev=stops[i-1];
       if(s.mode==='plane'){
-        const dep=nearestAirport(prev), arr=nearestAirport(s);
-        const toDep=haversine(prev,dep)/CAR_KMH*60;
-        const flight=haversine(dep,arr)/PLANE_KMH*60 + PLANE_OVERHEAD_MIN;
-        const fromArr=haversine(arr,s)/CAR_KMH*60;
-        let t0=cur;
-        let e=addMin(t0,toDep);  iv.push({start:t0,end:e,cat:'drive',title:`Drive to ${dep.iata}`,sub:`${Math.round(haversine(prev,dep))} km`}); t0=e;
-        e=addMin(t0,bufPre);     iv.push({start:t0,end:e,cat:'wait', title:`${dep.iata} — check-in & security`,sub:fmtDur(bufPre)}); t0=e;
-        e=addMin(t0,flight);     iv.push({start:t0,end:e,cat:'fly',  title:`Fly ${dep.iata} → ${arr.iata}`,sub:`${Math.round(haversine(dep,arr))} km`}); t0=e;
-        e=addMin(t0,bufPost);    iv.push({start:t0,end:e,cat:'wait', title:`${arr.iata} — deplane & pickup`,sub:fmtDur(bufPost)}); t0=e;
-        e=addMin(t0,fromArr);    iv.push({start:t0,end:e,cat:'drive',title:`Drive to ${s.label}`,sub:`${Math.round(haversine(arr,s))} km`}); t0=e;
+        const f=s.flight;
+        const dep = f ? (airportByIata(f.dep)||nearestAirport(prev)) : nearestAirport(prev);
+        const arr = f ? (airportByIata(f.arr)||nearestAirport(s))    : nearestAirport(s);
+        const toDep=haversine(prev,dep)/CAR_KMH*60, fromArr=haversine(arr,s)/CAR_KMH*60;
+        const legStart=cur; let t0=cur, e;
+        e=addMin(t0,toDep); iv.push({start:t0,end:e,cat:'drive',title:`Drive to ${dep.iata}`,sub:`${Math.round(haversine(prev,dep))} km`}); t0=e;
+        if(f){                                   // a real flight is selected → anchor to its scheduled times
+          const depDT=new Date(dayKey(t0)+'T'+f.depTime);
+          let arrDT=new Date(dayKey(t0)+'T'+f.arrTime); if(arrDT<=depDT) arrDT=addMin(arrDT,1440);   // crosses midnight
+          if(t0.getTime() > depDT.getTime()-bufPre*60000)
+            warn[s.id]=`To catch ${f.code} (${f.depTime}) be at ${dep.iata} by ${fmtTime(addMin(depDT,-bufPre))} — you arrive ${fmtTime(t0)}`;
+          if(depDT>t0) iv.push({start:t0,end:depDT,cat:'wait',title:`${dep.iata} — check-in & wait`,sub:fmtDur((depDT-t0)/60000)});
+          iv.push({start:depDT,end:arrDT,cat:'fly',title:`${f.code} ${dep.iata}→${arr.iata}`,sub:`${f.carrier} · €${f.price} · ${f.stops?f.stops+' stop':'nonstop'}`});
+          t0=arrDT;
+        } else {                                 // estimate
+          const flight=haversine(dep,arr)/PLANE_KMH*60 + PLANE_OVERHEAD_MIN;
+          e=addMin(t0,bufPre); iv.push({start:t0,end:e,cat:'wait',title:`${dep.iata} — check-in & security`,sub:fmtDur(bufPre)}); t0=e;
+          e=addMin(t0,flight); iv.push({start:t0,end:e,cat:'fly', title:`Fly ${dep.iata} → ${arr.iata}`,sub:`${Math.round(haversine(dep,arr))} km · est`}); t0=e;
+        }
+        e=addMin(t0,bufPost); iv.push({start:t0,end:e,cat:'wait',title:`${arr.iata} — deplane & pickup`,sub:fmtDur(bufPost)}); t0=e;
+        e=addMin(t0,fromArr); iv.push({start:t0,end:e,cat:'drive',title:`Drive to ${s.label}`,sub:`${Math.round(haversine(arr,s))} km`}); t0=e;
         cur=t0;
-        legInfo[s.id]={mode:'plane',minutes:toDep+bufPre+flight+bufPost+fromArr,label:`${dep.iata}→${arr.iata}`,dep,arr};
+        legInfo[s.id]={mode:'plane',minutes:(cur-legStart)/60000,label:f?`${f.code} ${f.depTime}`:`${dep.iata}→${arr.iata}`,dep,arr,flight:f||null};
       } else {
         const rc=roadCache[roadKey(prev,s)];
         const km=rc?rc.km:haversine(prev,s);
@@ -604,7 +648,11 @@ function renderStops(res){
           <button class="soon" disabled title="EU public transit — coming soon (Transitous)">${MODE_ICONS.train}Transit</button>
         </span>
         <span class="dur" title="${li.est?'straight-line estimate — add an ORS key for live road time':''}">${li.minutes?(li.est?'~':'')+fmtDur(li.minutes):'—'}</span>
-        ${s.mode==='plane'?`<button class="price-btn" onclick="showPrice(event,'${s.id}')">Get price</button>`:`<span class="t">${li.label||''}</span>`}`;
+        ${s.mode==='plane'
+          ? (s.flight
+              ? `<span class="flight-sel" onclick="openFlightModal(event,'${s.id}')" title="Change flight">${esc(s.flight.code)} · ${s.flight.depTime}–${s.flight.arrTime} · €${s.flight.price}<span class="fx" onclick="event.stopPropagation();clearFlight('${s.id}')" title="Clear">×</span></span>`
+              : `<button class="price-btn" onclick="openFlightModal(event,'${s.id}')">Get price</button>`)
+          : `<span class="t">${li.label||''}</span>`}`;
       box.appendChild(leg);
     }
     const el=document.createElement('div'); el.className='stop'+(s.id===selectedStopId?' selrow':''); el.draggable=true; el.dataset.id=s.id;
@@ -1177,31 +1225,77 @@ function setTab(t){
 }
 
 /* ── price popover (STUB — swap for server-side Google-Flights scraper) ── */
-function showPrice(ev,id){
-  ev.stopPropagation();
-  const res=computeItinerary(); const li=res.legInfo[id];
-  const pop=document.getElementById('pop');
-  if(!li||li.mode!=='plane'){ return; }
-  const dep=li.dep, arr=li.arr;
-  // deterministic mock fares seeded off the route so it feels stable
-  const seed=(dep.iata.charCodeAt(0)+arr.iata.charCodeAt(2))%5;
-  const carriers=[['KL','KLM'],['LH','Lufthansa'],['HV','Transavia'],['FR','Ryanair'],['U2','easyJet']];
-  const base=60+seed*25;
-  const opts=[0,1,2].map(k=>{
-    const c=carriers[(seed+k)%carriers.length];
-    const dh=6+((seed+k*3)%12);
-    return {car:c[1],code:c[0],time:`${pad(dh)}:${k%2?'40':'05'}`,price:base+k*40+(k===0?0:15)};
-  }).sort((a,b)=>a.price-b.price);
-  pop.innerHTML=`<button class="close" onclick="document.getElementById('pop').classList.remove('show')">×</button>
-    <h4>${dep.iata} → ${arr.iata} · ${document.getElementById('startDate').value||todayISO()}</h4>
-    ${opts.map(o=>`<div class="fl"><span class="car">${o.time} · ${o.car}</span><span class="pr">€${o.price}</span></div>`).join('')}
-    <div class="stub">Stub data. Live: server-side Google-Flights fetch (incl. low-cost carriers).</div>`;
-  pop.classList.add('show');
-  const r=ev.target.getBoundingClientRect();
-  pop.style.top=Math.min(r.bottom+6,window.innerHeight-220)+'px';
-  pop.style.left=Math.min(r.left,window.innerWidth-280)+'px';
+/* ── flight picker modal (filters + select-a-flight sets the leg's real timing) ── */
+let _flStop=null, _flights=[], _flDep=null, _flArr=null, _flDate='',
+    _flt={sort:'depTime',stops:'any',win:'any',carrier:'any'};
+function airportByIata(code){ return AIRPORTS.find(a=>a.iata===code); }
+function hhmm(mins){ mins=((mins%1440)+1440)%1440; return pad(Math.floor(mins/60))+':'+pad(mins%60); }
+function inWindow(t,win){ const h=+t.slice(0,2);
+  return win==='early'?h<9 : win==='morning'?(h>=9&&h<12) : win==='afternoon'?(h>=12&&h<17) : win==='evening'?h>=17 : true; }
+/* deterministic mock flights for a route+date (stub — real: server-side Google-Flights) */
+function genFlights(dep,arr,dateStr){
+  const base=haversine(dep,arr), baseDur=Math.round(base/750*60+35);
+  const car=[['KL','KLM',1.15],['LH','Lufthansa',1.2],['HV','Transavia',.85],['FR','Ryanair',.6],['U2','easyJet',.7],['EW','Eurowings',.95]];
+  const seed=(dep.iata.charCodeAt(0)+arr.iata.charCodeAt(1)+dateStr.length)%7, out=[];
+  for(let k=0;k<9;k++){
+    const c=car[(seed+k)%car.length];
+    const depMin=6*60 + ((seed*37+k*151)%15)*60 + (k%2)*30;
+    const stops=(k%4===3)?1:0;
+    const dur=baseDur + (stops?90+((k*13)%50):((k*7)%25));
+    const price=Math.round(80 + base*0.06*c[2] + (stops?-10:20) + (k*11)%40);
+    out.push({code:c[0]+(100+((seed*7+k*29)%800)),carrier:c[1],cc:c[0],
+      depTime:hhmm(depMin),arrTime:hhmm(depMin+dur),durMin:dur,stops,price,dep:dep.iata,arr:arr.iata});
+  }
+  return out.sort((a,b)=>a.depTime.localeCompare(b.depTime));
 }
-document.addEventListener('click',e=>{ if(!e.target.closest('.pop')&&!e.target.closest('.price-btn')) document.getElementById('pop').classList.remove('show'); });
+function openFlightModal(ev,id){
+  if(ev) ev.stopPropagation();
+  const idx=stops.findIndex(s=>s.id===id); if(idx<1) return;
+  _flStop=id; _flDep=nearestAirport(stops[idx-1]); _flArr=nearestAirport(stops[idx]);
+  _flDate=document.getElementById('startDate').value||todayISO();
+  _flights=genFlights(_flDep,_flArr,_flDate);
+  _flt={sort:'depTime',stops:'any',win:'any',carrier:'any'};
+  renderFlightModal(); document.getElementById('flightModal').classList.add('show');
+}
+function setFlightFilter(k,v){ _flt[k]=v; renderFlightModal(); }
+function closeFlightModal(){ document.getElementById('flightModal').classList.remove('show'); }
+function selectFlight(i){ const f=_flights[i], s=stops.find(x=>x.id===_flStop); if(!f||!s) return;
+  s.flight={...f}; closeFlightModal(); recompute(); }
+function clearFlight(id){ const s=stops.find(x=>x.id===id); if(s){ s.flight=null; recompute(); } closeFlightModal(); }
+function renderFlightModal(){
+  const m=document.getElementById('flightModal'), s=stops.find(x=>x.id===_flStop); if(!s) return;
+  const carriers=[...new Set(_flights.map(f=>f.carrier))];
+  let list=_flights.filter(f=>(_flt.stops!=='nonstop'||f.stops===0) && (_flt.carrier==='any'||f.carrier===_flt.carrier) && inWindow(f.depTime,_flt.win));
+  list.sort((a,b)=> _flt.sort==='price'?a.price-b.price : _flt.sort==='dur'?a.durMin-b.durMin : a.depTime.localeCompare(b.depTime));
+  const selCode=s.flight&&s.flight.code;
+  const opt=(v,cur,txt)=>`<option value="${v}" ${v===cur?'selected':''}>${txt}</option>`;
+  m.innerHTML=`<div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head"><h3>${_flDep.iata} → ${_flArr.iata}</h3>
+      <span class="rt">${_flDate} · ${list.length}/${_flights.length} flights</span>
+      <button class="close" onclick="closeFlightModal()" title="Close">×</button></div>
+    <div class="modal-filters">
+      <div><label>Sort</label><select onchange="setFlightFilter('sort',this.value)">
+        ${opt('depTime',_flt.sort,'Departure')}${opt('price',_flt.sort,'Price')}${opt('dur',_flt.sort,'Duration')}</select></div>
+      <div><label>Depart</label><select onchange="setFlightFilter('win',this.value)">
+        ${opt('any',_flt.win,'Any time')}${opt('early',_flt.win,'Before 09:00')}${opt('morning',_flt.win,'Morning')}${opt('afternoon',_flt.win,'Afternoon')}${opt('evening',_flt.win,'Evening')}</select></div>
+      <div><label>Stops</label><select onchange="setFlightFilter('stops',this.value)">
+        ${opt('any',_flt.stops,'Any')}${opt('nonstop',_flt.stops,'Nonstop')}</select></div>
+      <div><label>Carrier</label><select onchange="setFlightFilter('carrier',this.value)">
+        ${opt('any',_flt.carrier,'All')}${carriers.map(c=>opt(c,_flt.carrier,c)).join('')}</select></div>
+    </div>
+    <div class="flight-list">
+      ${list.length?list.map(f=>{ const i=_flights.indexOf(f);
+        return `<div class="fl-row ${f.code===selCode?'sel':''}" onclick="selectFlight(${i})">
+          <span class="fl-cc">${f.cc}</span>
+          <span><span class="fl-times">${f.depTime}–${f.arrTime}</span> <span class="fl-meta">${esc(f.carrier)} ${f.code} · <span class="fl-stops-${f.stops}">${f.stops?f.stops+' stop':'nonstop'}</span></span></span>
+          <span class="fl-dur">${fmtDur(f.durMin)}</span>
+          <span class="fl-price">€${f.price}</span></div>`; }).join('')
+        :'<div class="fl-empty">No flights match these filters.</div>'}
+    </div>
+    <div class="modal-foot"><span class="stub">Stub data — live: server-side Google-Flights (incl. low-cost).</span>
+      ${s.flight?`<button class="mini-btn" onclick="clearFlight('${_flStop}')">Clear selection</button>`:''}</div>
+  </div>`;
+}
 
 /* ── persistence — a named-trip library + per-trip options (localStorage) ──
    library = { trips:{id:trip}, order:[id…], currentId, orsKey }
@@ -1214,7 +1308,7 @@ function blankTrip(name){ return {id:newId('t'),name:name||'Untitled trip',updat
   settings:{startDate:todayISO(),startTime:'08:00',bufPre:'90',bufPost:'30'},stops:[],options:[]}; }
 function currentTrip(){ return library.trips[library.currentId]; }
 function stripStops(arr){ return (arr||[]).map(s=>{ const c={...s}; delete c._arrival; delete c._depart;
-  if(Array.isArray(c.people)) c.people=c.people.slice(); return c; }); }
+  if(Array.isArray(c.people)) c.people=c.people.slice(); if(c.flight) c.flight={...c.flight}; return c; }); }
 function hasStopDetail(s){
   const txt=s.notes?s.notes.replace(/<[^>]*>/g,'').replace(/\u00A0|&nbsp;/g,' ').trim():'';
   return txt.length>0 || (s.people&&s.people.length>0) || (s.tags&&s.tags.length>0); }

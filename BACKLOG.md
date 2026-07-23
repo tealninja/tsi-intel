@@ -40,6 +40,13 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   transit=teal lightness steps for drive/fly/wait, sleep=deep-blue, flex=gray) — on the
   five-anchor palette, no 6th colour. Day tabs; click a day to see the hour-by-hour blocks.
 - [x] **Get price** button on plane legs → popover (currently a **STUB** with mock fares).
+- [x] **Flight picker modal** — "Get price" now opens a larger modal: filters (sort by
+  departure/price/duration, depart-window, nonstop, carrier), a scrollable flight list with
+  hover-highlight, and **click to select**. Selecting a flight **anchors that leg's timing to
+  the real scheduled dep/arr times** (the itinerary flight block + downstream stops shift to
+  match), warns if you can't reach the airport in time, and shows the flight as a chip on the
+  leg (clear to revert to estimate). Persists per stop. Flights are still mock (`genFlights`) →
+  swap for the server-side Google-Flights fetch.
 - [x] **Flights drawn as great-circle arcs** — plane legs now render the flight as a
   great-circle arc between the **nearest airports** (curves on the Mercator map), with thin
   dashed stop→airport hops and small airport markers (IATA tooltips). Antimeridian-safe.
