@@ -47,6 +47,15 @@ Leaflet map + Nominatim geocoder; the planner logic itself works offline). Heade
   match), warns if you can't reach the airport in time, and shows the flight as a chip on the
   leg (clear to revert to estimate). Persists per stop. Flights are still mock (`genFlights`) →
   swap for the server-side Google-Flights fetch.
+- [x] **Hotels / "Stays" tab** — Add-stop gains a third tab **Stays**: mock hotels ranked by
+  distance to your last stop, each with €/night + rating; click to add as an overnight hotel
+  stop (price/rating shown in the detail panel). Real hotels via **Tripadvisor** on merge.
+- [x] **Carrier filter incl. mileage programs** — flight modal's carrier filter now groups by
+  **alliance** (SkyTeam / Star Alliance / oneworld) as well as individual airlines; each flight
+  row shows its alliance. Carrier table expanded (KLM/AF/DL, LH/LX/SN/UA, BA/IB/AY/AA, +LCCs).
+- [x] **Fix: flight-chip overflow** (leg row now wraps) and **late-flight timing** — a selected
+  flight that departs before you can reach the airport now rolls to the next feasible day (with
+  an "add an overnight or reorder" warning) instead of producing an absurd 80h+ leg.
 - [x] **Flights drawn as curved arcs** — plane legs render the flight as a visible curved
   arc between the **nearest airports**, with thin dashed stop→airport hops and small airport
   markers (IATA tooltips). NB: a *true* great circle is dead-straight on short hops (BRU→BRE
