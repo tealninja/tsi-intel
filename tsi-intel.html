@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-08-01 · Cloudflare Access identity — recognize team by verified email (one-time-code login)';
+const APP_BUILD = '#170 · 2026-08-01 · Access identity is authoritative — verified email locks identity, no manual override';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -7342,6 +7342,7 @@ function saveOppDrawer() {
 const USER_KEY = 'tsi_pipeline_user_v1';
 
 function saveUserInitials() {
+  if (_identityLocked) return;                  // verified identity is authoritative
   const val = (document.getElementById('user-initials')?.value || '').toUpperCase();
   if (val) { _currentUser.initials = val; localStorage.setItem(USER_KEY, val); }
 }
@@ -8121,8 +8122,34 @@ let _currentUser = {
   name:     '',
   email:    '',
   initials: '',
-  source:   'manual'   // 'sharepoint' | 'manual'
+  source:   'manual'   // 'sharepoint' | 'access' | 'cached' | 'manual'
 };
+
+// When identity is verified at the edge (Cloudflare Access) — or by SharePoint —
+// it is AUTHORITATIVE: onboarding is skipped and the manual profile switcher is
+// disabled, so edits can't be attributed to someone you aren't. Manual entry
+// stays available only where there is no verified identity (the offline /
+// distributable copy, where /cdn-cgi/access/get-identity 404s).
+let _identityLocked = false;
+function applyIdentityLock(){
+  if (!_identityLocked) return;
+  const lock = el => { if(!el) return; el.readOnly = true; el.style.opacity = '0.7'; el.style.cursor = 'not-allowed'; };
+  const ui = document.getElementById('user-initials');
+  if (ui) { lock(ui); ui.title = 'Verified via Cloudflare Access — sign out from the Access menu to change'; }
+  ['upm-name','upm-email','upm-initials'].forEach(id => lock(document.getElementById(id)));
+  const acts = document.querySelector('#user-profile-menu .upm-actions'); if (acts) acts.style.display = 'none';
+  const quick = document.getElementById('upm-john-quick'); if (quick) quick.style.display = 'none';
+  const menu = document.getElementById('user-profile-menu');
+  if (menu && !document.getElementById('upm-verified-note')){
+    const note = document.createElement('div');
+    note.id = 'upm-verified-note';
+    note.style.cssText = 'font-size:12px;color:var(--color-text-secondary,#5a6b7b);margin:8px 0 2px;line-height:1.45';
+    note.innerHTML = 'Verified via Cloudflare Access — identity can’t be changed here. '
+      + '<a href="/cdn-cgi/access/logout" style="color:var(--tsi-teal);text-decoration:underline">Sign out of Access</a>';
+    const build = document.getElementById('upm-build');
+    menu.insertBefore(note, build || null);
+  }
+}
 
 async function detectSharePointUser() {
   // Only attempt on real HTTPS SharePoint URLs
@@ -8238,12 +8265,15 @@ async function initUserIdentity() {
   const spUser = await detectSharePointUser();
   if (spUser) {
     _currentUser = spUser;
+    _identityLocked = true;                    // verified — authoritative
     // Persist for offline fallback
     localStorage.setItem(USER_KEY, spUser.initials);
     localStorage.setItem('tsi_user_name_v1',  spUser.name);
     localStorage.setItem('tsi_user_email_v1', spUser.email);
     localStorage.setItem(ONBOARD_KEY, '1');  // skip onboarding
     applyUserToUI(spUser);
+    applyIdentityLock();
+    document.addEventListener('DOMContentLoaded', applyIdentityLock, { once:true });
     return;
   }
   // Then Cloudflare Access — a VERIFIED email from the one-time-code (or IdP)
@@ -8252,11 +8282,15 @@ async function initUserIdentity() {
   const accessUser = await detectAccessUser();
   if (accessUser) {
     _currentUser = accessUser;
+    _identityLocked = true;                    // verified at the edge — authoritative
+    // Overwrite any stale cached/manual identity with the verified one.
     localStorage.setItem(USER_KEY, accessUser.initials);
     localStorage.setItem('tsi_user_name_v1',  accessUser.name);
     localStorage.setItem('tsi_user_email_v1', accessUser.email);
     localStorage.setItem(ONBOARD_KEY, '1');  // verified — skip onboarding
     applyUserToUI(accessUser);
+    applyIdentityLock();
+    document.addEventListener('DOMContentLoaded', applyIdentityLock, { once:true });
     return;
   }
   // Returning user on this browser (incl. a coworker who identified before) → cache.
@@ -8353,6 +8387,7 @@ function toggleProfileMenu(e){
   const r = btn.getBoundingClientRect();
   m.style.top   = (r.bottom + 6) + 'px';
   m.style.right = Math.max(8, (window.innerWidth - r.right)) + 'px';
+  applyIdentityLock();                          // no-op unless identity is verified
   m.classList.add('open');
   setTimeout(() => document.getElementById('upm-name').focus(), 50);
   setTimeout(() => document.addEventListener('click', _profileOutside), 0);
@@ -8368,6 +8403,7 @@ function closeProfileMenu(){
   document.removeEventListener('click', _profileOutside);
 }
 function saveProfile(){
+  if (_identityLocked){ showToast('Identity is verified via Cloudflare Access — sign out of Access to change it', 'var(--tsi-amber)'); return; }
   const name  = (document.getElementById('upm-name').value  || '').trim();
   const email = (document.getElementById('upm-email').value || '').trim();
   let   ini   = (document.getElementById('upm-initials').value || '').trim().toUpperCase();
@@ -8385,6 +8421,7 @@ function saveProfile(){
   showToast('✓ Signed in as ' + (name || ini), 'var(--tsi-succ-green)');
 }
 function signOutProfile(){
+  if (_identityLocked){ showToast('You’re signed in via Cloudflare Access — use “Sign out of Access” to switch', 'var(--tsi-amber)'); return; }
   _currentUser = { name:'', email:'', initials:'', source:'manual' };
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem('tsi_user_name_v1');
@@ -8403,6 +8440,7 @@ function signOutProfile(){
 }
 // Quick preset for the deployment owner.
 function imJohnTeal(){
+  if (_identityLocked) return;                  // verified identity is authoritative
   document.getElementById('upm-name').value     = 'John Teal';
   document.getElementById('upm-email').value    = isLocalFile() ? 'jteal@tsi-inc.net' : 'teal.john@gmail.com';
   document.getElementById('upm-initials').value = 'JT';
