@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#170 · 2026-08-01 · Present PPTX export: editable heading text boxes on divider/overview slides';
+const APP_BUILD = '#171 · 2026-08-01 · Fix Save PPTX: correct pptxgenjs CDN filename + fallbacks (was a silent 404)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -19513,23 +19513,42 @@ async function presoExportDeck(){
   return doc;
 }
 
-// ── Lazy CDN loaders for the PPTX pipeline (same pattern as loadSheetJS) ──
+// ── Lazy CDN loaders for the PPTX pipeline ──
+// Try each URL in turn; resolve as soon as the expected global is present.
+// A tag that loads but doesn't define the global (wrong file) is treated as a
+// miss so we fall through to the next CDN — that filename mismatch is exactly
+// what made "Save PPTX" fail silently before (pptxgenjs ships pptxgen.bundle.js,
+// not pptxgen.bundle.min.js). `errMsg` surfaces only if every URL fails.
+function _presoLoadScript(urls, isReady, errMsg){
+  if(isReady()) return Promise.resolve();
+  let chain=Promise.reject();
+  urls.forEach(url=>{ chain=chain.catch(()=> isReady() ? undefined : new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=url; s.async=true;
+    s.onload=()=>{ isReady() ? res() : rej(new Error('loaded-no-global')); };
+    s.onerror=()=>rej(new Error('load-failed'));
+    document.head.appendChild(s);
+  })); });
+  return chain.catch(()=>{ throw new Error(errMsg); });
+}
 let _pptxP=null;
 function loadPptxGenJS(){
   if(window.PptxGenJS) return Promise.resolve();
   if(_pptxP) return _pptxP;
-  _pptxP=new Promise((res,rej)=>{ const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.min.js';
-    s.onload=res; s.onerror=()=>rej(new Error('PowerPoint library unavailable (offline)')); document.head.appendChild(s); });
+  _pptxP=_presoLoadScript([
+    'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js',
+    'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js',
+    'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js',
+  ], ()=>!!window.PptxGenJS, 'PowerPoint library could not be loaded').catch(e=>{ _pptxP=null; throw e; });
   return _pptxP;
 }
 let _h2cP=null;
 function loadHtml2Canvas(){
   if(window.html2canvas) return Promise.resolve();
   if(_h2cP) return _h2cP;
-  _h2cP=new Promise((res,rej)=>{ const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.onload=res; s.onerror=()=>rej(new Error('Image renderer unavailable (offline)')); document.head.appendChild(s); });
+  _h2cP=_presoLoadScript([
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+  ], ()=>!!window.html2canvas, 'Image renderer could not be loaded').catch(e=>{ _h2cP=null; throw e; });
   return _h2cP;
 }
 
@@ -19575,8 +19594,9 @@ function presoCaptureTextBoxes(sl){
 async function presoExportPPTX(){
   const ov=document.getElementById('preso-overlay');
   const wasOpen=ov.classList.contains('open');
+  showToast('Loading PowerPoint export…','var(--tsi-teal)');   // instant feedback while the CDN libs load
   try{ await Promise.all([loadPptxGenJS(), loadHtml2Canvas()]); }
-  catch(e){ showToast('⚠ '+(e&&e.message||'PowerPoint export needs a connection'),'var(--tsi-coral)'); return; }
+  catch(e){ showToast('⚠ '+(e&&e.message||'PowerPoint export needs a connection')+' — check your connection','var(--tsi-coral)'); return; }
 
   showToast('Rendering slides for PowerPoint…','var(--tsi-teal)');
   if(!wasOpen){ ov.classList.add('open'); presoApplyTheme(); }
