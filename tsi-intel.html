@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
+const APP_BUILD = '#169 · 2026-08-01 · Cloudflare Access identity — recognize team by verified email (one-time-code login)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -8145,6 +8145,30 @@ async function detectSharePointUser() {
   } catch { return null; }
 }
 
+// Cloudflare Access identity. When the app is served behind an Access application
+// (self-hosted; one-time-code or IdP login), Cloudflare exposes the authenticated
+// visitor at /cdn-cgi/access/get-identity. With one-time-code we get a VERIFIED
+// email but usually no display name — so we resolve the name from TSI_DIRECTORY.
+// Opened locally / not behind Access the endpoint 404s and we fall through to the
+// normal ask-the-user flow, so the plain downloadable copy is unchanged.
+// (This is display/UX convenience — it is NOT a security boundary. Real per-user
+// enforcement would verify the Cf-Access-Jwt-Assertion JWT server-side.)
+async function detectAccessUser() {
+  try {
+    const res = await fetch('/cdn-cgi/access/get-identity', {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include'
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const email = String(d.email || d.user_email || '').toLowerCase();
+    if (!email) return null;
+    const name = directoryName(email) || d.name || email;
+    const initials = deriveInitials(name) || email.slice(0,2).toUpperCase();
+    return { name, email, initials, source: 'access' };
+  } catch { return null; }
+}
+
 // Contexts with no SharePoint identity — the Cloudflare-hosted web app AND a
 // locally-opened download (file:// or localhost, i.e. John testing the build) —
 // default to jteal (deployment owner / executive tier) unless SharePoint says
@@ -8176,6 +8200,24 @@ const JTEAL_USER = (() => {
 // rather than the Gmail — SharePoint still overrides whenever it's reachable.
 const JTEAL_MS_USER = { name:'John Teal', email:'jteal@tsi-inc.net', initials:'JT', source:'desktop' };
 
+// ── TSI team directory (email → display name) ─────────────────
+// Cloudflare Access one-time-code login exposes a VERIFIED email (via
+// /cdn-cgi/access/get-identity) but usually no display name. This maps the
+// verified email to a proper name + initials so the person shows as themselves.
+// Add a line here when someone new is granted Access. NOTE: listing someone here
+// only affects display — it does NOT grant exec tier; that's AI_EXEC_EMAILS below.
+const TSI_DIRECTORY = {
+  'jteal@tsi-inc.net':    'John C Teal',
+  'teal.john@gmail.com':  'John Teal',
+  'wteal@tsi-inc.net':    'Will Teal',
+  'bteal@tsi-inc.net':    'Benny Teal',
+  'tfrazier@tsi-inc.net': 'Trevor Frazier',
+  'rcox@tsi-inc.net':     'Rob Cox',
+  'zsavovic@tsi-inc.net': 'Zo Savovic',
+  'bdavey@tsi-inc.net':   'Ben Davey',
+};
+function directoryName(email){ return TSI_DIRECTORY[String(email||'').toLowerCase()] || ''; }
+
 // ── User classes / AI tiering (soft; enforced server-side in the worker) ──
 const AI_EXEC_EMAILS = ['jteal@tsi-inc.net','teal.john@gmail.com','wteal@tsi-inc.net','bteal@tsi-inc.net'];
 function userClass(){ return AI_EXEC_EMAILS.includes((getUserEmail()||'').toLowerCase()) ? 'executive' : 'member'; }
@@ -8202,6 +8244,19 @@ async function initUserIdentity() {
     localStorage.setItem('tsi_user_email_v1', spUser.email);
     localStorage.setItem(ONBOARD_KEY, '1');  // skip onboarding
     applyUserToUI(spUser);
+    return;
+  }
+  // Then Cloudflare Access — a VERIFIED email from the one-time-code (or IdP)
+  // login, resolved to a name via TSI_DIRECTORY. A verified identity wins over a
+  // stale cached one, so check this before the cache fallback below.
+  const accessUser = await detectAccessUser();
+  if (accessUser) {
+    _currentUser = accessUser;
+    localStorage.setItem(USER_KEY, accessUser.initials);
+    localStorage.setItem('tsi_user_name_v1',  accessUser.name);
+    localStorage.setItem('tsi_user_email_v1', accessUser.email);
+    localStorage.setItem(ONBOARD_KEY, '1');  // verified — skip onboarding
+    applyUserToUI(accessUser);
     return;
   }
   // Returning user on this browser (incl. a coworker who identified before) → cache.
@@ -8236,7 +8291,7 @@ function applyUserToUI(user) {
 
   // Replace initials input with identity badge in header
   const userBar = document.getElementById('user-bar');
-  if (userBar && user.source === 'sharepoint') {
+  if (userBar && (user.source === 'sharepoint' || user.source === 'access')) {
     const existing = userBar.querySelector('.user-identity');
     if (!existing) {
       const badge = document.createElement('div');
