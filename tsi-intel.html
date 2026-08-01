@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-08-01 · Present: 16:9 PPTX export (one image slide each) alongside Save HTML';
+const APP_BUILD = '#170 · 2026-08-01 · Present PPTX export: editable heading text boxes on divider/overview slides';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -19533,11 +19533,43 @@ function loadHtml2Canvas(){
   return _h2cP;
 }
 
+// rgb()/rgba() computed colour → "RRGGBB" (PptxGenJS wants a bare hex string).
+function _presoRgbToHex(rgb){
+  const m=(rgb||'').match(/\d+/g); if(!m||m.length<3) return '000000';
+  return m.slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+// Editable-text overlay: on the divider + overview slides the heading/blurb are
+// plain text, so we hand PowerPoint real (editable) text boxes for them instead
+// of baking them into the image. Measure each element's box + type, HIDE it so
+// the raster has a clean gap there, and return specs (in inches/points, matched
+// to the live slide) to drop on top of the image. `restore()` un-hides them.
+// Other slide types return no specs and stay fully rasterised.
+function presoCaptureTextBoxes(sl){
+  const S=sl.getBoundingClientRect();
+  const ppi=S.height/7.5;                     // px per inch — the slide is exactly 7.5in tall
+  const sel = sl.querySelector('.pz-ov-title') ? ['.pz-ov-title','.pz-ov-sub']
+            : sl.querySelector('.pz-sec-big')  ? ['.pz-sec-big','.pz-sec-blurb']
+            : [];
+  const specs=[], hidden=[];
+  sel.forEach(q=>{ const el=sl.querySelector(q); if(!el) return;
+    const txt=(el.textContent||'').trim(); if(!txt) return;
+    const r=el.getBoundingClientRect(), cs=getComputedStyle(el);
+    specs.push({ text:txt,
+      x:(r.left-S.left)/ppi, y:(r.top-S.top)/ppi, w:r.width/ppi, h:Math.max(r.height/ppi,0.2),
+      fontSize:Math.round(parseFloat(cs.fontSize)/ppi*72*10)/10,
+      color:_presoRgbToHex(cs.color), bold:(parseInt(cs.fontWeight,10)||400)>=600,
+      fontFace:(cs.fontFamily||'').split(',')[0].replace(/["']/g,'').trim()||'Arial' });
+    hidden.push([el, el.style.visibility]); el.style.visibility='hidden';
+  });
+  return { specs, restore(){ hidden.forEach(([el,v])=>{ el.style.visibility=v; }); } };
+}
+
 // ── Export the deck as a 16:9 PowerPoint (.pptx) ──────────────────────────────
-// One slide per deck slide, each a full-bleed rasterized PNG of the live 16:9
-// slide box — so it drops straight into a larger .pptx alongside other material.
-// Editable-text export isn't attempted: the slides carry maps, charts, gradients
-// and custom type that only a pixel snapshot preserves faithfully. Map *tile*
+// One slide per deck slide: a full-bleed rasterized PNG of the live 16:9 slide
+// box — so it drops straight into a larger .pptx alongside other material — with
+// real EDITABLE text boxes layered on top for the divider/overview headings (see
+// presoCaptureTextBoxes). The image preserves maps, charts, gradients and custom
+// type faithfully; the overlaid headings stay editable in PowerPoint. Map *tile*
 // backgrounds may come through blank (Carto tiles load without CORS — see the
 // note in presoRenderOvMap); pins, grids, charts, logos and all text render.
 async function presoExportPPTX(){
@@ -19562,6 +19594,9 @@ async function presoExportPPTX(){
     await new Promise(r=>setTimeout(r, 700));   // let charts render + map tiles settle
     const sl=stage.querySelector('.pz-slide'); if(!sl) continue;
     const rect=sl.getBoundingClientRect();
+    // Pull the divider/overview headings out as editable text boxes (also hides
+    // them so they don't get baked into the raster underneath the live text).
+    const tb=presoCaptureTextBoxes(sl);
     // Clip the slide to its own 16:9 box (no scroll overflow, square corners, no
     // shadow) so every captured frame is a clean 16:9 image — restored right after.
     const prev=sl.getAttribute('style')||'';
@@ -19571,9 +19606,9 @@ async function presoExportPPTX(){
         imageTimeout:4000,   // don't stall a slide on a cross-origin map tile that won't yield to CORS
         scale:Math.max(1, Math.min(3, 1920/Math.max(1,rect.width))),
         width:rect.width, height:rect.height, windowWidth:document.documentElement.clientWidth});
-      imgs.push(canvas.toDataURL('image/png'));
+      imgs.push({data:canvas.toDataURL('image/png'), boxes:tb.specs});
     }catch(_){ /* skip a slide that fails to rasterize rather than abort the deck */ }
-    finally{ sl.setAttribute('style', prev); }
+    finally{ tb.restore(); sl.setAttribute('style', prev); }
   }
   _presoIdx=savedIdx; presoRender();
   if(!wasOpen) ov.classList.remove('open');
@@ -19583,9 +19618,12 @@ async function presoExportPPTX(){
   pptx.defineLayout({name:'TSI169', width:13.333, height:7.5});
   pptx.layout='TSI169';
   pptx.author='TSI Intel'; pptx.company='TSI';
-  imgs.forEach(data=>{ const s=pptx.addSlide();
+  imgs.forEach(im=>{ const s=pptx.addSlide();
     s.background={color:slideBg.replace('#','')};
-    s.addImage({data, x:0, y:0, w:13.333, h:7.5}); });
+    s.addImage({data:im.data, x:0, y:0, w:13.333, h:7.5});
+    // Editable headings on top of the image (divider titles/blurbs, overview title/sub).
+    (im.boxes||[]).forEach(b=>s.addText(b.text,{x:b.x, y:b.y, w:b.w, h:b.h, margin:0,
+      fontSize:b.fontSize, color:b.color, bold:b.bold, fontFace:b.fontFace, align:'left', valign:'top'})); });
   const stamp=new Date().toISOString().slice(0,10);
   try{ await pptx.writeFile({fileName:'TSI-ProjectTrack-'+stamp+'.pptx'});
     showToast('✓ PowerPoint saved — '+imgs.length+' slides','var(--tsi-succ-green)'); }

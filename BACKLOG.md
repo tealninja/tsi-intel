@@ -172,6 +172,12 @@ Roles (cumulative ladder):
   (n/total). Verified via Playwright: valid .pptx, 16:9 slide size, one embedded PNG per slide.
   _Caveat: Carto map tiles load without CORS, so map **tile backgrounds** may come through blank
   in the raster; pins, grids, charts, logos and all text render. (imageTimeout bounds the wait.)_
+- [x] **Editable heading text in PPTX** (build #170) — divider slides (title + blurb) and the
+  overview/stage slides (title + sub-line) now export as **real editable PowerPoint text boxes**
+  layered on the image, not baked into the raster. `presoCaptureTextBoxes` measures each heading's
+  box + computed font/colour/weight, hides it (clean gap in the image), and drops a matched text
+  box (inches/points) on top — same selector hides + emits, so no double text. Verified: each
+  divider/overview/stage slide carries 1 image + 2 editable `<a:t>` runs; still 16:9.
 - [x] **"What to present" settings** — "⚙ What to present" modal: **Auto / Smart rules /
   Hand-picked**. Smart filters (updated-within, closes-within, value ≥ X, stages) + **group-by
   line / stage / region** (deck sections are now dynamic). **AI describe box** parses a plain-
