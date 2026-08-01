@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
+const APP_BUILD = '#169 · 2026-08-01 · Present: 16:9 PPTX export (one image slide each) alongside Save HTML';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -17235,6 +17235,7 @@ startAdminPoll();
     <button class="pz-btn" id="pz-money-btn" onclick="presoToggleMoney()" title="Blur commercial figures">Hide $</button>
     <button class="pz-btn" onclick="presoFullscreen()" title="Toggle full screen">⛶ Full screen</button>
     <button class="pz-btn" onclick="presoExportDeck()" title="Save the deck as a self-contained HTML file (for sharing / hosting)">⬇ Save HTML</button>
+    <button class="pz-btn" onclick="presoExportPPTX()" title="Save the deck as a 16:9 PowerPoint (.pptx) — one image slide each, to drop into a larger deck">⬇ Save PPTX</button>
     <button class="pz-btn" onclick="closePreso()">✕ Exit</button>
   </div>
   <div class="pz-stage" id="pz-stage"></div>
@@ -19510,6 +19511,85 @@ async function presoExportDeck(){
   setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_){} }, 5000);
   showToast('✓ Deck packaged — '+slidesHTML.length+' slides','var(--tsi-succ-green)');
   return doc;
+}
+
+// ── Lazy CDN loaders for the PPTX pipeline (same pattern as loadSheetJS) ──
+let _pptxP=null;
+function loadPptxGenJS(){
+  if(window.PptxGenJS) return Promise.resolve();
+  if(_pptxP) return _pptxP;
+  _pptxP=new Promise((res,rej)=>{ const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('PowerPoint library unavailable (offline)')); document.head.appendChild(s); });
+  return _pptxP;
+}
+let _h2cP=null;
+function loadHtml2Canvas(){
+  if(window.html2canvas) return Promise.resolve();
+  if(_h2cP) return _h2cP;
+  _h2cP=new Promise((res,rej)=>{ const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('Image renderer unavailable (offline)')); document.head.appendChild(s); });
+  return _h2cP;
+}
+
+// ── Export the deck as a 16:9 PowerPoint (.pptx) ──────────────────────────────
+// One slide per deck slide, each a full-bleed rasterized PNG of the live 16:9
+// slide box — so it drops straight into a larger .pptx alongside other material.
+// Editable-text export isn't attempted: the slides carry maps, charts, gradients
+// and custom type that only a pixel snapshot preserves faithfully. Map *tile*
+// backgrounds may come through blank (Carto tiles load without CORS — see the
+// note in presoRenderOvMap); pins, grids, charts, logos and all text render.
+async function presoExportPPTX(){
+  const ov=document.getElementById('preso-overlay');
+  const wasOpen=ov.classList.contains('open');
+  try{ await Promise.all([loadPptxGenJS(), loadHtml2Canvas()]); }
+  catch(e){ showToast('⚠ '+(e&&e.message||'PowerPoint export needs a connection'),'var(--tsi-coral)'); return; }
+
+  showToast('Rendering slides for PowerPoint…','var(--tsi-teal)');
+  if(!wasOpen){ ov.classList.add('open'); presoApplyTheme(); }
+  try{ if(!_presoDeck||!_presoDeck.length) _presoDeck=await presoBuildDeck(); }catch(_){}
+  try{ presoMapViewStore().pull(); }catch(_){}
+  const light=ov.classList.contains('preso-light');
+  const slideBg=light ? '#f6f8fb' : '#0d1117';
+  const stage=document.getElementById('pz-stage');
+  const savedIdx=_presoIdx;
+  const imgs=[];
+  const total=_presoDeck.length;
+  for(let k=0;k<total;k++){
+    showToast('Rendering slides for PowerPoint… ('+(k+1)+'/'+total+')','var(--tsi-teal)');
+    _presoIdx=k; presoRender();
+    await new Promise(r=>setTimeout(r, 700));   // let charts render + map tiles settle
+    const sl=stage.querySelector('.pz-slide'); if(!sl) continue;
+    const rect=sl.getBoundingClientRect();
+    // Clip the slide to its own 16:9 box (no scroll overflow, square corners, no
+    // shadow) so every captured frame is a clean 16:9 image — restored right after.
+    const prev=sl.getAttribute('style')||'';
+    sl.style.overflow='hidden'; sl.style.borderRadius='0'; sl.style.boxShadow='none'; sl.scrollTop=0;
+    try{
+      const canvas=await html2canvas(sl,{backgroundColor:slideBg, useCORS:true, logging:false,
+        imageTimeout:4000,   // don't stall a slide on a cross-origin map tile that won't yield to CORS
+        scale:Math.max(1, Math.min(3, 1920/Math.max(1,rect.width))),
+        width:rect.width, height:rect.height, windowWidth:document.documentElement.clientWidth});
+      imgs.push(canvas.toDataURL('image/png'));
+    }catch(_){ /* skip a slide that fails to rasterize rather than abort the deck */ }
+    finally{ sl.setAttribute('style', prev); }
+  }
+  _presoIdx=savedIdx; presoRender();
+  if(!wasOpen) ov.classList.remove('open');
+
+  if(!imgs.length){ showToast('⚠ Nothing to export','var(--tsi-coral)'); return; }
+  const pptx=new PptxGenJS();
+  pptx.defineLayout({name:'TSI169', width:13.333, height:7.5});
+  pptx.layout='TSI169';
+  pptx.author='TSI Intel'; pptx.company='TSI';
+  imgs.forEach(data=>{ const s=pptx.addSlide();
+    s.background={color:slideBg.replace('#','')};
+    s.addImage({data, x:0, y:0, w:13.333, h:7.5}); });
+  const stamp=new Date().toISOString().slice(0,10);
+  try{ await pptx.writeFile({fileName:'TSI-ProjectTrack-'+stamp+'.pptx'});
+    showToast('✓ PowerPoint saved — '+imgs.length+' slides','var(--tsi-succ-green)'); }
+  catch(_){ showToast('⚠ PowerPoint export failed','var(--tsi-coral)'); }
 }
 function closePreso(){
   document.getElementById('preso-overlay').classList.remove('open');

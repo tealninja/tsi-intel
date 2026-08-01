@@ -163,8 +163,15 @@ Roles (cumulative ladder):
   (insert→read→delete) confirmed. **Remaining: deploy the worker** so the route exists (below).
 - [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
   richer sample-quote slides.
-- [ ] **Deck export to PPTX** (PptxGenJS via CDN, TSI-themed) so it's distributable /
-  Canva-importable (Canva imports .pptx). Raised alongside "export to ppt or Canva".
+- [x] **Deck export to PPTX** (build #169) — "⬇ Save PPTX" in the present toolbar, beside
+  "Save HTML". Each deck slide is rasterized (html2canvas) and dropped **full-bleed onto a
+  13.333×7.5in (16:9) PowerPoint slide** via PptxGenJS (both lazy-loaded from CDN, same pattern
+  as SheetJS; graceful offline toast). One image per slide → drops straight into a larger deck
+  and imports into Canva (Canva reads .pptx). Slide box is clipped to its own 16:9 bounds before
+  capture so no frame exports taller-than-16:9 or with scroll artifacts; live progress toast
+  (n/total). Verified via Playwright: valid .pptx, 16:9 slide size, one embedded PNG per slide.
+  _Caveat: Carto map tiles load without CORS, so map **tile backgrounds** may come through blank
+  in the raster; pins, grids, charts, logos and all text render. (imageTimeout bounds the wait.)_
 - [x] **"What to present" settings** — "⚙ What to present" modal: **Auto / Smart rules /
   Hand-picked**. Smart filters (updated-within, closes-within, value ≥ X, stages) + **group-by
   line / stage / region** (deck sections are now dynamic). **AI describe box** parses a plain-
