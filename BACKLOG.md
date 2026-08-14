@@ -9,6 +9,17 @@ refreshed from this file on request. See `CLAUDE.md`.
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
 ## 🗒️ 2026-08-14 — new (raised by JT)
+- [x] **Add "Biocarbon Samples" opportunity category.** Wired into `CATS`, `CAT_COLORS`
+  (sage #809848), and the drawer's `#category-options` datalist.
+- [x] **Self-serve dropdown manager (MGMT → 🗂 Lists).** Admin-only editor to add / rename /
+  recolor / remove the values behind the four core dropdowns — **opportunity categories,
+  pipeline stages, team/leads, and scope tags**. Persisted in the `lists` Store collection
+  and merged over the built-in defaults at boot (new code-added built-ins still appear).
+  The identity column (category/stage value, lead initials, tag key — what opps store) is
+  immutable to avoid orphaning records; names/colors are editable, plus add/remove. Saves
+  apply live (consts mutated in place, static datalists/selects rebuilt, pipeline repainted)
+  and sync to the team via D1. Follow-ups if wanted: stage reordering, and a migrate action
+  so removing/renaming an in-use value can re-tag existing opportunities.
 - [x] **Per-opportunity to-dos.** New expandable **"To-dos"** section in the opportunity
   drawer (collapsed by default, header badge shows `N open · M overdue`). Each to-do has
   **name/description, status** (Open · In progress · Blocked · Done), **priority**
