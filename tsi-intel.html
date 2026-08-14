@@ -3831,7 +3831,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#174 · 2026-08-14 · MGMT → Lists: manage category/stage/team/tag dropdowns in-app';
+const APP_BUILD = '#175 · 2026-08-14 · fix: MGMT tab showed a blank view (view-mgmt was never activated)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5598,7 +5598,7 @@ function showTab(name) {
   document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
   // Views — 'tools' owns no view; it hosts ai + parser via showToolsSub(). Imminent
   // has no tab anymore (it's a pipeline filter), so its view stays hidden.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history","traffic","visits","todos"].forEach(t=>{
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history","traffic","visits","todos","mgmt"].forEach(t=>{
     const viewEl = document.getElementById("view-"+t);
     if (viewEl) viewEl.classList.toggle("active", t===name);
   });
