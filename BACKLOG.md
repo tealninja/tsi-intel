@@ -25,7 +25,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   No due date / Completed. Check a task off inline (persists immediately via `oppPersist`),
   change its status inline, or click the task/opportunity to jump into the opp drawer at
   the To-dos section. A red count badge on the tab shows your open-task count.
-  Follow-up if wanted: a per-row open/overdue badge on the pipeline table.
+- [x] **Pipeline-row to-do badge.** Each pipeline row's account cell shows a `☑ N`
+  badge with the count of **open** to-dos on that opportunity (next to the 🔗 link
+  badge); it turns **coral when any are overdue**, and the tooltip breaks down open vs
+  overdue. Click it to jump into the opp drawer at the To-dos section. Stays in sync as
+  to-dos change in the drawer or the roll-up view.
 
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**

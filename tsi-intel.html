@@ -164,6 +164,12 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 .row-link-badge:hover{opacity:1}
 .row-link-badge .rlb-n{font-size:9px;font-weight:700;color:var(--tsi-teal);vertical-align:super;margin-left:1px}
 .tr-starred .row-link-badge .rlb-n{color:#fff}
+/* per-row to-do badge — count of open tasks on this opportunity (coral if any overdue) */
+.row-todo-badge{margin-left:6px;font-size:10px;cursor:pointer;opacity:.8;vertical-align:middle;white-space:nowrap;color:var(--tsi-teal)}
+.row-todo-badge:hover{opacity:1}
+.row-todo-badge .rtb-n{font-family:var(--font-mono);font-weight:700;margin-left:1px}
+.row-todo-badge.rtb-over{color:var(--tsi-coral)}
+.tr-starred .row-todo-badge{color:#fff}
 /* stale-record badge — this opp was changed by someone else since we loaded */
 .stale-badge{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:var(--tsi-amber,#f5a623);color:#3a2a00;font-size:11px;font-weight:800;line-height:1;cursor:pointer;vertical-align:middle;box-shadow:0 0 0 2px rgba(245,166,35,.25);animation:stalePulse 2s ease-in-out infinite}
 .stale-badge:hover{filter:brightness(1.08)}
@@ -3780,7 +3786,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#170 · 2026-08-14 · To-dos roll-up tab — all opportunities\' tasks in one triage list';
+const APP_BUILD = '#171 · 2026-08-14 · pipeline rows show an open/overdue to-do badge (☑)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5338,6 +5344,16 @@ function renderPipeline() {
       badge.title="Linked: "+relOpps.map(r=>`${r.acct}${r.phase?' ('+r.phase+')':(r.type?' — '+r.type:'')}`).join(", ")+" · click to open";
       badge.onclick=(e)=>{ e.stopPropagation(); openOppDrawer(_rel[0]); };
       tdAcct.appendChild(badge);
+    }
+    // ☑ to-do badge — open task count on this opp (coral when any are overdue)
+    const _ts=(typeof oppTodoStats==='function')?oppTodoStats(o):{open:0,overdue:0};
+    if(_ts.open){
+      const tb=document.createElement("span");
+      tb.className="row-todo-badge"+(_ts.overdue?" rtb-over":"");
+      tb.innerHTML="☑<span class='rtb-n'>"+_ts.open+"</span>";
+      tb.title=_ts.open+" open to-do"+(_ts.open!==1?"s":"")+(_ts.overdue?" · "+_ts.overdue+" overdue":"")+" · click to open";
+      tb.onclick=(e)=>{ e.stopPropagation(); openOppFromTodos(o.id); };
+      tdAcct.appendChild(tb);
     }
     tr.appendChild(tdAcct);
     const tdParent=document.createElement("td");
@@ -7058,6 +7074,17 @@ function removeDrawerTodo(i){
 // ── To-dos roll-up view (all opportunities' todos in one triage list) ───────
 let _todoWho = null;          // null = default to current user; ''/initials set by the picker
 let _todoWhoInit = false;     // has the picker been seeded this session?
+// Open / overdue / done counts for one opp's todos (drives the pipeline-row badge).
+function oppTodoStats(o){
+  const list = (o && o.todos) || [];
+  const today = todoTodayISO();
+  let open = 0, overdue = 0, done = 0;
+  list.forEach(t => {
+    if (t.status === 'Done') { done++; }
+    else { open++; if (t.dueDate && t.dueDate < today) overdue++; }
+  });
+  return { open, overdue, done, total: list.length };
+}
 // Flatten every opp's embedded todos into one list carrying its opp context.
 function allTodos(){
   const out = [];
@@ -7079,6 +7106,7 @@ function updateTodoRecord(oppId, todoId, patch){
   if (typeof markDirty === 'function') markDirty(o.id);
   if (typeof oppPersist === 'function') oppPersist(o);
   updateMyTodoBadge();
+  if (typeof renderPipeline === 'function') renderPipeline();   // keep the row badge in sync
 }
 function todosViewToggleDone(oppId, todoId, checked){
   updateTodoRecord(oppId, todoId, { status: checked ? 'Done' : 'Open' });
