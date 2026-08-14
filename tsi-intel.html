@@ -2166,6 +2166,74 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 }
 .dsec:not(.collapsed) .dsec-collapsed-hint { display:none; }
 
+/* ── To-dos (per-opportunity task list, in the opp drawer) ─────────── */
+/* The todo list can run long; let its body grow past the default 2000px cap. */
+#dsec-todos:not(.collapsed) .dsec-body { max-height:6000px; }
+.todo-badge {
+  display:inline-block; margin-left:8px; padding:1px 7px; border-radius:99px;
+  font-size:10px; font-weight:600; font-style:normal; letter-spacing:.02em;
+  font-family:var(--font-mono); background:rgba(0,146,159,0.14); color:var(--tsi-teal);
+  vertical-align:middle;
+}
+.todo-badge.none { background:var(--color-bg); color:var(--color-text-muted); }
+.todo-badge .tb-over { color:var(--tsi-coral); }
+.todo-list { display:flex; flex-direction:column; gap:10px; margin-bottom:10px; }
+.todo-empty {
+  font-size:11.5px; color:var(--color-text-muted); font-style:italic;
+  padding:10px 2px; text-transform:none; letter-spacing:0;
+}
+.todo-card {
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  background:var(--color-surface); padding:10px 11px 11px;
+  border-left:3px solid var(--tsi-teal);
+}
+.todo-card.st-inprogress { border-left-color:var(--tsi-dried-wood,#EADE86); }
+.todo-card.st-blocked    { border-left-color:var(--tsi-coral); }
+.todo-card.st-done       { border-left-color:var(--tsi-succ-green); opacity:.72; }
+.todo-card.overdue       { border-left-color:var(--tsi-coral); }
+.todo-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.todo-name {
+  flex:1 1 auto; padding:6px 9px;
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  font-size:12.5px; font-weight:500; font-family:var(--font-ui);
+  background:var(--color-surface); color:var(--color-text-primary); outline:none;
+}
+.todo-name:focus { border-color:var(--tsi-teal); }
+.todo-card.st-done .todo-name { text-decoration:line-through; color:var(--color-text-muted); }
+.todo-del {
+  flex:0 0 auto; width:24px; height:24px; line-height:1; cursor:pointer;
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  background:transparent; color:var(--color-text-muted); font-size:15px;
+}
+.todo-del:hover { border-color:var(--tsi-coral); color:var(--tsi-coral); }
+.todo-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px; }
+.todo-field label {
+  display:block; font-size:9.5px; font-weight:500; color:var(--color-text-secondary);
+  margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em;
+}
+.todo-field select, .todo-field input {
+  width:100%; padding:5px 7px; font-size:11px; font-family:var(--font-ui);
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  background:var(--color-surface); color:var(--color-text-primary); outline:none;
+}
+.todo-field input[type=date] { font-family:var(--font-mono); }
+.todo-field select:focus, .todo-field input:focus { border-color:var(--tsi-teal); }
+.todo-field.due-over input { border-color:var(--tsi-coral); color:var(--tsi-coral); }
+.todo-note {
+  width:100%; padding:6px 8px; font-size:11px; font-family:var(--font-ui); line-height:1.45;
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  background:var(--color-surface); color:var(--color-text-primary); outline:none;
+  resize:vertical; min-height:34px;
+}
+.todo-note:focus { border-color:var(--tsi-teal); }
+.todo-add-btn {
+  padding:7px 13px; font-size:11.5px; font-weight:500; font-family:var(--font-ui);
+  background:transparent; color:var(--tsi-teal);
+  border:1px solid var(--tsi-teal); border-radius:var(--radius-md); cursor:pointer;
+}
+.todo-add-btn:hover { background:rgba(0,146,159,0.08); }
+@media (max-width:560px){ .todo-grid { grid-template-columns:1fr 1fr; } }
+
 /* Page-level collapse headers */
 .collapse-header .ch-meta {
   font-size:10px; color:var(--color-text-muted);
@@ -3653,7 +3721,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
+const APP_BUILD = '#169 · 2026-08-14 · per-opportunity to-dos (status, owner, due date) in the opp drawer';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -6537,6 +6605,7 @@ let _drawerClima  = null;   // Chart.js instance for climatogram
 let _drawerTags   = [];     // current tag keys in drawer
 let _drawerProducts = [];   // [{seedId, code, name, qty}] products/equipment on this opp
 let _drawerLinks  = [];     // ids of related opportunities (program phases) in drawer
+let _drawerTodos  = [];     // [{id,name,status,priority,assignedTo,assignedDate,dueDate,notes,...}] tasks on this opp
 let _drawerNavList = [];    // ordered opp ids the drawer pages through (prev/next arrows)
 let _drawerDirty   = false; // has the user edited any field since the drawer opened?
 let _drawerLat    = null;
@@ -6643,6 +6712,7 @@ function openOppDrawer(editId, opts) {
     _drawerLon = o.lon || null;
     _drawerTags = [...(o.tags || [])];
     _drawerProducts = (o.products || []).map(x => ({ ...x }));
+    _drawerTodos = (o.todos || []).map(x => ({ ...x }));
     setDrawerField('d-phase', o.phase || '');
     setDrawerField('d-lob', o.lob || '');
     _drawerLinks = relatedOppIds(o.id);   // union of both directions (self-heals legacy one-sided links)
@@ -6669,6 +6739,7 @@ function openOppDrawer(editId, opts) {
     setDrawerField('d-lob', '');
     _drawerTags = [];
     _drawerProducts = [];
+    _drawerTodos = [];
     _drawerLinks = [];
     _drawerLat = null; _drawerLon = null;
     const _ws2 = document.getElementById('d-weather-section');
@@ -6680,6 +6751,7 @@ function openOppDrawer(editId, opts) {
   rebuildDrawerTags();
   rebuildDrawerProducts();
   rebuildDrawerLinks();
+  rebuildDrawerTodos();
   _drawerDirty = false;      // fresh load — no unsaved edits yet
   window._drawerLocMeta = null;
   updateDrawerNavUI();
@@ -6817,6 +6889,110 @@ function setDrawerProductQty(i, v) {
 }
 function removeDrawerProduct(i) {
   _drawerProducts.splice(i, 1); _drawerDirty = true; rebuildDrawerProducts();
+}
+
+// ── To-dos (per-opportunity task list, embedded on the opp record like products) ─
+const TODO_STATUSES   = ['Open', 'In progress', 'Blocked', 'Done'];
+const TODO_PRIORITIES = ['Low', 'Normal', 'High'];
+function todoTodayISO(){ return new Date().toISOString().slice(0, 10); }
+// slug used both for the status <select> value and the card's style class
+function todoStatusClass(s){
+  const k = String(s || 'Open').toLowerCase().replace(/\s+/g, '');
+  return (k === 'inprogress' || k === 'blocked' || k === 'done') ? 'st-' + k : '';
+}
+function todoIsOverdue(t){
+  return t && t.dueDate && t.status !== 'Done' && t.dueDate < todoTodayISO();
+}
+// Reflect open / overdue counts on the section header badge (visible collapsed or open).
+function updateTodoBadge(){
+  const badge = document.getElementById('d-todo-badge');
+  if (!badge) return;
+  const open = _drawerTodos.filter(t => t.status !== 'Done').length;
+  const over = _drawerTodos.filter(todoIsOverdue).length;
+  badge.classList.toggle('none', open === 0 && over === 0);
+  badge.innerHTML = `${open} open` + (over ? ` · <span class="tb-over">${over} overdue</span>` : '');
+}
+function rebuildDrawerTodos(){
+  const list = document.getElementById('d-todos-list');
+  if (!list) return;
+  if (!_drawerTodos.length) {
+    list.innerHTML = `<div class="todo-empty">No to-dos yet — add tasks, owners, and due dates for this opportunity.</div>`;
+    updateTodoBadge();
+    return;
+  }
+  const statusOpts = (sel) => TODO_STATUSES.map(s =>
+    `<option${s === sel ? ' selected' : ''}>${s}</option>`).join('');
+  const prioOpts = (sel) => TODO_PRIORITIES.map(p =>
+    `<option${p === (sel || 'Normal') ? ' selected' : ''}>${p}</option>`).join('');
+  const assignOpts = (sel) => `<option value="">Unassigned</option>` + LEADS.map(i =>
+    `<option value="${qattr(i)}"${i === sel ? ' selected' : ''}>${qesc(leadName(i))}</option>`).join('');
+
+  list.innerHTML = _drawerTodos.map((t, i) => {
+    const over = todoIsOverdue(t);
+    const cls = ['todo-card', todoStatusClass(t.status), over ? 'overdue' : ''].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      <div class="todo-head">
+        <input class="todo-name" value="${qattr(t.name || '')}" placeholder="Task name / description"
+               onchange="setDrawerTodoField(${i},'name',this.value)">
+        <button type="button" class="todo-del" title="Remove to-do"
+                onclick="removeDrawerTodo(${i})">×</button>
+      </div>
+      <div class="todo-grid">
+        <div class="todo-field">
+          <label>Status</label>
+          <select onchange="setDrawerTodoField(${i},'status',this.value,true)">${statusOpts(t.status || 'Open')}</select>
+        </div>
+        <div class="todo-field">
+          <label>Assigned to</label>
+          <select onchange="setDrawerTodoField(${i},'assignedTo',this.value)">${assignOpts(t.assignedTo || '')}</select>
+        </div>
+        <div class="todo-field">
+          <label>Priority</label>
+          <select onchange="setDrawerTodoField(${i},'priority',this.value)">${prioOpts(t.priority)}</select>
+        </div>
+        <div class="todo-field">
+          <label>Assigned date</label>
+          <input type="date" value="${qattr(t.assignedDate || '')}"
+                 onchange="setDrawerTodoField(${i},'assignedDate',this.value)">
+        </div>
+        <div class="todo-field${over ? ' due-over' : ''}">
+          <label>Due date</label>
+          <input type="date" value="${qattr(t.dueDate || '')}"
+                 onchange="setDrawerTodoField(${i},'dueDate',this.value,true)">
+        </div>
+      </div>
+      <textarea class="todo-note" placeholder="Notes…"
+                onchange="setDrawerTodoField(${i},'notes',this.value)">${qesc(t.notes || '')}</textarea>
+    </div>`;
+  }).join('');
+  updateTodoBadge();
+}
+function addDrawerTodo(){
+  const now = new Date().toISOString();
+  const me  = (typeof getUserInitials === 'function' ? getUserInitials() : '') || '';
+  _drawerTodos.push({
+    id: 'TD-' + Date.now().toString(36).toUpperCase().slice(-6),
+    name: '', status: 'Open', priority: 'Normal',
+    assignedTo: (me && LEADS.includes(me)) ? me : '',
+    assignedDate: todoTodayISO(), dueDate: '', notes: '',
+    createdAt: now, createdBy: me || '?', updatedAt: now, updatedBy: me || '?'
+  });
+  _drawerDirty = true;
+  // Make sure the section is expanded so the new card is visible.
+  const sec = document.getElementById('dsec-todos'); if (sec) sec.classList.remove('collapsed');
+  rebuildDrawerTodos();
+}
+function setDrawerTodoField(i, field, val, rerender){
+  const t = _drawerTodos[i];
+  if (!t) return;
+  t[field] = val;
+  t.updatedAt = new Date().toISOString();
+  t.updatedBy = ((typeof getUserInitials === 'function' ? getUserInitials() : '') || '?');
+  _drawerDirty = true;
+  if (rerender) rebuildDrawerTodos(); else updateTodoBadge();
+}
+function removeDrawerTodo(i){
+  _drawerTodos.splice(i, 1); _drawerDirty = true; rebuildDrawerTodos();
 }
 
 // ── Related opportunities (program phases: FEED → EPC → fab/install …) ──────
@@ -7254,6 +7430,7 @@ function saveOppDrawer() {
     status:     'O',
     tags:       [..._drawerTags],
     products:   _drawerProducts.map(x => ({ ...x })),
+    todos:      _drawerTodos.map(x => ({ ...x })),
     lob:        document.getElementById('d-lob')?.value || '',
     phase:      document.getElementById('d-phase')?.value.trim() || '',
     linkedIds:  [..._drawerLinks],
@@ -15314,6 +15491,18 @@ startAdminPoll();
           <input class="dinput" id="d-delivery" placeholder="e.g. 2027-Q2">
         </div>
       </div>
+      </div><!-- /dsec-body -->
+    </div>
+
+    <!-- TO-DOS -->
+    <div class="dsec collapsed" id="dsec-todos">
+      <div class="dsec-title" onclick="toggleDsec('todos')">
+        <span>To-dos<span class="todo-badge none" id="d-todo-badge">0 open</span><span class="dsec-collapsed-hint">status · due · assignee</span></span>
+        <span class="dsec-chevron">▾</span>
+      </div>
+      <div class="dsec-body">
+        <div class="todo-list" id="d-todos-list"></div>
+        <button type="button" class="todo-add-btn" onclick="addDrawerTodo()">+ Add to-do</button>
       </div><!-- /dsec-body -->
     </div>
 

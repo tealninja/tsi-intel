@@ -8,6 +8,18 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗒️ 2026-08-14 — new (raised by JT)
+- [x] **Per-opportunity to-dos.** New expandable **"To-dos"** section in the opportunity
+  drawer (collapsed by default, header badge shows `N open · M overdue`). Each to-do has
+  **name/description, status** (Open · In progress · Blocked · Done), **priority**
+  (Low · Normal · High), **assigned to** (from `LEADS`), **assigned date**, **due date**,
+  and **notes**. Overdue (due date past + not Done) is flagged in coral; status drives a
+  colored left border (teal/dried-wood/coral/green). Stored embedded on the opp record as
+  `opp.todos[]` (like `products`/`tags`), so it persists via the existing `oppStore` → D1
+  `opportunities` collection — no schema change. The parent opp is the implicit "assoc. opp".
+  Follow-ups if wanted: a cross-opportunity "My to-dos" roll-up view, and an open/overdue
+  count badge on pipeline rows.
+
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
 - [x] Pipeline **Value** shows thousands separators (commas).
