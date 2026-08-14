@@ -2234,6 +2234,64 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .todo-add-btn:hover { background:rgba(0,146,159,0.08); }
 @media (max-width:560px){ .todo-grid { grid-template-columns:1fr 1fr; } }
 
+/* ── To-dos view (cross-opportunity roll-up tab) ──────────────────── */
+.todo-tab-badge {
+  display:inline-block; margin-left:6px; min-width:16px; padding:0 5px;
+  border-radius:99px; font:600 10px var(--font-mono); line-height:16px;
+  text-align:center; background:var(--tsi-coral); color:#fff; vertical-align:middle;
+}
+.tvw-toolbar {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 14px;
+}
+.tvw-toolbar .dselect { width:auto; padding:6px 9px; }
+.tvw-toolbar label {
+  display:flex; align-items:center; gap:5px; font-size:11.5px;
+  color:var(--color-text-secondary); cursor:pointer;
+}
+.tvw-toolbar label input { accent-color:var(--tsi-teal); }
+.tvw-seg { display:flex; flex-direction:column; gap:2px; }
+.tvw-seg > span {
+  font-size:9.5px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--color-text-muted); font-weight:500;
+}
+.tvw-tbl { width:100%; border-collapse:collapse; font-size:12px; }
+.tvw-tbl th {
+  text-align:left; font:500 10px var(--font-ui); text-transform:uppercase;
+  letter-spacing:.05em; color:var(--color-text-muted); padding:6px 10px;
+  border-bottom:1px solid var(--color-border); white-space:nowrap;
+}
+.tvw-tbl td { padding:9px 10px; border-bottom:0.5px solid var(--color-border); vertical-align:middle; }
+.tvw-tbl tbody tr:hover { background:color-mix(in srgb,var(--tsi-teal) 5%,transparent); }
+.tvw-tbl tr.done { opacity:.55; }
+.tvw-tbl tr.overdue td.tvw-due { color:var(--tsi-coral); font-weight:500; }
+.tvw-check { width:15px; height:15px; accent-color:var(--tsi-succ-green); cursor:pointer; vertical-align:middle; }
+.tvw-task { color:var(--color-heading); font-weight:500; cursor:pointer; }
+.tvw-task:hover { color:var(--tsi-teal); }
+.tvw-tbl tr.done .tvw-task { text-decoration:line-through; color:var(--color-text-muted); }
+.tvw-tnote { font-size:10.5px; color:var(--color-text-muted); margin-top:2px; max-width:340px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tvw-opp { cursor:pointer; color:var(--color-text-primary); }
+.tvw-opp:hover { color:var(--tsi-teal); }
+.tvw-opp .tvw-opp-sub { font-size:10px; color:var(--color-text-muted); }
+.tvw-due { font-family:var(--font-mono); white-space:nowrap; }
+.tvw-due-rel { font-size:10px; color:var(--color-text-muted); }
+.tvw-prio { display:inline-block; padding:1px 8px; border-radius:99px; font:500 10px var(--font-ui); }
+.tvw-prio.high   { background:color-mix(in srgb,var(--tsi-coral) 15%,transparent); color:var(--tsi-coral); }
+.tvw-prio.normal { background:var(--color-bg); color:var(--color-text-secondary); }
+.tvw-prio.low    { background:var(--color-bg); color:var(--color-text-muted); }
+.tvw-status-sel { padding:3px 6px; font-size:11px; font-family:var(--font-ui);
+  border:1px solid var(--color-border-mid); border-radius:var(--radius-md);
+  background:var(--color-surface); color:var(--color-text-primary); outline:none; }
+.tvw-status-sel:focus { border-color:var(--tsi-teal); }
+.tvw-empty { padding:30px 10px; text-align:center; color:var(--color-text-muted); font-size:12.5px; }
+.tvw-group-row td {
+  font:500 10px var(--font-ui); text-transform:uppercase; letter-spacing:.06em;
+  color:var(--color-text-secondary); background:var(--color-bg);
+  padding:6px 10px; border-bottom:1px solid var(--color-border);
+}
+.tvw-group-row.over td { color:var(--tsi-coral); }
+@media (max-width:640px){ .tvw-hide-sm { display:none; } }
+
 /* Page-level collapse headers */
 .collapse-header .ch-meta {
   font-size:10px; color:var(--color-text-muted);
@@ -3270,6 +3328,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   <div class="tab" data-tab="history" onclick="showTab('history')">📈 History</div>
   <div class="tab" data-tab="traffic" onclick="showTab('traffic')">🚦 Traffic</div>
   <div class="tab" data-tab="visits" onclick="showTab('visits')">🚩 Visits</div>
+  <div class="tab" data-tab="todos" onclick="showTab('todos')">✅ To-dos<span class="todo-tab-badge" id="todo-tab-badge" style="display:none"></span></div>
   <div class="tab" data-tab="tools" onclick="showTab('tools')">🤖 AI + Parse</div>
   <div class="tab" data-tab="usage" onclick="showTab('usage')">📊 Usage</div>
   <div class="tab" data-tab="bugs" onclick="showTab('bugs')">🐛 Bug Register</div>
@@ -3721,7 +3780,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-08-14 · per-opportunity to-dos (status, owner, due date) in the opp drawer';
+const APP_BUILD = '#170 · 2026-08-14 · To-dos roll-up tab — all opportunities\' tasks in one triage list';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5478,7 +5537,7 @@ function showTab(name) {
   document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
   // Views — 'tools' owns no view; it hosts ai + parser via showToolsSub(). Imminent
   // has no tab anymore (it's a pipeline filter), so its view stays hidden.
-  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history","traffic","visits"].forEach(t=>{
+  ["pipeline","won","summary","accounts","ai","parser","bugs","imminent","usage","products","quotes","history","traffic","visits","todos"].forEach(t=>{
     const viewEl = document.getElementById("view-"+t);
     if (viewEl) viewEl.classList.toggle("active", t===name);
   });
@@ -5524,6 +5583,7 @@ function showTab(name) {
   if(name==='history'  && typeof renderHistoryView==='function') renderHistoryView();
   if(name==='traffic'  && typeof renderTrafficBoard==='function') renderTrafficBoard();
   if(name==='visits'   && typeof renderVisits==='function') renderVisits();
+  if(name==='todos'    && typeof renderTodosView==='function') renderTodosView();
 
   // Mobile hamburger: reflect the active tab in the collapsed label + close the menu.
   const curEl = document.getElementById('tab-current');
@@ -6995,6 +7055,184 @@ function removeDrawerTodo(i){
   _drawerTodos.splice(i, 1); _drawerDirty = true; rebuildDrawerTodos();
 }
 
+// ── To-dos roll-up view (all opportunities' todos in one triage list) ───────
+let _todoWho = null;          // null = default to current user; ''/initials set by the picker
+let _todoWhoInit = false;     // has the picker been seeded this session?
+// Flatten every opp's embedded todos into one list carrying its opp context.
+function allTodos(){
+  const out = [];
+  (typeof DATA !== 'undefined' ? DATA : []).forEach(o => {
+    (o.todos || []).forEach(t => out.push({ opp:o, t }));
+  });
+  return out;
+}
+// Write a change back to a todo living on an opp record, then persist + refresh.
+function updateTodoRecord(oppId, todoId, patch){
+  const o = (typeof DATA !== 'undefined' ? DATA : []).find(r => r.id === oppId);
+  if (!o || !Array.isArray(o.todos)) return;
+  const t = o.todos.find(x => x.id === todoId);
+  if (!t) return;
+  Object.assign(t, patch);
+  t.updatedAt = new Date().toISOString();
+  t.updatedBy = ((typeof getUserInitials === 'function' ? getUserInitials() : '') || '?');
+  o.updatedAt = t.updatedAt;
+  if (typeof markDirty === 'function') markDirty(o.id);
+  if (typeof oppPersist === 'function') oppPersist(o);
+  updateMyTodoBadge();
+}
+function todosViewToggleDone(oppId, todoId, checked){
+  updateTodoRecord(oppId, todoId, { status: checked ? 'Done' : 'Open' });
+  renderTodosView();
+}
+function todosViewSetStatus(oppId, todoId, val){
+  updateTodoRecord(oppId, todoId, { status: val });
+  renderTodosView();
+}
+// Open the opportunity drawer for a todo and reveal its To-dos section.
+function openOppFromTodos(oppId){
+  if (typeof openOppDrawer !== 'function') return;
+  openOppDrawer(oppId);
+  setTimeout(() => { const s = document.getElementById('dsec-todos'); if (s) s.classList.remove('collapsed'); }, 120);
+}
+function setTodoWho(v){ _todoWho = v; renderTodosView(); }
+// Relative-day hint for a due date, e.g. "in 3d" / "2d ago" / "today".
+function todoDueRel(due){
+  if (!due) return '';
+  const today = new Date(todoTodayISO() + 'T00:00:00');
+  const d = new Date(due + 'T00:00:00');
+  const days = Math.round((d - today) / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days === -1) return 'yesterday';
+  return days > 0 ? `in ${days}d` : `${-days}d ago`;
+}
+function _todoPrioRank(p){ return p === 'High' ? 0 : p === 'Low' ? 2 : 1; }
+// Count of the current user's open todos — drives the tab badge.
+function myOpenTodoCount(){
+  const me = (typeof getUserInitials === 'function' ? getUserInitials() : '') || '';
+  return allTodos().filter(({t}) => t.status !== 'Done' && (!me || t.assignedTo === me)).length;
+}
+function updateMyTodoBadge(){
+  const b = document.getElementById('todo-tab-badge');
+  if (!b) return;
+  const n = myOpenTodoCount();
+  b.textContent = n; b.style.display = n ? '' : 'none';
+}
+function renderTodosView(){
+  const whoSel = document.getElementById('todo-who');
+  const me = (typeof getUserInitials === 'function' ? getUserInitials() : '') || '';
+  // Seed the assignee picker once (Me / Everyone / each lead), defaulting to Me.
+  if (whoSel && !_todoWhoInit){
+    const opts = [];
+    if (me) opts.push(`<option value="${qattr(me)}">Me (${qesc(me)})</option>`);
+    opts.push(`<option value="__all__">Everyone</option>`);
+    LEADS.forEach(i => { if (i !== me) opts.push(`<option value="${qattr(i)}">${qesc(leadName(i))}</option>`); });
+    whoSel.innerHTML = opts.join('');
+    _todoWho = me || '__all__';
+    whoSel.value = _todoWho;
+    _todoWhoInit = true;
+  }
+  const who = (_todoWho == null) ? (me || '__all__') : _todoWho;
+  if (whoSel && whoSel.value !== who) whoSel.value = who;
+
+  const statusF  = document.getElementById('todo-statusf')?.value || 'open';
+  const sortBy   = document.getElementById('todo-sort')?.value || 'due';
+  const grouping = document.getElementById('todo-group-overdue')?.checked;
+  const todayISO = todoTodayISO();
+
+  let rows = allTodos();
+  if (who !== '__all__') rows = rows.filter(({t}) => (t.assignedTo || '') === who);
+  if (statusF === 'open')      rows = rows.filter(({t}) => t.status !== 'Done');
+  else if (statusF !== 'all')  rows = rows.filter(({t}) => (t.status || 'Open') === statusF);
+
+  // KPIs reflect the current assignee scope (independent of the status filter).
+  let scope = allTodos();
+  if (who !== '__all__') scope = scope.filter(({t}) => (t.assignedTo || '') === who);
+  const wk = new Date(todayISO + 'T00:00:00'); wk.setDate(wk.getDate() + 7);
+  const wkISO = wk.toISOString().slice(0,10);
+  const openN = scope.filter(({t}) => t.status !== 'Done').length;
+  const overN = scope.filter(({t}) => todoIsOverdue(t)).length;
+  const weekN = scope.filter(({t}) => t.status !== 'Done' && t.dueDate && t.dueDate >= todayISO && t.dueDate <= wkISO).length;
+  const doneN = scope.filter(({t}) => t.status === 'Done').length;
+  const kEl = document.getElementById('todo-kpis');
+  if (kEl) kEl.innerHTML = [
+    {v:openN, l:'Open', c:''},
+    {v:overN, l:'Overdue', c:overN?'stale':''},
+    {v:weekN, l:'Due within 7 days', c:''},
+    {v:doneN, l:'Completed', c:''},
+  ].map(k=>`<div class="hist-kpi ${k.c}"><div class="k-val">${k.v}</div><div class="k-lbl">${k.l}</div></div>`).join('');
+
+  // Sort. A missing due date sorts last in due-date order.
+  const byDue = (a,b) => {
+    const ad=a.t.dueDate||'9999-12-31', bd=b.t.dueDate||'9999-12-31';
+    return ad<bd?-1:ad>bd?1:0;
+  };
+  const sorters = {
+    due: byDue,
+    priority: (a,b)=> _todoPrioRank(a.t.priority)-_todoPrioRank(b.t.priority) || byDue(a,b),
+    opp: (a,b)=> String(a.opp.acct||'').localeCompare(String(b.opp.acct||'')) || byDue(a,b),
+    assignee: (a,b)=> String(a.t.assignedTo||'~').localeCompare(String(b.t.assignedTo||'~')) || byDue(a,b),
+  };
+  rows.sort(sorters[sortBy] || byDue);
+
+  const body = document.getElementById('todo-view-body');
+  if (!body) return;
+  if (!rows.length){
+    body.innerHTML = `<tr><td colspan="7" class="tvw-empty">No to-dos match this filter.${who!=='__all__'&&statusF==='open'?' Nothing open — nice.':''}</td></tr>`;
+    updateMyTodoBadge();
+    return;
+  }
+
+  const rowHtml = ({opp, t}) => {
+    const done = t.status === 'Done';
+    const over = todoIsOverdue(t);
+    const prio = (t.priority || 'Normal');
+    const oppLabel = qesc(opp.acct || opp.id);
+    const oppSub = qesc(opp.type || opp.phase || '');
+    const statusOpts = TODO_STATUSES.map(s => `<option${s===(t.status||'Open')?' selected':''}>${s}</option>`).join('');
+    const rel = t.dueDate ? `<div class="tvw-due-rel">${qesc(todoDueRel(t.dueDate))}</div>` : '';
+    return `<tr class="${done?'done':''} ${over?'overdue':''}">
+      <td style="text-align:center"><input type="checkbox" class="tvw-check" ${done?'checked':''}
+        onchange="todosViewToggleDone('${qattr(opp.id)}','${qattr(t.id)}',this.checked)" title="Mark ${done?'not done':'done'}"></td>
+      <td><span class="tvw-task" onclick="openOppFromTodos('${qattr(opp.id)}')">${qesc(t.name||'(untitled task)')}</span>
+        ${t.notes?`<div class="tvw-tnote" title="${qattr(t.notes)}">${qesc(t.notes)}</div>`:''}</td>
+      <td><span class="tvw-opp" onclick="openOppFromTodos('${qattr(opp.id)}')">${oppLabel}
+        ${oppSub?`<div class="tvw-opp-sub">${oppSub}</div>`:''}</span></td>
+      <td class="tvw-hide-sm">${t.assignedTo?qesc(leadName(t.assignedTo)):'<span style="color:var(--color-text-muted)">Unassigned</span>'}</td>
+      <td class="tvw-hide-sm"><span class="tvw-prio ${prio.toLowerCase()}">${qesc(prio)}</span></td>
+      <td class="tvw-due">${t.dueDate?qesc(t.dueDate):'<span style="color:var(--color-text-muted)">—</span>'}${rel}</td>
+      <td><select class="tvw-status-sel" onchange="todosViewSetStatus('${qattr(opp.id)}','${qattr(t.id)}',this.value)">${statusOpts}</select></td>
+    </tr>`;
+  };
+
+  if (grouping && sortBy === 'due'){
+    // Bucket into Overdue / This week / Later / No due date / (Done at the end).
+    const wkEnd = wkISO;
+    const buckets = { over:[], week:[], later:[], nodue:[], done:[] };
+    rows.forEach(r => {
+      if (r.t.status === 'Done') buckets.done.push(r);
+      else if (!r.t.dueDate) buckets.nodue.push(r);
+      else if (r.t.dueDate < todayISO) buckets.over.push(r);
+      else if (r.t.dueDate <= wkEnd) buckets.week.push(r);
+      else buckets.later.push(r);
+    });
+    const groups = [
+      ['over','Overdue', true],
+      ['week','Due within 7 days', false],
+      ['later','Later', false],
+      ['nodue','No due date', false],
+      ['done','Completed', false],
+    ];
+    body.innerHTML = groups.filter(([k])=>buckets[k].length).map(([k,label,over])=>
+      `<tr class="tvw-group-row ${over?'over':''}"><td colspan="7">${label} · ${buckets[k].length}</td></tr>`
+      + buckets[k].map(rowHtml).join('')
+    ).join('');
+  } else {
+    body.innerHTML = rows.map(rowHtml).join('');
+  }
+  updateMyTodoBadge();
+}
+
 // ── Related opportunities (program phases: FEED → EPC → fab/install …) ──────
 // A short, human label for an opp used in link pickers/chips.
 function oppLinkLabel(o){
@@ -7484,6 +7722,8 @@ function saveOppDrawer() {
   renderTorr();
   renderHotCards();
   updateMap(currentFilteredRows());
+  if (typeof updateMyTodoBadge === 'function') updateMyTodoBadge();
+  if (document.getElementById('view-todos')?.classList.contains('active')) renderTodosView();
 
   // Persist to the D1 'opportunities' collection (cache-first, then server).
   const isNew = !_drawerEditId;
@@ -15163,6 +15403,7 @@ renderImminent();
 renderTorr();
 renderWon();
 renderBugs();
+if (typeof updateMyTodoBadge === 'function') updateMyTodoBadge();
 startAdminPoll();
 </script>
 
@@ -16291,6 +16532,61 @@ startAdminPoll();
       <button class="btn-am-cancel" onclick="closeVisitModal()">Cancel</button>
       <button class="btn-am-save" onclick="saveVisit()">Save visit</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ TO-DOS — cross-opportunity task roll-up ══ -->
+<div id="view-todos" class="view" style="padding:16px 20px">
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+    <h2 style="font:400 22px var(--font-display);color:var(--color-heading);margin:0">To-dos</h2>
+    <div style="margin-left:auto;font-size:11px;color:var(--color-text-muted)">Tasks pulled from every opportunity · check off, change status, or click through to the opportunity</div>
+  </div>
+  <p style="font-size:12px;color:var(--color-text-muted);margin:4px 0 14px;max-width:840px">
+    Every to-do on the book in one place. Defaults to <b>your</b> open tasks, soonest due first. Changes save immediately.</p>
+  <div class="hist-kpi-row" id="todo-kpis"></div>
+  <div class="tvw-toolbar">
+    <div class="tvw-seg">
+      <span>Assigned to</span>
+      <select class="dselect" id="todo-who" onchange="setTodoWho(this.value)"></select>
+    </div>
+    <div class="tvw-seg">
+      <span>Status</span>
+      <select class="dselect" id="todo-statusf" onchange="renderTodosView()">
+        <option value="open">Open (not done)</option>
+        <option value="all">All</option>
+        <option value="Open">Open</option>
+        <option value="In progress">In progress</option>
+        <option value="Blocked">Blocked</option>
+        <option value="Done">Done</option>
+      </select>
+    </div>
+    <div class="tvw-seg">
+      <span>Sort by</span>
+      <select class="dselect" id="todo-sort" onchange="renderTodosView()">
+        <option value="due">Due date</option>
+        <option value="priority">Priority</option>
+        <option value="opp">Opportunity</option>
+        <option value="assignee">Assignee</option>
+      </select>
+    </div>
+    <div class="tvw-seg">
+      <span>&nbsp;</span>
+      <label><input type="checkbox" id="todo-group-overdue" checked onchange="renderTodosView()"> Group overdue / upcoming</label>
+    </div>
+  </div>
+  <div class="tbl-wrap" style="overflow-x:auto">
+    <table class="tvw-tbl">
+      <thead><tr>
+        <th style="width:26px"></th>
+        <th>Task</th>
+        <th>Opportunity</th>
+        <th class="tvw-hide-sm">Owner</th>
+        <th class="tvw-hide-sm">Priority</th>
+        <th>Due</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="todo-view-body"></tbody>
+    </table>
   </div>
 </div>
 

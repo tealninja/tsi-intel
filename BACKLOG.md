@@ -17,8 +17,15 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   colored left border (teal/dried-wood/coral/green). Stored embedded on the opp record as
   `opp.todos[]` (like `products`/`tags`), so it persists via the existing `oppStore` → D1
   `opportunities` collection — no schema change. The parent opp is the implicit "assoc. opp".
-  Follow-ups if wanted: a cross-opportunity "My to-dos" roll-up view, and an open/overdue
-  count badge on pipeline rows.
+  Follow-up: an open/overdue count badge on pipeline rows.
+- [x] **To-dos roll-up view.** New **✅ To-dos** tab that flattens every opportunity's
+  `todos[]` into one triage list. Defaults to **your** open tasks, soonest due first.
+  KPI row (Open · Overdue · Due within 7 days · Completed), filters (assignee — defaults
+  to you, status, sort), and optional grouping into Overdue / Due within 7 days / Later /
+  No due date / Completed. Check a task off inline (persists immediately via `oppPersist`),
+  change its status inline, or click the task/opportunity to jump into the opp drawer at
+  the To-dos section. A red count badge on the tab shows your open-task count.
+  Follow-up if wanted: a per-row open/overdue badge on the pipeline table.
 
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
