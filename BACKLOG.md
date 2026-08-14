@@ -30,6 +30,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   badge); it turns **coral when any are overdue**, and the tooltip breaks down open vs
   overdue. Click it to jump into the opp drawer at the To-dos section. Stays in sync as
   to-dos change in the drawer or the roll-up view.
+- [x] **Quick-add from the To-dos view.** A **"+ New to-do"** button in the roll-up
+  toolbar opens an inline form (task · opportunity picker · assignee (defaults to you) ·
+  due date · priority) so you can create a task on any opportunity without opening it.
+  Validates task + opportunity, persists immediately, resets for fast repeat entry, and
+  refreshes the list + pipeline badge.
 
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**

@@ -2297,6 +2297,20 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 }
 .tvw-group-row.over td { color:var(--tsi-coral); }
 @media (max-width:640px){ .tvw-hide-sm { display:none; } }
+.tvw-quickadd {
+  border:1px solid var(--color-border-mid); border-left:3px solid var(--tsi-teal);
+  border-radius:var(--radius-md); background:var(--color-surface);
+  padding:12px 14px; margin:0 0 14px;
+}
+.tvw-qa-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.tvw-qa-field label {
+  display:block; font-size:9.5px; font-weight:500; color:var(--color-text-secondary);
+  margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em;
+}
+.tvw-qa-field .dinput, .tvw-qa-field .dselect { padding:6px 9px; font-size:12px; }
+.tvw-qa-actions { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.tvw-qa-err { font-size:11px; color:var(--tsi-coral); margin-right:auto; }
+@media (max-width:720px){ .tvw-qa-grid { grid-template-columns:1fr 1fr; } }
 
 /* Page-level collapse headers */
 .collapse-header .ch-meta {
@@ -3786,7 +3800,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#171 · 2026-08-14 · pipeline rows show an open/overdue to-do badge (☑)';
+const APP_BUILD = '#172 · 2026-08-14 · quick-add a to-do on any opportunity from the To-dos view';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -7259,6 +7273,69 @@ function renderTodosView(){
     body.innerHTML = rows.map(rowHtml).join('');
   }
   updateMyTodoBadge();
+}
+
+// Quick-add: create a to-do on any opportunity from the roll-up view.
+function toggleTodoQuickAdd(force){
+  const panel = document.getElementById('todo-quickadd');
+  if (!panel) return;
+  const show = (force === undefined) ? (panel.style.display === 'none') : !!force;
+  panel.style.display = show ? '' : 'none';
+  if (!show) return;
+  // Build the opportunity picker (label -> id) from open opps first, then the rest.
+  const dl = document.getElementById('tqa-opp-options');
+  window._todoAddOppMap = {};
+  const opps = (typeof DATA !== 'undefined' ? DATA : []).slice()
+    .sort((a,b) => (a.status==='O'?0:1)-(b.status==='O'?0:1) || String(a.acct||'').localeCompare(String(b.acct||'')));
+  if (dl) dl.innerHTML = opps.map(o => {
+    const lbl = oppLinkLabel(o); window._todoAddOppMap[lbl] = o.id; return `<option value="${qattr(lbl)}">`;
+  }).join('');
+  // Assignee select — default to the current user.
+  const me = (typeof getUserInitials === 'function' ? getUserInitials() : '') || '';
+  const who = document.getElementById('tqa-who');
+  if (who) {
+    who.innerHTML = `<option value="">Unassigned</option>` +
+      LEADS.map(i => `<option value="${qattr(i)}"${i===me?' selected':''}>${qesc(leadName(i))}</option>`).join('');
+  }
+  const err = document.getElementById('tqa-err'); if (err) err.textContent = '';
+  // If a specific assignee is filtered in the view, pre-seed the opp field is skipped;
+  // just focus the task name for fast entry.
+  setTimeout(() => document.getElementById('tqa-name')?.focus(), 30);
+}
+function submitTodoQuickAdd(){
+  const err  = document.getElementById('tqa-err');
+  const name = document.getElementById('tqa-name')?.value.trim() || '';
+  const oppLabel = document.getElementById('tqa-opp')?.value.trim() || '';
+  const oppId = (window._todoAddOppMap || {})[oppLabel];
+  if (!name)  { if (err) err.textContent = 'Add a task name.'; document.getElementById('tqa-name')?.focus(); return; }
+  if (!oppId) { if (err) err.textContent = 'Pick an opportunity from the list.'; document.getElementById('tqa-opp')?.focus(); return; }
+  const o = (typeof DATA !== 'undefined' ? DATA : []).find(r => r.id === oppId);
+  if (!o) { if (err) err.textContent = 'Opportunity not found.'; return; }
+  const now = new Date().toISOString();
+  const meInit = (typeof getUserInitials === 'function' ? getUserInitials() : '') || '';
+  const todo = {
+    id: 'TD-' + Date.now().toString(36).toUpperCase().slice(-6),
+    name,
+    status: 'Open',
+    priority: document.getElementById('tqa-prio')?.value || 'Normal',
+    assignedTo: document.getElementById('tqa-who')?.value || '',
+    assignedDate: todoTodayISO(),
+    dueDate: document.getElementById('tqa-due')?.value || '',
+    notes: '',
+    createdAt: now, createdBy: meInit || '?', updatedAt: now, updatedBy: meInit || '?'
+  };
+  if (!Array.isArray(o.todos)) o.todos = [];
+  o.todos.push(todo);
+  o.updatedAt = now;
+  if (typeof markDirty === 'function') markDirty(o.id);
+  if (typeof oppPersist === 'function') oppPersist(o);
+  // Reset the form for another quick entry, keeping the panel open.
+  ['tqa-name','tqa-opp','tqa-due'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  if (err) err.textContent = '';
+  if (typeof showToast === 'function') showToast('✓ To-do added to ' + (o.acct||o.id), 'var(--tsi-succ-green)');
+  renderTodosView();
+  if (typeof renderPipeline === 'function') renderPipeline();
+  setTimeout(() => document.getElementById('tqa-name')?.focus(), 20);
 }
 
 // ── Related opportunities (program phases: FEED → EPC → fab/install …) ──────
@@ -16600,6 +16677,44 @@ startAdminPoll();
     <div class="tvw-seg">
       <span>&nbsp;</span>
       <label><input type="checkbox" id="todo-group-overdue" checked onchange="renderTodosView()"> Group overdue / upcoming</label>
+    </div>
+    <div class="tvw-seg" style="margin-left:auto">
+      <span>&nbsp;</span>
+      <button class="todo-add-btn" onclick="toggleTodoQuickAdd()">+ New to-do</button>
+    </div>
+  </div>
+
+  <!-- Quick-add: create a to-do on any opportunity without leaving this view -->
+  <div class="tvw-quickadd" id="todo-quickadd" style="display:none">
+    <div class="tvw-qa-grid">
+      <div class="tvw-qa-field" style="grid-column:1 / -1">
+        <label>Task</label>
+        <input class="dinput" id="tqa-name" placeholder="What needs doing?" onkeydown="if(event.key==='Enter')submitTodoQuickAdd()">
+      </div>
+      <div class="tvw-qa-field">
+        <label>Opportunity</label>
+        <input class="dinput" id="tqa-opp" list="tqa-opp-options" placeholder="Search an opportunity…" autocomplete="off">
+        <datalist id="tqa-opp-options"></datalist>
+      </div>
+      <div class="tvw-qa-field">
+        <label>Assigned to</label>
+        <select class="dselect" id="tqa-who"></select>
+      </div>
+      <div class="tvw-qa-field">
+        <label>Due date</label>
+        <input class="dinput" id="tqa-due" type="date">
+      </div>
+      <div class="tvw-qa-field">
+        <label>Priority</label>
+        <select class="dselect" id="tqa-prio">
+          <option>Low</option><option selected>Normal</option><option>High</option>
+        </select>
+      </div>
+    </div>
+    <div class="tvw-qa-actions">
+      <span class="tvw-qa-err" id="tqa-err"></span>
+      <button class="btn-cancel-drawer" onclick="toggleTodoQuickAdd(false)">Cancel</button>
+      <button class="todo-add-btn" onclick="submitTodoQuickAdd()">Add to-do</button>
     </div>
   </div>
   <div class="tbl-wrap" style="overflow-x:auto">
