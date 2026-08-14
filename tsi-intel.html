@@ -3800,7 +3800,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#172 · 2026-08-14 · quick-add a to-do on any opportunity from the To-dos view';
+const APP_BUILD = '#173 · 2026-08-14 · add "Biocarbon Samples" opportunity category';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -4926,7 +4926,7 @@ function getSortedRows(rows, tableId) { return TableKit.sortRows(tableId, rows);
 
 // ── AUTOCOMPLETE ──────────────────────────────────────────────
 const LEADS   = ["JT","TF","ZS","BD","RC","JM","NJ","JW"];
-const CATS    = ["Torrefaction","Dryer Island","Dryer System","Emissions","Aftermarket/CO","Finishing/Mods","Inspection","Procurement / CO","Won"];
+const CATS    = ["Torrefaction","Biocarbon Samples","Dryer Island","Dryer System","Emissions","Aftermarket/CO","Finishing/Mods","Inspection","Procurement / CO","Won"];
 const PROBS   = ["100%","90%","80%","75%","65%","60%","50%","40%","35%","30%","25%","20%","15%","10%","5%"];
 const TAG_KEYS = Object.keys(TAG_DEFS);
 
@@ -5882,6 +5882,7 @@ let chartDonut = null, chartBar = null, chartProb = null;
 
 const CAT_COLORS = {
   'Torrefaction':    '#16A34A',
+  'Biocarbon Samples':'#809848',
   'Dryer Island':    '#1D4ED8',
   'Dryer System':    '#0891B2',
   'Emissions':       '#7C3AED',
@@ -15557,6 +15558,7 @@ startAdminPoll();
           <input class="dinput" id="d-cat" list="category-options" placeholder="Select or type to add new…" autocomplete="off" value="Dryer System">
           <datalist id="category-options">
             <option value="Torrefaction">
+            <option value="Biocarbon Samples">
             <option value="Dryer Island">
             <option value="Dryer System">
             <option value="Emissions">
