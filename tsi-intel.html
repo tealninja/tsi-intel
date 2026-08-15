@@ -2323,6 +2323,8 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   color:var(--color-text-muted); padding:4px 8px; border-bottom:1px solid var(--color-border); }
 .le-tbl td { padding:5px 8px; border-bottom:0.5px solid var(--color-border); vertical-align:middle; }
 .le-id { font-family:var(--font-mono); font-weight:500; color:var(--color-heading); }
+.le-id-in { padding:5px 8px; font-size:12px; font-family:var(--font-mono); font-weight:500; max-width:170px; }
+.le-id-in.le-renamed { border-color:var(--tsi-amber,#C4A230); background:color-mix(in srgb,var(--tsi-amber,#C4A230) 10%,transparent); }
 .le-in { padding:5px 8px; font-size:12px; }
 .le-color { display:flex; align-items:center; gap:6px; }
 .le-color input[type=color] { width:26px; height:22px; padding:0; border:1px solid var(--color-border-mid); border-radius:4px; background:none; cursor:pointer; }
@@ -3831,7 +3833,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#175 · 2026-08-14 · fix: MGMT tab showed a blank view (view-mgmt was never activated)';
+const APP_BUILD = '#176 · 2026-08-14 · MGMT Lists: rename existing items + migrate every record that used them';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5996,9 +5998,13 @@ function rebuildStageSelect(){
 let _listEdit = null;   // working copy per type while editing; seeded from effective lists
 // reseed=true reloads the working copy from the store (use when opening the tab);
 // reseed=false just repaints the current in-progress edits (use after add/remove).
+function seedListType(type){
+  // _orig remembers the saved identity so renames can be detected + migrated.
+  _listEdit[type] = effectiveList(type).map(x => ({ ...x, _orig: x.value }));
+}
 function renderListsEditor(reseed){
   const host = document.getElementById('lists-editor'); if (!host) return;
-  if (reseed || !_listEdit){ _listEdit = {}; LIST_TYPES.forEach(t => { _listEdit[t] = effectiveList(t); }); }
+  if (reseed || !_listEdit){ _listEdit = {}; LIST_TYPES.forEach(seedListType); }
   host.innerHTML = LIST_TYPES.map(listPanelHtml).join('');
 }
 function listPanelHtml(type){
@@ -6006,7 +6012,10 @@ function listPanelHtml(type){
   const items = _listEdit[type] || [];
   const head = `<tr><th>${qesc(s.idLabel)}</th>${s.name?`<th>${qesc(s.name)}</th>`:''}${s.color?'<th style="width:120px">Color</th>':''}<th style="width:70px"></th></tr>`;
   const rows = items.map((it,i) => {
-    const idCell = `<td><span class="le-id">${qesc(it.value)}</span></td>`;
+    const renamed = it._orig && it._orig !== it.value;
+    const idCell = `<td><input class="dinput le-id-in${renamed?' le-renamed':''}" value="${qattr(it.value)}" `
+      + `title="${qattr(it._orig ? 'Editing this renames “'+it._orig+'” everywhere it is used (existing records are migrated on save)' : 'New '+s.idLabel.toLowerCase())}" `
+      + `oninput="listSetField('${type}',${i},'value',this.value)"></td>`;
     const nameCell = s.name ? `<td><input class="dinput le-in" value="${qattr(it.name||'')}" oninput="listSetField('${type}',${i},'name',this.value)"></td>` : '';
     const colorCell = s.color ? `<td><span class="le-color"><input type="color" value="${qattr(_normHex(it.color)||'#888888')}" oninput="listSetField('${type}',${i},'color',this.value)"><code>${qesc(_normHex(it.color)||'#888888')}</code></span></td>` : '';
     return `<tr>${idCell}${nameCell}${colorCell}<td><button class="le-del" onclick="listRemoveItem('${type}',${i})">Remove</button></td></tr>`;
@@ -6027,7 +6036,54 @@ function listPanelHtml(type){
   </div>`;
 }
 function listSetField(type, i, field, val){ if (_listEdit[type] && _listEdit[type][i]) _listEdit[type][i][field] = val; }
-function listRemoveItem(type, i){ if (_listEdit[type]) { _listEdit[type].splice(i,1); renderListsEditor(); } }
+function listRemoveItem(type, i){ if (_listEdit[type]) { _listEdit[type].splice(i,1); renderListsEditor(false); } }
+
+// Count how many records reference a value (used to preview a rename's blast radius).
+function countListValueUsage(type, val){
+  const data = (typeof DATA !== 'undefined' ? DATA : []);
+  let n = 0;
+  if (type === 'categories')      data.forEach(o => { if (o.cat === val) n++; });
+  else if (type === 'stages')     data.forEach(o => { if (o.stage === val) n++; });
+  else if (type === 'tags')       data.forEach(o => { if ((o.tags||[]).includes(val)) n++; });
+  else if (type === 'leads'){
+    data.forEach(o => { if (o.lead === val || (o.todos||[]).some(t => t.assignedTo === val)) n++; });
+    if (typeof activityStore === 'function'){ try { activityStore().all().forEach(a => { if ((a.people||[]).includes(val)) n++; }); } catch(_){} }
+  }
+  return n;
+}
+// Rewrite every stored reference of oldVal → newVal across opportunities (+ visits
+// for leads). Returns {opps, activities} counts. Opp audit/history fields are left
+// as-is (they record who/what at a past time).
+function migrateListValue(type, oldVal, newVal){
+  const data = (typeof DATA !== 'undefined' ? DATA : []);
+  const changedOpps = new Set(); let acts = 0;
+  const touch = o => { o.updatedAt = new Date().toISOString(); o.updatedBy = (getUserInitials()||'?'); if (typeof markDirty==='function') markDirty(o.id); changedOpps.add(o.id); };
+  if (type === 'categories') data.forEach(o => { if (o.cat === oldVal){ o.cat = newVal; touch(o); } });
+  else if (type === 'stages') data.forEach(o => { if (o.stage === oldVal){ o.stage = newVal; touch(o); } });
+  else if (type === 'tags') data.forEach(o => {
+    if (Array.isArray(o.tags) && o.tags.includes(oldVal)){ o.tags = o.tags.map(k => k===oldVal?newVal:k); touch(o); }
+  });
+  else if (type === 'leads'){
+    data.forEach(o => {
+      let ch = false;
+      if (o.lead === oldVal){ o.lead = newVal; ch = true; }
+      (o.todos||[]).forEach(t => { if (t.assignedTo === oldVal){ t.assignedTo = newVal; ch = true; } });
+      if (ch) touch(o);
+    });
+    if (typeof activityStore === 'function'){ try {
+      activityStore().all().forEach(a => {
+        if (Array.isArray(a.people) && a.people.includes(oldVal)){
+          a.people = a.people.map(p => p===oldVal?newVal:p); activityStore().put(a); acts++;
+        }
+      });
+    } catch(_){} }
+    // If the admin renamed their own initials, keep the session pointed at them.
+    if (typeof _currentUser === 'object' && _currentUser && _currentUser.initials === oldVal){
+      _currentUser.initials = newVal; try { localStorage.setItem(USER_KEY, newVal); } catch(_){}
+    }
+  }
+  return { opps: changedOpps.size, activities: acts };
+}
 function listAddItem(type){
   const s = LIST_SCHEMA[type];
   const idEl = document.getElementById(`la-${type}-id`);
@@ -6044,18 +6100,63 @@ function listAddItem(type){
   renderListsEditor();
 }
 function saveListType(type){
-  const items = (_listEdit[type] || []).map(x => ({ ...x }));
+  const s = LIST_SCHEMA[type];
+  const rows = _listEdit[type] || [];
   const msg = document.getElementById(`le-msg-${type}`);
-  applyOneList(type, items);                       // update live consts + static DOM now
+  const say = (t,ok) => { if (msg){ msg.textContent = t; msg.style.color = ok ? 'var(--tsi-succ-green)' : 'var(--tsi-coral)'; } };
+
+  // Validate: trim, non-empty identity, no duplicates (case-insensitive).
+  const seen = new Set();
+  for (const it of rows){
+    it.value = String(it.value || '').trim();
+    if (s.name) it.name = String(it.name || '').trim();
+    if (!it.value) return say('Every row needs a ' + s.idLabel.toLowerCase() + '.');
+    const k = it.value.toLowerCase();
+    if (seen.has(k)) return say('Duplicate ' + s.idLabel.toLowerCase() + ': “' + it.value + '”.');
+    seen.add(k);
+  }
+  // Detect identity renames (row had a saved _orig that changed).
+  const renames = rows.filter(it => it._orig && it._orig !== it.value).map(it => ({ from: it._orig, to: it.value }));
+
+  // Renames rewrite existing records — confirm with a blast-radius preview.
+  if (renames.length){
+    const lines = renames.map(r => {
+      const n = countListValueUsage(type, r.from);
+      return `  • “${r.from}” → “${r.to}”  (${n} record${n!==1?'s':''})`;
+    });
+    const proceed = (typeof confirm === 'function')
+      ? confirm(`Rename and migrate ${s.title.toLowerCase()}?\n\n${lines.join('\n')}\n\nExisting records will be updated to the new value. This cannot be auto-undone.`)
+      : true;
+    if (!proceed){ say('Rename cancelled — nothing saved.'); return; }
+  }
+
+  // Apply data migration for each rename, then update the live lists + DOM.
+  let migrated = { opps:0, activities:0 };
+  renames.forEach(r => { const m = migrateListValue(type, r.from, r.to); migrated.opps += m.opps; migrated.activities += m.activities; });
+  const items = rows.map(({ _orig, ...rest }) => rest);   // strip the edit marker
+  applyOneList(type, items);
+
+  // Persist: migrated opportunities (bulk) + the list definition itself.
+  if (migrated.opps && typeof saveToWorker === 'function') { try { saveToWorker(); } catch(_){} }
+  listStore().put({ id:type, items });   // cache write is synchronous; server sync follows
+
   // Repaint everything that reads these lists.
+  try { populateFilters && populateFilters(); } catch(_){}
   try { renderPipeline(); } catch(_){}
-  try { if (typeof renderTorr==='function') renderTorr(); } catch(_){}
-  try { if (typeof populateFilters==='function') populateFilters(); } catch(_){}
+  try { renderTorr && renderTorr(); } catch(_){}
+  try { renderWon && renderWon(); } catch(_){}
+  try { renderHotCards && renderHotCards(); } catch(_){}
+  try { updateMap && updateMap(currentFilteredRows()); } catch(_){}
+  try { if (typeof renderTagFilterMenu==='function') renderTagFilterMenu(); } catch(_){}
   try { if (typeof renderSummary==='function' && document.getElementById('view-summary')?.classList.contains('active')) renderSummary(); } catch(_){}
-  listStore().put({ id:type, items }).then(ok => {
-    if (msg) { msg.textContent = ok ? '✓ Saved' : '✓ Saved locally (offline)'; msg.style.color = ok ? 'var(--tsi-succ-green)' : 'var(--tsi-teal)'; }
-  });
-  if (typeof showToast === 'function') showToast('✓ ' + LIST_SCHEMA[type].title + ' updated', 'var(--tsi-succ-green)');
+  try { if (typeof renderVisits==='function' && document.getElementById('view-visits')?.classList.contains('active')) renderVisits(); } catch(_){}
+  try { if (typeof renderTodosView==='function' && document.getElementById('view-todos')?.classList.contains('active')) renderTodosView(); } catch(_){}
+  try { if (typeof updateMyTodoBadge==='function') updateMyTodoBadge(); } catch(_){}
+
+  seedListType(type);           // refresh _orig markers to the new values
+  renderListsEditor(false);     // repaint the editor
+  const extra = renames.length ? ` · migrated ${migrated.opps} opp${migrated.opps!==1?'s':''}${migrated.activities?' + '+migrated.activities+' visit'+(migrated.activities!==1?'s':''):''}` : '';
+  if (typeof showToast === 'function') showToast('✓ ' + s.title + ' updated' + extra, 'var(--tsi-succ-green)');
 }
 
 function getChartDefaults() {
@@ -16580,10 +16681,11 @@ startAdminPoll();
       <div style="max-width:760px;margin-bottom:14px">
         <h3 style="font:400 18px var(--font-display);color:var(--color-heading);margin:0 0 4px">Manage dropdown lists</h3>
         <p style="font-size:12px;color:var(--color-text-muted);margin:0">
-          Add, rename, recolor, or remove the values behind the app's core dropdowns. The
-          identity column (category / stage value, lead initials, tag key) is what
-          opportunities store, so it can't be renamed here — add a new one and remove the
-          old if you need to change it. Changes save immediately and sync to the team.</p>
+          Add, rename, recolor, or remove the values behind the app's core dropdowns.
+          Editing a value in the first column <b>renames it everywhere it's used</b> — every
+          opportunity (and, for people, their to-do and visit assignments) is migrated to the
+          new value when you save, after a confirmation showing how many records will change.
+          Names/labels and colors can be changed freely. Changes save immediately and sync to the team.</p>
       </div>
       <div id="lists-editor"></div>
     </div>

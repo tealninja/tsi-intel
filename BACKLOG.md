@@ -15,11 +15,15 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   recolor / remove the values behind the four core dropdowns — **opportunity categories,
   pipeline stages, team/leads, and scope tags**. Persisted in the `lists` Store collection
   and merged over the built-in defaults at boot (new code-added built-ins still appear).
-  The identity column (category/stage value, lead initials, tag key — what opps store) is
-  immutable to avoid orphaning records; names/colors are editable, plus add/remove. Saves
-  apply live (consts mutated in place, static datalists/selects rebuilt, pipeline repainted)
-  and sync to the team via D1. Follow-ups if wanted: stage reordering, and a migrate action
-  so removing/renaming an in-use value can re-tag existing opportunities.
+  Every field is editable, including the identity (category/stage value, lead initials, tag
+  key). Renaming an identity **migrates every record that used it** — opp.cat / opp.stage /
+  opp.lead / opp.tags[], plus todo `assignedTo` and visit `people[]` for people — after a
+  confirmation showing the blast radius (record count per rename). Names/labels/colors edit
+  without migration. Saves apply live (consts mutated in place, static datalists/selects
+  rebuilt, all views repainted) and sync to the team via D1 (migrated opps bulk-saved).
+  Follow-ups if wanted: stage reordering; migrate-on-remove.
+- [x] **Fix: MGMT tab rendered blank.** `enterMgmt()` → `showTab('mgmt')` but `'mgmt'` was
+  missing from showTab's view-activation list, so `#view-mgmt` never went active. Pre-existing.
 - [x] **Per-opportunity to-dos.** New expandable **"To-dos"** section in the opportunity
   drawer (collapsed by default, header badge shows `N open · M overdue`). Each to-do has
   **name/description, status** (Open · In progress · Blocked · Done), **priority**
