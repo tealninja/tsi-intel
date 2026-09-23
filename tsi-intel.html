@@ -4690,7 +4690,7 @@ function initFamiliarityMap(){
     try{
       _famMap=L.map('fam-map',{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([25,-40],2);
       const dark=document.documentElement.getAttribute('data-theme')==='dark';
-      L.tileLayer(dark?'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png':'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',{maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(_famMap);
+      L.tileLayer(dark?'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6':'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',{maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(_famMap);
       setTimeout(()=>{ try{_famMap.invalidateSize();}catch(_){} },140);
     }catch(_){}
   }
@@ -5941,8 +5941,8 @@ function initMap() {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   L.tileLayer(
     dark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+      ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6'
+      : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
     { attribution: '© OpenStreetMap © CARTO', maxZoom: 18 }
   ).addTo(tsiMap);
   tsiMap.setView([20, 10], 2);
@@ -7423,8 +7423,8 @@ function initDrawerMap(lat, lon) {
     _drawerMap = L.map('d-loc-map', { zoomControl:true, scrollWheelZoom:false, attributionControl:false });
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
     L.tileLayer(
-      dark ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-           : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+      dark ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6'
+           : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
       { maxZoom:18 }
     ).addTo(_drawerMap);
   }
@@ -10411,7 +10411,7 @@ function renderAcctSiteMapClima(site) {
     try {
       _amSiteMap = L.map('am-site-map', { zoomControl:true, attributionControl:false, scrollWheelZoom:false })
         .setView([site.lat, site.lon], 9);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
         { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_amSiteMap);
       L.circleMarker([site.lat, site.lon], {
         radius:8, fillColor:getGroupColor(site.groupId), color:'white', weight:2, fillOpacity:0.9
@@ -10869,7 +10869,7 @@ function renderDetailOverview(o) {
           attributionControl: false,
           renderer: L.canvas({ padding: 0.5 }),
         }).setView([o.lat, o.lon], 8);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
           { maxZoom:19, tileSize:512, zoomOffset:-1, detectRetina: true }).addTo(_ovMap);
         const marker = L.circleMarker([o.lat, o.lon], {
           radius:8, fillColor:'#00929F', color:'white',
@@ -13110,7 +13110,7 @@ function renderSummaryMap(data) {
   if (!_sumMap) {
     _sumMap = L.map('sum-map', { zoomControl:true, attributionControl:false })
       .setView([30, 0], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
       { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_sumMap);
     setTimeout(() => _sumMap.invalidateSize(), 100);
   }
@@ -13428,7 +13428,7 @@ function renderAcctMap() {
 
   if (!_acctMap) {
     _acctMap = L.map('acct-map', { zoomControl:true, attributionControl:false }).setView([35, -40], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
       { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_acctMap);
   }
 
@@ -14348,7 +14348,7 @@ function initSiteMap(lat, lon) {
     if (_siteMap) { _siteMap.remove(); _siteMap = null; }
     setTimeout(() => {
       _siteMap = L.map('s-loc-map', { zoomControl:true, scrollWheelZoom:false, attributionControl:false }).setView([lat,lon], 9);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(_siteMap);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6', { maxZoom:18 }).addTo(_siteMap);
       L.circleMarker([lat,lon], { radius:8, fillColor:'#00929F', color:'white', weight:2, fillOpacity:0.9 }).addTo(_siteMap);
       setTimeout(() => _siteMap.invalidateSize(), 100);
     }, 50);
@@ -19691,8 +19691,8 @@ function presoRenderOvMap(s){
       // 512, zoomOffset -1, and NO crossOrigin. crossOrigin:true made the browser
       // fetch tiles in CORS mode and Carto's response blocked them → blank map.
       L.tileLayer(light
-        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6'
+        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
         {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
       const pts=[];
       (s.sections||PRESO_SECTIONS).forEach(sec=>{
@@ -19766,8 +19766,8 @@ function presoRenderJobMap(o,sec){
           L.DomEvent.on(b,'click',(ev)=>{ L.DomEvent.stop(ev); presoResetMapView(o.id); }); return b; } });
       map.addControl(new ResetCtl());
       L.tileLayer(light
-        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6'
+        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
         {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
       const pts=[c];
       L.circleMarker(c,{radius:9,color:sec.acc,fillColor:sec.acc,fillOpacity:.85,weight:2}).addTo(map);
