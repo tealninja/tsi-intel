@@ -1053,6 +1053,23 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .dprod-qty { width:30px; border:none; background:rgba(255,255,255,.22); color:#fff;
   border-radius:4px; font-size:11px; padding:1px 2px; text-align:center; -moz-appearance:textfield; }
 .dprod-qty::-webkit-inner-spin-button, .dprod-qty::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+/* Linked phases strip (opp detail): one chip per sibling phase — id · phase ·
+   stage · value — click to open. Superseded (dup-closed) records render muted. */
+.opp-links-strip { display:flex; flex-wrap:wrap; gap:6px; }
+.opp-link-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; font-family:var(--font-ui); font-size:11.5px;
+  font-weight:400; color:var(--color-text-primary); background:var(--color-surface); border:0.5px solid var(--color-border-mid);
+  border-radius:var(--radius-sm); cursor:pointer; text-align:left; line-height:1.3; }
+.opp-link-chip:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+.opp-link-chip .olc-id, .opp-link-chip .olc-val { font-family:var(--font-mono); font-size:11px; }
+.opp-link-chip .olc-id { color:var(--tsi-teal); }
+.opp-link-chip .olc-sep { color:var(--color-text-muted); }
+.opp-link-chip .olc-st { color:var(--color-text-muted); font-size:10.5px; }
+.opp-link-chip.superseded { color:var(--color-text-muted); border-style:dashed; }
+.opp-link-chip.superseded .olc-id { color:var(--color-text-muted); }
+.opp-link-chip.current { border-color:var(--tsi-teal); background:rgba(0,146,159,.06); cursor:default; }
+.btn-next-phase { margin-right:8px; padding:4px 10px; font-family:var(--font-ui); font-size:11.5px; font-weight:400; color:var(--tsi-teal);
+  background:transparent; border:0.5px solid var(--tsi-teal); border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap; }
+.btn-next-phase:hover { background:rgba(0,146,159,.08); }
 .drawer-link-item {
   display:inline-flex; align-items:center; gap:4px;
   padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:600;
@@ -3443,6 +3460,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <span class="chip" id="chip-starred" onclick="toggleStarredFilter(this)">⭐ Starred only</span>
       <span class="chip" id="chip-following" onclick="toggleFollowingFilter(this)">🔔 Following only</span>
       <span class="chip" id="chip-imminent" onclick="toggleImminentFilter(this)" title="Only deals with a PO expected soon">⚡ Imminent</span>
+      <span class="chip" id="chip-linked" onclick="toggleLinkedFilter(this)" title="Only deals that are one phase of a linked, multi-phase program">Linked phases</span>
       <span class="chip" id="chip-needsloc" onclick="toggleNeedsLocFilter(this)" title="Only deals whose location has no coordinates yet — the ones to go verify">⚠ Needs location</span>
     </div>
   </div>
@@ -3469,6 +3487,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th class="sortable" data-col="prob" style="width:55px">Prob<span class="sort-icon"></span></th>
         <th class="sortable" data-col="wtd" style="width:80px">Wtd<span class="sort-icon"></span></th>
         <th class="sortable" data-col="stage" style="width:88px">Stage<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="phase" style="width:110px" title="Program phase (FEED, EPC…) — hidden by default; ▦ Columns to show">Phase<span class="sort-icon"></span></th>
         <th class="sortable" data-col="close" style="width:90px">Close<span class="sort-icon"></span></th>
         <th class="sortable" data-col="lead" style="width:50px">Lead<span class="sort-icon"></span></th>
         <th>Notes</th>
@@ -3673,7 +3692,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#171 · 2026-09-23 · accounts map: checkbox filters (locations incl. ports, plant types, regions)';
+const APP_BUILD = '#172 · 2026-09-23 · linked phases: detail strip, Phase column + filter, Add next phase, link integrity';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -3846,6 +3865,7 @@ async function loadFromWorker() {
       const ids = new Set(items.map(r => r.id));
       const localUnsaved = DATA.filter(r => !ids.has(r.id) && typeof dirtyIds !== 'undefined' && dirtyIds.has(r.id));
       DATA = [...items, ...localUnsaved];
+      try { checkOppLinkIntegrity(true); } catch(_){}            // A↔B link symmetry
       if (typeof seedAllSnaps === 'function') seedAllSnaps();   // baseline estimate-change tracking
       if (typeof syncStarredFromData === 'function') syncStarredFromData();   // light up saved stars
       return true;
@@ -4064,6 +4084,12 @@ function toggleStarredFilter(el) {
 function toggleNeedsLocFilter(el) {
   needsLocOnly = !needsLocOnly;
   el.classList.toggle("active", needsLocOnly);
+  renderPipeline();
+}
+let linkedOnly = false;      // "Linked phases" chip — only opps that are part of a multi-phase program
+function toggleLinkedFilter(el) {
+  linkedOnly = !linkedOnly;
+  el.classList.toggle("active", linkedOnly);
   renderPipeline();
 }
 
@@ -5187,6 +5213,7 @@ function renderPipeline() {
     (!starredOnly || starredIds.has(o.id)) &&
     (!followingOnly || (typeof isFollowing === 'function' && isFollowing(o.id))) &&
     (!needsLocOnly || !locVerified(o)) &&
+    (!linkedOnly || relatedOppIds(o.id).length > 0) &&
     (!q || [o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q)) &&
     (!cat  || o.cat===cat) &&
     (!loc  || o.loc===loc) &&
@@ -5245,6 +5272,7 @@ function renderPipeline() {
     const tdW=document.createElement("td"); tdW.className="wtd-cell"; tdW.dataset.wtdId=o.id;
     tdW.textContent=o.val&&o.prob?fmt(Math.round(o.val*o.prob)):"—"; tr.appendChild(tdW);
     tr.appendChild(makeStagePill(o));
+    tr.appendChild(makeTextCell(o,"phase",PHASE_SEQ,true));
     tr.appendChild(makeTextCell(o,"close",null,false));
     tr.appendChild(makeTextCell(o,"lead",LEADS));
     tr.appendChild(makeTextCell(o,"notes",null,false));
@@ -6043,6 +6071,7 @@ function currentFilteredRows() {
   let _f = open().filter(o=>
     (!starredOnly||starredIds.has(o.id))&&
     (!needsLocOnly||!locVerified(o))&&
+    (!linkedOnly||relatedOppIds(o.id).length>0)&&
     (!imminentOnly||(typeof IMMINENT_IDS!=='undefined'&&IMMINENT_IDS.includes(o.id)))&&
     (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q))&&
     (!cat||o.cat===cat)&&(!loc||o.loc===loc)&&(!lead||o.lead===lead)&&
@@ -6348,8 +6377,8 @@ function clearAllColFilters() {
 function clearAllPipelineFilters() {
   ['search','fcat','floc','flead','fprob'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   _tagFilter.clear(); updateTagFilterBtn();
-  starredOnly = followingOnly = imminentOnly = needsLocOnly = false;
-  ['chip-starred','chip-following','chip-imminent','chip-needsloc'].forEach(id => {
+  starredOnly = followingOnly = imminentOnly = needsLocOnly = linkedOnly = false;
+  ['chip-starred','chip-following','chip-imminent','chip-needsloc','chip-linked'].forEach(id => {
     const c=document.getElementById(id); if(c) c.classList.remove('active'); });
   activeCloseChip = null;
   document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c => c.classList.remove('active'));
@@ -6625,7 +6654,8 @@ function openOppDrawer(editId, opts) {
     const ids = (typeof currentFilteredRows==='function' ? currentFilteredRows() : []).map(o => o.id);
     _drawerNavList = (isEdit && ids.includes(editId)) ? ids : (isEdit ? [editId] : []);
   }
-  document.getElementById('drawer-title').textContent = isEdit ? 'Edit Opportunity' : 'New Opportunity';
+  document.getElementById('drawer-title').textContent = isEdit ? 'Edit Opportunity' : (opts.cloneFrom ? 'Next phase' : 'New Opportunity');
+  { const _np = document.getElementById('drawer-next-phase'); if (_np) _np.style.display = isEdit ? '' : 'none'; }
 
   if (isEdit) {
     const o = DATA.find(r => r.id === editId);
@@ -6701,12 +6731,33 @@ function openOppDrawer(editId, opts) {
     if(_ws2) _ws2.style.display = 'none';
     const _ls = document.getElementById('d-loc-status');
     if(_ls) { _ls.textContent = 'Enter a location to auto-load weather data'; _ls.style.color = ''; }
+    // "Add next phase": prefill from the source opp (see addNextPhase). Value,
+    // probability, stage and notes stay blank — each phase carries its own.
+    if (opts.cloneFrom) {
+      const c = opts.cloneFrom;
+      setDrawerField('d-acct',    c.acct    || '');
+      setDrawerField('d-acct-id', c.acctId  || '');
+      setDrawerField('d-cat',     c.cat     || 'Dryer System');
+      setDrawerField('d-lead',    c.lead    || 'TF');
+      setDrawerField('d-type',    c.type    || '');
+      setDrawerField('d-source',  c.source  || '');
+      setDrawerField('d-lob',     c.lob     || '');
+      setDrawerField('d-loc-search', c.loc || '');
+      setDrawerField('d-city',    c.city    || '');
+      setDrawerField('d-state',   c.state   || '');
+      setDrawerField('d-country', c.country || '');
+      _drawerLat = c.lat || null; _drawerLon = c.lon || null;
+      setDrawerField('d-phase', nextPhaseLabel(c.phase));
+      setDrawerField('d-stage', 'Proposal');    // not in the generic reset list — don't inherit the last drawer's stage
+      _drawerLinks = [c.id, ...oppLinkedSiblings(c.id).map(o => o.id)];   // the whole live program (not cancelled dups)
+      if(_ls) { _ls.textContent = 'Location copied from ' + c.id; _ls.style.color = ''; }
+    }
   }
 
   rebuildDrawerTags();
   rebuildDrawerProducts();
   rebuildDrawerLinks();
-  _drawerDirty = false;      // fresh load — no unsaved edits yet
+  _drawerDirty = !!opts.cloneFrom;   // fresh load — no unsaved edits yet (a next-phase clone is unsaved work)
   window._drawerLocMeta = null;
   updateDrawerNavUI();
 
@@ -6908,6 +6959,82 @@ function relatedOppIds(id){
 // Keep links symmetric: when opp `oppId` declares links `links`, add oppId to each
 // linked opp, and drop it from any opp that is no longer linked. Persists each
 // changed sibling (KV) so removal works from either side.
+// ── Multi-phase programs ────────────────────────────────────────────
+// Canonical phase order (matches the #phase-options datalist). "Add next phase"
+// picks the entry after the current one; unknown/last phases leave it blank.
+const PHASE_SEQ = ['Pre-FEED','FEED','FEED / Pre-Order','EPC Contract','Fabrication & Installation','Equipment Supply','Aftermarket / CO'];
+function nextPhaseLabel(cur){
+  const i = PHASE_SEQ.indexOf(cur || '');
+  if (i >= 0 && i < PHASE_SEQ.length - 1) return PHASE_SEQ[i + 1];
+  return cur ? '' : 'Phase 2';
+}
+// Siblings = every linked opp (both directions) that is NOT a cancelled duplicate.
+// Superseded = cancelled (status X) records that point at this id — i.e. the
+// dup-closed ones, found by reverse lookup so they need no link of their own here.
+function oppLinkedSiblings(id){
+  return relatedOppIds(id).map(x => DATA.find(o => o.id === x)).filter(o => o && o.status !== 'X');
+}
+function oppSupersededBy(id){
+  return DATA.filter(o => o.id !== id && o.status === 'X' && (o.linkedIds || []).includes(id));
+}
+// Link integrity: if A lists B, B must list A. Repairs one-sided links by adding
+// the reverse, and dedupes / strips self-links. Ids that point at no record are
+// left alone (the target may simply be deleted) but logged. Returns changed ids.
+function checkOppLinkIntegrity(persist){
+  const byId = new Map(DATA.map(o => [o.id, o]));
+  const fixed = new Set(), dangling = [];
+  DATA.forEach(a => {
+    if (!a.linkedIds || !a.linkedIds.length) return;
+    const clean = [...new Set(a.linkedIds.filter(x => x !== a.id))];
+    if (clean.length !== a.linkedIds.length) { a.linkedIds = clean; fixed.add(a.id); }
+    clean.forEach(x => {
+      const b = byId.get(x);
+      if (!b) { dangling.push(a.id + '→' + x); return; }
+      b.linkedIds = b.linkedIds || [];
+      if (!b.linkedIds.includes(a.id)) { b.linkedIds.push(a.id); fixed.add(b.id); }
+    });
+  });
+  if (persist) fixed.forEach(id => { try { markDirty(id); oppPersist(byId.get(id)); } catch(_){} });
+  if (fixed.size)     console.info('Opp link integrity: repaired one-sided links on', [...fixed]);
+  if (dangling.length) console.info('Opp link integrity: links to missing records', dangling);
+  return [...fixed];
+}
+// "Add next phase": clone the open opp into a new, unsaved drawer — same
+// account / site / location / lead / category / project name, phase advanced,
+// value / probability / stage / notes blank, and linked back to the source (and
+// its siblings). The links are cross-written on both records when it is saved.
+function addNextPhase(){
+  const id = _drawerEditId; if (!id) return;
+  if (_drawerDirty) saveOppDrawer(); else closeOppDrawer();
+  const src = DATA.find(r => r.id === id); if (!src) return;
+  openOppDrawer(null, { cloneFrom: src });
+}
+// Chip strip for the detail view (and anywhere else that wants it).
+function oppLinksStripHtml(o){
+  const chip = (r, cls) => {
+    const st = { W:'won', L:'lost', X:'cancelled', I:'iced' }[r.status];
+    return `<button class="opp-link-chip ${cls||''}" ${r.id===o.id?'':`onclick="openDetail('${qattr(r.id)}')"`} title="${qattr(r.acct||'')} — ${qattr(r.type||'')}">`
+      + `<span class="olc-id">${qesc(r.id)}</span>`
+      + (r.phase ? `<span class="olc-sep">·</span><span>${qesc(r.phase)}</span>` : '')
+      + (r.stage ? `<span class="olc-sep">·</span><span>${qesc(r.stage)}</span>` : '')
+      + `<span class="olc-sep">·</span><span class="olc-val">${r.val != null ? fmt(r.val) : 'TBD'}</span>`
+      + (st ? `<span class="olc-st">${st}</span>` : '')
+      + `</button>`;
+  };
+  const sibs = oppLinkedSiblings(o.id), sup = oppSupersededBy(o.id);
+  if (!sibs.length && !sup.length) return '';
+  // Show the program in phase order, with this record marked as current.
+  const all = [o, ...sibs].sort((a, b) => { const ia = PHASE_SEQ.indexOf(a.phase||''), ib = PHASE_SEQ.indexOf(b.phase||''); return (ia<0?99:ia) - (ib<0?99:ib); });
+  let html = '';
+  if (sibs.length) html += `<div class="detail-section-title">Linked phases</div><div class="opp-links-strip">${all.map(r => chip(r, r.id===o.id?'current':'')).join('')}</div>`;
+  if (sup.length)  html += `<div class="detail-section-title" style="margin-top:${sibs.length?10:0}px">Superseded records</div><div class="opp-links-strip">${sup.map(r => chip(r, 'superseded')).join('')}</div>`;
+  return html;
+}
+function renderDetailLinked(o){
+  const el = document.getElementById('ov-linked'); if (!el) return;
+  const html = oppLinksStripHtml(o);
+  el.innerHTML = html; el.style.display = html ? '' : 'none';
+}
 function syncOppLinks(oppId, links){
   const affected = new Set(links);
   DATA.forEach(o => { if (o.id !== oppId && o.linkedIds && o.linkedIds.includes(oppId)) affected.add(o.id); });
@@ -7325,6 +7452,7 @@ function saveOppDrawer() {
   }
   markDirty(opp.id);
   syncOppLinks(opp.id, opp.linkedIds || []);   // keep the relationship symmetric on both opps
+  checkOppLinkIntegrity(true);                 // and repair anything one-sided elsewhere
   window._drawerWeather = null;
   closeOppDrawer();
   populateFilters();
@@ -10775,6 +10903,7 @@ function openDetail(id) {
 
   showDetailTab('overview');
   renderDetailOverview(o);
+  renderDetailLinked(o);
   renderDetailSchedule(o);
   renderDetailNotes(o);
   // Render resources when tab is opened
@@ -14906,19 +15035,21 @@ TableKit.register('pip-table', {
     { i:11, label:'Prob',             col:'prob', sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
     { i:12, label:'Wtd',              col:'wtd',  sortable:true, sortVal:o=>(o.val&&o.prob)?o.val*o.prob:-1 },
     { i:13, label:'Stage',            col:'stage',sortable:true },
-    { i:14, label:'Close',            col:'close',sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD', dateRange:true, dateVal:o=>parseCloseDate(o.close) },
-    { i:15, label:'Lead',             col:'lead', sortable:true },
-    { i:16, label:'Notes' },
-    { i:17, label:'Last Update' },
+    { i:14, label:'Phase',            col:'phase',sortable:true, sortVal:o=>{const i=PHASE_SEQ.indexOf(o.phase||'');return i<0?(o.phase?50:99):i;}, filterVal:o=>o.phase||'—' },
+    { i:15, label:'Close',            col:'close',sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD', dateRange:true, dateVal:o=>parseCloseDate(o.close) },
+    { i:16, label:'Lead',             col:'lead', sortable:true },
+    { i:17, label:'Notes' },
+    { i:18, label:'Last Update' },
   ],
-  colsVersion: 2,          // bumped: inserted the Parent account column (indices shifted)
-  defaultHidden: [6],      // Parent account hidden by default — toggle it on via ▦ Columns
+  colsVersion: 3,          // bumped: inserted the Phase column after Stage (indices shifted)
+  defaultHidden: [6, 14],  // Parent account + Phase hidden by default — toggle on via ▦ Columns
   capture: () => { const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
     return { search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), fprob:g('fprob'),
       tagFilter:[..._tagFilter],
       closeChip:(typeof activeCloseChip!=='undefined')?activeCloseChip:null,
       starredOnly:!!(typeof starredOnly!=='undefined'&&starredOnly),
-      followingOnly:!!(typeof followingOnly!=='undefined'&&followingOnly) }; },
+      followingOnly:!!(typeof followingOnly!=='undefined'&&followingOnly),
+      linkedOnly:!!(typeof linkedOnly!=='undefined'&&linkedOnly) }; },
   apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
     setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc); setv('flead',st.flead); setv('fprob',st.fprob);
     _tagFilter = new Set(st.tagFilter||[]); if(typeof updateTagFilterBtn==='function') updateTagFilterBtn();
@@ -14926,6 +15057,8 @@ TableKit.register('pip-table', {
     const sc=document.getElementById('chip-starred'); if(sc) sc.classList.toggle('active',!!st.starredOnly);
     if(typeof followingOnly!=='undefined') followingOnly=!!st.followingOnly;
     const fc=document.getElementById('chip-following'); if(fc) fc.classList.toggle('active',!!st.followingOnly);
+    if(typeof linkedOnly!=='undefined') linkedOnly=!!st.linkedOnly;
+    const lc=document.getElementById('chip-linked'); if(lc) lc.classList.toggle('active',!!st.linkedOnly);
     if(typeof activeCloseChip!=='undefined') activeCloseChip=st.closeChip||null;
     document.querySelectorAll('.close-chips .chip[data-mo]').forEach(c=>c.classList.toggle('active', st.closeChip!=null && c.dataset.mo===String(st.closeChip)));
     renderPipeline();
@@ -15065,6 +15198,8 @@ startAdminPoll();
       <button class="drawer-nav-btn" id="drawer-next" onclick="oppDrawerNav(1)" title="Next opportunity (saves your changes)">›</button>
     </div>
     <h2 id="drawer-title">New Opportunity</h2>
+    <button class="btn-next-phase" id="drawer-next-phase" onclick="addNextPhase()" style="display:none"
+            title="Start the next phase of this program: same account, site and lead, linked to this record">+ Next phase</button>
     <button class="drawer-close" onclick="closeOppDrawer()">✕</button>
   </div>
 
@@ -16434,6 +16569,9 @@ startAdminPoll();
 
       <!-- KPI strip -->
       <div class="detail-hero" id="detail-hero" style="margin-bottom:12px"></div>
+
+      <!-- Linked phases / superseded records — only when this opp is part of a program -->
+      <div class="detail-section" id="ov-linked" style="display:none"></div>
 
       <!-- Location + map + clima -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
