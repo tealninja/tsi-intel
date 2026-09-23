@@ -2069,6 +2069,24 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .acct-legend-item .alg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
 .acct-legend-item .alg-nm{color:var(--color-text-secondary)}
 .acct-legend-item.sel .alg-nm{color:var(--tsi-teal);font-weight:600}
+/* Accounts map — checkbox filter dropdowns (locations / plant types / regions).
+   Hairline borders, no shadow, teal accent; counts in mono. */
+.mf-dd { position:relative; }
+.mf-dd-btn { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; font-size:11.5px; font-family:var(--font-ui);
+  font-weight:400; line-height:1.3; color:var(--color-text-primary); background:var(--color-surface);
+  border:0.5px solid var(--color-border-mid); border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap; }
+.mf-dd-btn:hover, .mf-dd-btn.open { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+.mf-dd-btn .mf-n { font-family:var(--font-mono); font-size:10.5px; color:var(--color-text-secondary); }
+.mf-dd-btn .mf-caret { font-size:9px; color:var(--color-text-muted); }
+.mf-dd-menu { position:absolute; top:calc(100% + 4px); left:0; z-index:450; min-width:190px; max-height:320px; overflow-y:auto;
+  padding:4px; background:var(--color-surface); border:0.5px solid var(--color-border-mid); border-radius:var(--radius-md); }
+.mf-dd-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--radius-sm); font-size:12px;
+  font-weight:400; color:var(--color-text-primary); cursor:pointer; text-transform:none; letter-spacing:0; }
+.mf-dd-item:hover { background:rgba(0,146,159,.06); }
+.mf-dd-item input { accent-color:var(--tsi-teal); margin:0; }
+.mf-dd-clear { display:block; width:100%; margin-top:4px; padding:6px 8px; font-size:11.5px; font-family:var(--font-ui); text-align:left;
+  color:var(--tsi-teal); background:transparent; border:none; border-top:0.5px solid var(--color-border); border-radius:0; cursor:pointer; }
+.mf-dd-clear:hover { background:rgba(0,146,159,.06); }
 .acct-map-clear{margin-left:6px;border:1px solid var(--tsi-coral);background:rgba(224,90,74,.08);color:var(--tsi-coral);
   border-radius:999px;padding:1px 9px;font-size:10px;font-weight:600;cursor:pointer;vertical-align:middle}
 .acct-map-clear:hover{background:var(--tsi-coral);color:#fff}
@@ -3655,7 +3673,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#170 · 2026-09-23 · accounts: full-height sidebar, map shown by default';
+const APP_BUILD = '#171 · 2026-09-23 · accounts map: checkbox filters (locations incl. ports, plant types, regions)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -13368,22 +13386,12 @@ function renderAcctMap() {
   if (!mapEl) return;
   const data = getAccounts();
 
-  // Populate plant type filter once
-  const plantSel = document.getElementById('acct-map-plant-filter');
-  if (plantSel && plantSel.options.length < 2) {
-    const types = [...new Set(data.sites.flatMap(s => (s.plantTags&&s.plantTags.length)?s.plantTags:(s.plantType?[s.plantType]:[])).filter(Boolean))].sort();
-    plantSel.innerHTML = '<option value="">All Plant Types</option>' +
-      types.map(t => `<option value="${t}">${t}</option>`).join('');
-  }
-  const plantFilter = plantSel?.value || '';
-
-  // Populate continent filter once — reuses the same GEO_REGIONS hierarchy as the pipeline filter
-  const continentSel = document.getElementById('acct-map-continent-filter');
-  if (continentSel && continentSel.options.length < 2) {
-    continentSel.innerHTML = '<option value="">All Regions</option>' +
-      Object.keys(GEO_REGIONS).map(c => `<option value="${c}">${c}</option>`).join('');
-  }
-  const continentFilter = continentSel?.value || '';
+  // Checkbox filters (see acctMapFilterOpts) — each set holds the UNCHECKED values,
+  // so an empty set means "show everything" and new data never starts hidden.
+  ['loc','plant','region'].forEach(updateAcctMapFilterBtn);
+  const plantEx  = _acctMapF.plant;
+  const regionEx = _acctMapF.region;
+  const locEx    = _acctMapF.loc;
 
   // Map shows ALL accounts that have coordinates — both top-level accounts
   // (which may have their own HQ/site location, e.g. Alfanar) and child sites.
@@ -13413,15 +13421,17 @@ function renderAcctMap() {
     allMatchingSites = data.accounts;
     if (filterLabel) filterLabel.textContent = '— all groups';
   }
-  if (plantFilter) allMatchingSites = allMatchingSites.filter(s => ((s.plantTags&&s.plantTags.length)?s.plantTags:(s.plantType?[s.plantType]:[])).includes(plantFilter));
-  if (continentFilter) allMatchingSites = allMatchingSites.filter(s => classifyGeo(s).continent === continentFilter);
+  // Plant-type filter only applies to sites that HAVE a type — offices/untyped
+  // sites are governed by the Locations filter, not this one.
+  if (plantEx.size) allMatchingSites = allMatchingSites.filter(s => { const t = acctSitePlantTags(s); return !t.length || t.some(x => !plantEx.has(x)); });
+  if (regionEx.size) allMatchingSites = allMatchingSites.filter(s => !regionEx.has(classifyGeo(s).continent));
 
   let sites = allMatchingSites.filter(s => s.lat && s.lon);
   const sitesWithoutCoords = allMatchingSites.filter(s => !s.lat || !s.lon);
-  // Location-type filter: plants (non-corporate) vs corporate/HQ offices.
-  const locTypeFilter = document.getElementById('acct-map-loctype-filter')?.value || '';
-  if (locTypeFilter === 'corporate') sites = sites.filter(s => s.locType === 'corporate');
-  else if (locTypeFilter === 'plant') sites = sites.filter(s => s.locType !== 'corporate');
+  // Location-type filter: plants (non-corporate) / corporate-HQ offices / shipping
+  // ports (the port markers hang off their mill, so 'port' is applied at draw time).
+  if (locEx.has('corporate')) sites = sites.filter(s => s.locType !== 'corporate');
+  if (locEx.has('plant'))     sites = sites.filter(s => s.locType === 'corporate');
 
   // ── Match open deals to each site via acctMatch ──────────────
   const openDeals = DATA.filter(o => o.status === 'O');
@@ -13505,7 +13515,7 @@ function renderAcctMap() {
 
     // ── Shipping port (⚓ export mills) — boat marker at the port, dashed
     //    connector back to the mill. Only when the port has been geocoded.
-    if (s.portLat != null && s.portLon != null) {
+    if (!locEx.has('port') && s.portLat != null && s.portLon != null) {
       const boat = L.marker([s.portLat, s.portLon], {
         icon: L.divIcon({ className: 'acct-port-marker', html: '🚢', iconSize: [22, 22], iconAnchor: [11, 11] })
       }).bindPopup(`<div style="min-width:150px"><b>${qesc(s.shippingPort || 'Shipping port')}</b><br>
@@ -13683,6 +13693,53 @@ function clearAcctMapFilter() {
   renderAcctSidebar();
   renderAcctMap();
 }
+
+// ── Map checkbox filters: locations / plant types / regions ──────────
+// Each set holds the values currently UNCHECKED (hidden); empty = show all.
+const _acctMapF = { loc:new Set(), plant:new Set(), region:new Set() };
+const _ACCT_LOC_OPTS = [['plant','Plants'], ['corporate','Corporate offices'], ['port','Shipping ports']];
+function acctSitePlantTags(s){ return (s.plantTags&&s.plantTags.length) ? s.plantTags : (s.plantType ? [s.plantType] : []); }
+function acctMapFilterOpts(kind){
+  if (kind === 'loc') return _ACCT_LOC_OPTS;
+  if (kind === 'plant') return [...new Set(getAccounts().sites.flatMap(acctSitePlantTags).filter(Boolean))].sort().map(t => [t, t]);
+  return Object.keys(GEO_REGIONS).concat('Other').map(c => [c, c]);   // 'Other' = classifyGeo fallback
+}
+function acctMapFilterLabel(kind){ return kind==='loc' ? 'Locations' : kind==='plant' ? 'Plant types' : 'Regions'; }
+function updateAcctMapFilterBtn(kind){
+  const b = document.getElementById('acct-mf-'+kind+'-btn'); if (!b) return;
+  const opts = acctMapFilterOpts(kind), ex = _acctMapF[kind];
+  const on = opts.filter(([v]) => !ex.has(v)).length;
+  b.innerHTML = acctMapFilterLabel(kind) + (ex.size ? ` <span class="mf-n">${on}/${opts.length}</span>` : '') + ' <span class="mf-caret">▾</span>';
+}
+function renderAcctMapFilterMenu(kind){
+  const menu = document.getElementById('acct-mf-'+kind+'-menu'); if (!menu) return;
+  const ex = _acctMapF[kind];
+  menu.innerHTML = acctMapFilterOpts(kind).map(([v,l]) => `<label class="mf-dd-item">
+      <input type="checkbox" ${ex.has(v)?'':'checked'} onchange="toggleAcctMapFilter('${kind}','${qattr(v)}')"><span>${qesc(l)}</span></label>`).join('')
+    + (ex.size ? `<button class="mf-dd-clear" onclick="clearAcctMapFilterKind('${kind}')">Show all</button>` : '');
+}
+function toggleAcctMapFilter(kind, v){
+  const ex = _acctMapF[kind]; if (ex.has(v)) ex.delete(v); else ex.add(v);
+  updateAcctMapFilterBtn(kind); renderAcctMapFilterMenu(kind); renderAcctMap();
+}
+function clearAcctMapFilterKind(kind){ _acctMapF[kind].clear(); updateAcctMapFilterBtn(kind); renderAcctMapFilterMenu(kind); renderAcctMap(); }
+function toggleAcctMapFilterMenu(ev, kind){
+  if (ev) ev.stopPropagation();
+  const m = document.getElementById('acct-mf-'+kind+'-menu'); if (!m) return;
+  const wasOpen = m.style.display !== 'none';
+  closeAcctMapFilterMenus();
+  if (!wasOpen) {
+    renderAcctMapFilterMenu(kind); m.style.display = '';
+    document.getElementById('acct-mf-'+kind+'-btn')?.classList.add('open');
+    setTimeout(() => document.addEventListener('click', _closeAcctMapFilterOutside), 0);
+  }
+}
+function closeAcctMapFilterMenus(){
+  document.querySelectorAll('.mf-dd-menu').forEach(m => m.style.display = 'none');
+  document.querySelectorAll('.mf-dd-btn.open').forEach(b => b.classList.remove('open'));
+  document.removeEventListener('click', _closeAcctMapFilterOutside);
+}
+function _closeAcctMapFilterOutside(e){ if (!e.target.closest('.mf-dd')) closeAcctMapFilterMenus(); }
 
 function exportMapPng2(mapVarName) {
   const map = mapVarName === 'acct-map' ? _acctMap : _sumMap;
@@ -16152,21 +16209,23 @@ startAdminPoll();
     <div class="acct-main" id="acct-map-panel" style="display:none;padding:14px">
       <button class="acct-back-btn" onclick="acctBackToList()">← All accounts</button>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <div style="font-size:13px;font-weight:600;color:var(--color-heading);flex:1">
-          All Account Locations
+        <div style="font-size:13px;font-weight:500;color:var(--color-heading);flex:1">
+          All account locations
           <span id="acct-map-filter-label" style="font-size:11px;font-weight:400;color:var(--color-text-muted);margin-left:8px"></span>
         </div>
-        <select id="acct-map-loctype-filter" onchange="renderAcctMap()" class="filter-select" title="Show plants, corporate offices, or both">
-          <option value="">All locations</option>
-          <option value="plant">🏭 Plants only</option>
-          <option value="corporate">🏢 Corporate only</option>
-        </select>
-        <select id="acct-map-plant-filter" onchange="renderAcctMap()" class="filter-select">
-          <option value="">All Plant Types</option>
-        </select>
-        <select id="acct-map-continent-filter" onchange="renderAcctMap()" class="filter-select">
-          <option value="">All Regions</option>
-        </select>
+        <!-- Checkbox filters — uncheck to hide; the button shows n/N when a subset is on -->
+        <div class="mf-dd" title="Plants, corporate offices, shipping ports">
+          <button class="mf-dd-btn" id="acct-mf-loc-btn" onclick="toggleAcctMapFilterMenu(event,'loc')">Locations <span class="mf-caret">▾</span></button>
+          <div class="mf-dd-menu" id="acct-mf-loc-menu" style="display:none"></div>
+        </div>
+        <div class="mf-dd">
+          <button class="mf-dd-btn" id="acct-mf-plant-btn" onclick="toggleAcctMapFilterMenu(event,'plant')">Plant types <span class="mf-caret">▾</span></button>
+          <div class="mf-dd-menu" id="acct-mf-plant-menu" style="display:none"></div>
+        </div>
+        <div class="mf-dd">
+          <button class="mf-dd-btn" id="acct-mf-region-btn" onclick="toggleAcctMapFilterMenu(event,'region')">Regions <span class="mf-caret">▾</span></button>
+          <div class="mf-dd-menu" id="acct-mf-region-menu" style="display:none"></div>
+        </div>
         <label style="font-size:11px;color:var(--color-text-secondary);display:flex;align-items:center;gap:5px" title="Marker size">
           ● <input type="range" id="acct-dot-scale" min="0.5" max="3" step="0.1" value="1"
                    oninput="setAcctDotScale(this.value)" style="width:90px;accent-color:var(--tsi-teal)">
