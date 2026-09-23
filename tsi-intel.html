@@ -1752,7 +1752,9 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 /* ── ACCOUNTS MODULE ─────────────────────────────────── */
 .acct-layout {
   display:grid; grid-template-columns:260px 1fr; gap:0;
-  height:calc(100vh - var(--header-h) - 120px); min-height:500px;
+  /* Fill the viewport below the sticky header so the sidebar's right border
+     runs the full height of the screen (the view itself has no padding). */
+  height:calc(100vh - var(--header-h)); min-height:500px;
 }
 .acct-sidebar {
   border-right:1px solid var(--color-border);
@@ -3653,7 +3655,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-09-23 · CARTO basemap API key on all tile URLs';
+const APP_BUILD = '#170 · 2026-09-23 · accounts: full-height sidebar, map shown by default';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5449,7 +5451,13 @@ function showTab(name) {
 
   usageLog('tab_view', name);
   if(name==='usage')     renderUsage();
-  if(name==='accounts')  renderAcctSidebar();
+  if(name==='accounts'){
+    renderAcctSidebar();
+    // Desktop default: with nothing selected, show the all-sites map instead of
+    // a blank panel. Mobile keeps the list (the map would take over the screen).
+    if(!_acctSelectedSite && !_acctMapShowing && !_acctTableShowing
+       && typeof L !== 'undefined' && window.matchMedia('(min-width:769px)').matches) toggleAcctMap();
+  }
   if(name==='summary')   renderSummary();
   if(name==='products' && typeof renderProducts==='function') renderProducts();
   if(name==='quotes'   && typeof renderQuotesTab==='function') renderQuotesTab();
