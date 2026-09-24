@@ -160,6 +160,17 @@ tbody tr:hover td{background:rgba(0,146,159,0.04)}
 
 /* account name */
 .acct-name{font-weight:500;color:var(--color-heading)}
+.btn-confirm-del.confirm-ok-teal{background:var(--tsi-teal)!important;border-color:var(--tsi-teal)!important}
+.rot-badge{margin-left:5px;font-size:11px;cursor:pointer;vertical-align:middle;opacity:.85;line-height:1}
+.rot-badge:hover{opacity:1}
+/* Summary — pipeline hygiene by rep */
+.stale-table{width:100%;max-width:760px;border-collapse:collapse;font-size:12px;background:var(--color-surface);border:0.5px solid var(--color-border-mid);border-radius:var(--radius-md)}
+.stale-table th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);font-weight:500;text-align:left;padding:7px 10px;border-bottom:0.5px solid var(--color-border-mid)}
+.stale-table td{padding:6px 10px;border-bottom:0.5px solid var(--color-border);color:var(--color-text-primary)}
+.stale-table tr:last-child td{border-bottom:none}
+.stale-table td.n,.stale-table th.n{text-align:right;font-family:var(--font-mono);font-size:11px}
+.stale-table tr.total td{font-weight:500;border-top:0.5px solid var(--color-border-mid)}
+.stale-table td.dim{color:var(--color-text-muted)}
 .row-link-badge{margin-left:6px;font-size:11px;cursor:pointer;opacity:.7;vertical-align:middle;white-space:nowrap}
 .row-link-badge:hover{opacity:1}
 .row-link-badge .rlb-n{font-size:9px;font-weight:700;color:var(--tsi-teal);vertical-align:super;margin-left:1px}
@@ -3414,6 +3425,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     <select class="select" id="fcat"  onchange="renderPipeline()"><option value="">All Categories</option></select>
     <select class="select" id="floc"  onchange="renderPipeline()"><option value="">All Locations</option></select>
     <select class="select" id="flead" onchange="renderPipeline()"><option value="">All Leads</option></select>
+    <select class="select" id="fsource" onchange="renderPipeline()" title="Where the lead came from"><option value="">All Sources</option></select>
     <div class="views-wrap">
       <button class="select views-btn" id="ftag-btn" onclick="toggleTagFilterMenu(event)" title="Filter by scope tags (pick several)">🏷 Scope Tags ▾</button>
       <div class="views-menu" id="ftag-menu" style="display:none"></div>
@@ -3463,6 +3475,9 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
       <span class="chip" id="chip-starred" onclick="toggleStarredFilter(this)">⭐ Starred only</span>
       <span class="chip" id="chip-following" onclick="toggleFollowingFilter(this)">🔔 Following only</span>
       <span class="chip" id="chip-imminent" onclick="toggleImminentFilter(this)" title="Only deals with a PO expected soon">⚡ Imminent</span>
+      <span class="chip" id="chip-stale" onclick="toggleStaleChip(this,'stale')" title="No substantive update in 30–59 days">🍞 Stale</span>
+      <span class="chip" id="chip-moldy" onclick="toggleStaleChip(this,'moldy')" title="No substantive update in 60–89 days">🦠 Moldy</span>
+      <span class="chip" id="chip-rotten" onclick="toggleStaleChip(this,'rotten')" title="No substantive update in 90+ days">💀 Rotten</span>
       <span class="chip" id="chip-linked" onclick="toggleLinkedFilter(this)" title="Only deals linked to another record (phases of a program, or merged duplicates)">Linked only</span>
       <span class="chip" id="chip-needsloc" onclick="toggleNeedsLocFilter(this)" title="Only deals whose location has no coordinates yet — the ones to go verify">⚠ Needs location</span>
     </div>
@@ -3494,7 +3509,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th class="sortable" data-col="close" style="width:90px">Close<span class="sort-icon"></span></th>
         <th class="sortable" data-col="lead" style="width:50px">Lead<span class="sort-icon"></span></th>
         <th>Notes</th>
-        <th style="width:90px">Last Update</th>
+        <th class="sortable" data-col="stale" style="width:110px" title="Days since the last substantive update — click to sort by staleness">Last Update<span class="sort-icon"></span></th>
         <th style="width:30px" title="Detail">⤢</th>
         <th style="width:26px"></th>
       </tr></thead>
@@ -3695,7 +3710,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#173 · 2026-09-24 · linked opps: detail rows (active/superseded), ID badge, P1–P3 phases, next-phase ids';
+const APP_BUILD = '#174 · 2026-09-24 · staleness: badges, chips, sort, per-rep hygiene, Still accurate; source filter';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5198,7 +5213,8 @@ function populateFilters() {
     const el=document.getElementById(id); if(!el) return;
     el.innerHTML=el.options[0].outerHTML+arr.map(v=>`<option>${v}</option>`).join("");
   };
-  fill("fcat",cats); fill("floc",locs); fill("flead",leads);
+  const srcs =[...new Set(o.map(x=>(x.source||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  fill("fcat",cats); fill("floc",locs); fill("flead",leads); fill("fsource",srcs);
   // Scope tags are now a multi-select checkbox dropdown (#ftag-menu) — nothing to fill here.
   fill("ilead",immL); fill("tlead",torrL);
 }
@@ -5210,6 +5226,7 @@ function renderPipeline() {
   const cat  =document.getElementById("fcat").value;
   const loc  =document.getElementById("floc").value;
   const lead =document.getElementById("flead").value;
+  const src  =(document.getElementById("fsource")||{}).value||'';
   const prob =document.getElementById("fprob").value;
 
   let f = open().filter(o =>
@@ -5217,6 +5234,7 @@ function renderPipeline() {
     (!followingOnly || (typeof isFollowing === 'function' && isFollowing(o.id))) &&
     (!needsLocOnly || !locVerified(o)) &&
     (!linkedOnly || relatedOppIds(o.id).length > 0) &&
+    stalePass(o) && (!src || (o.source||'').trim()===src) &&
     (!q || [o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q)) &&
     (!cat  || o.cat===cat) &&
     (!loc  || o.loc===loc) &&
@@ -5254,6 +5272,8 @@ function renderPipeline() {
       badge.onclick=(e)=>{ e.stopPropagation(); openDetail(o.id); };
       tdId.appendChild(badge);
     }
+    // Staleness badge (🍞 / 🦠 / 💀) — hover for the last substantive update, click = still accurate.
+    if(o.status==='O'){ const _sb=staleBadgeHtml(o); if(_sb) tdId.insertAdjacentHTML('beforeend', _sb); }
     tr.appendChild(tdId);
     tr.appendChild(makeTextCell(o,"cat",CATS));
     tr.appendChild(makeLobCell(o));
@@ -5280,10 +5300,11 @@ function renderPipeline() {
     tr.appendChild(makeTextCell(o,"lead",LEADS));
     tr.appendChild(makeTextCell(o,"notes",null,false));
     const tdLU=document.createElement("td");
+    { const _st=oppStaleness(o); if(_st.days!=null) tdLU.innerHTML=`<span style="font-size:10px;font-family:var(--font-mono);color:var(--color-text-muted)" title="${_stEsc(staleTitle(_st))}">${_st.days} d</span> `; }
     if(o.lastUpdatedAt){
       const dt=new Date(o.lastUpdatedAt);
       const dstr=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      tdLU.innerHTML=`<span style="font-size:10px;color:var(--color-text-muted);font-family:var(--font-mono)">${o.lastUpdatedBy?o.lastUpdatedBy+' · ':''}${dstr}</span>`;
+      tdLU.innerHTML+=`<span style="font-size:10px;color:var(--color-text-muted);font-family:var(--font-mono)">${o.lastUpdatedBy?o.lastUpdatedBy+' · ':''}${dstr}</span>`;
     }
     tr.appendChild(tdLU);
     // Status badge — click to close open opps
@@ -6048,7 +6069,7 @@ function updateMap(rows) {
       opacity: maxProb >= 0.75 ? 1 : 0.7,
     });
 
-    const names = opps.map(o=>`<div style="margin:2px 0">• <a class="map-popup-link" onclick="mapPopupGoToAccount('${o.id}')" title="Go to this account">${o.acct}</a> — <a class="map-popup-link" onclick="mapPopupOpenOpp('${o.id}')" title="Open this opportunity">${o.type.length>30?o.type.slice(0,28)+'…':o.type}</a></div>`).join('');
+    const names = opps.map(o=>`<div style="margin:2px 0">• ${staleBadgeHtml(o)} <a class="map-popup-link" onclick="mapPopupGoToAccount('${o.id}')" title="Go to this account">${o.acct}</a> — <a class="map-popup-link" onclick="mapPopupOpenOpp('${o.id}')" title="Open this opportunity">${o.type.length>30?o.type.slice(0,28)+'…':o.type}</a></div>`).join('');
     marker.bindPopup(`
       <div class="map-popup-title">${loc}</div>
       <div class="map-popup-val">${opps.length} opp${opps.length>1?'s':''} · $${(totalVal/1e6).toFixed(1)}M</div>
@@ -6070,11 +6091,13 @@ function currentFilteredRows() {
   const cat  = (document.getElementById("fcat")||{}).value||'';
   const loc  = (document.getElementById("floc")||{}).value||'';
   const lead = (document.getElementById("flead")||{}).value||'';
+  const src  = (document.getElementById("fsource")||{}).value||'';
   const prob = (document.getElementById("fprob")||{}).value||'';
   let _f = open().filter(o=>
     (!starredOnly||starredIds.has(o.id))&&
     (!needsLocOnly||!locVerified(o))&&
     (!linkedOnly||relatedOppIds(o.id).length>0)&&
+    stalePass(o)&&(!src||(o.source||'').trim()===src)&&
     (!imminentOnly||(typeof IMMINENT_IDS!=='undefined'&&IMMINENT_IDS.includes(o.id)))&&
     (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q))&&
     (!cat||o.cat===cat)&&(!loc||o.loc===loc)&&(!lead||o.lead===lead)&&
@@ -6378,8 +6401,9 @@ function clearAllColFilters() {
 // Reset EVERY pipeline filter — search, dropdowns, multi-tag, chips, close
 // window, and column filters — in one click.
 function clearAllPipelineFilters() {
-  ['search','fcat','floc','flead','fprob'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['search','fcat','floc','flead','fsource','fprob'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   _tagFilter.clear(); updateTagFilterBtn();
+  _staleFilter.clear(); ['chip-stale','chip-moldy','chip-rotten'].forEach(id => { const c=document.getElementById(id); if(c) c.classList.remove('active'); });
   starredOnly = followingOnly = imminentOnly = needsLocOnly = linkedOnly = false;
   ['chip-starred','chip-following','chip-imminent','chip-needsloc','chip-linked'].forEach(id => {
     const c=document.getElementById(id); if(c) c.classList.remove('active'); });
@@ -7528,6 +7552,95 @@ function loadUserInitials() {
   const v = getUserInitials();
   const el = document.getElementById('user-initials');
   if (el && v) el.value = v;
+}
+
+// ── Staleness ────────────────────────────────────────────────
+// stale_days = days since the last SUBSTANTIVE history entry — housekeeping
+// passes are ignored — falling back to lastUpdatedAt, then createdAt.
+// < 30 d fresh · 30–59 stale · 60–89 moldy · ≥ 90 rotten. Open opps only.
+const STALE_IGNORE = /Pass [1-4]|normalised|Site link|Account name/;
+// Local attribute escaper: these helpers run in the first pipeline render, before
+// the later <script> block that declares qattr() has been parsed.
+function _stEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const STALE_ICON   = { stale:'🍞', moldy:'🦠', rotten:'💀' };
+const STALE_LABEL  = { fresh:'Fresh', stale:'Stale', moldy:'Moldy', rotten:'Rotten', unknown:'Unknown' };
+function oppLastTouch(o){
+  const h = (o.history||[]).filter(e => e && e.at && !STALE_IGNORE.test(e.action||''));
+  if (h.length) { const e = h.reduce((a,b) => new Date(b.at) > new Date(a.at) ? b : a); return { at:e.at, action:e.action||'Updated' }; }
+  if (o.lastUpdatedAt) return { at:o.lastUpdatedAt, action:'Updated' + (o.lastUpdatedBy ? ' by ' + o.lastUpdatedBy : '') };
+  if (o.createdAt)     return { at:o.createdAt, action:'Created' };
+  return null;
+}
+function oppStaleness(o){
+  const last = oppLastTouch(o);
+  const days = last ? Math.max(0, Math.floor((Date.now() - new Date(last.at)) / 86400000)) : null;
+  const tier = days == null ? 'unknown' : days >= 90 ? 'rotten' : days >= 60 ? 'moldy' : days >= 30 ? 'stale' : 'fresh';
+  return { days, tier, last };
+}
+function staleTitle(st){
+  if (!st.last) return 'No update history';
+  const d = new Date(st.last.at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  return `No update in ${st.days} days — last: ${d} ${st.last.action}`;
+}
+// Badge for the ID cell / map popup. Click = "Still accurate ✓".
+function staleBadgeHtml(o){
+  const st = oppStaleness(o); if (!STALE_ICON[st.tier]) return '';
+  return `<span class="rot-badge" title="${_stEsc(staleTitle(st))} · click to mark still accurate" onclick="event.stopPropagation();markOppReviewed('${_stEsc(o.id)}')">${STALE_ICON[st.tier]}</span>`;
+}
+// "Still accurate ✓" — log a review entry so the staleness clock resets without
+// inventing a field edit. Confirmed first: an accidental click would otherwise
+// fake a review.
+function markOppReviewed(id){
+  const o = DATA.find(r => r.id === id); if (!o) return;
+  const st = oppStaleness(o);
+  const ok = document.getElementById('confirm-ok-btn'); const okText = ok ? ok.textContent : '';
+  const restore = () => { if (ok) { ok.textContent = okText; ok.classList.remove('confirm-ok-teal'); } };
+  if (ok) { ok.textContent = 'Still accurate ✓'; ok.classList.add('confirm-ok-teal'); }
+  showConfirm('Still accurate?', `${id} — ${staleTitle(st)}. Log "Reviewed — no change"? Nothing else on the record changes.`, () => {
+    restore();
+    addHistoryEntry(o, 'Reviewed — no change');
+    stampUpdate(id); markDirty(id); oppPersist(o);
+    showToast('✓ ' + id + ' reviewed — no change', 'var(--tsi-succ-green)');
+    try { renderPipeline(); } catch(_){}
+    if (typeof _detailId !== 'undefined' && _detailId === id) renderDetailStale(o);
+  });
+  document.querySelectorAll('#confirm-overlay button:not(#confirm-ok-btn)').forEach(b => b.addEventListener('click', restore, { once:true }));
+}
+function renderDetailStale(o){
+  const b = document.getElementById('detail-still-ok'); if (!b) return;
+  if (!o || o.status !== 'O') { b.style.display = 'none'; return; }
+  const st = oppStaleness(o);
+  b.style.display = '';
+  b.innerHTML = 'Still accurate ✓' + (STALE_ICON[st.tier] ? ` <span style="font-family:var(--font-mono);font-size:11px;opacity:.85">${STALE_ICON[st.tier]} ${st.days} d</span>` : '');
+  b.title = staleTitle(st) + ' — click to log "Reviewed — no change"';
+}
+// Pipeline chips (multi-select tiers) — see toggleStaleChip.
+const _staleFilter = new Set();
+function toggleStaleChip(el, tier){
+  if (_staleFilter.has(tier)) _staleFilter.delete(tier); else _staleFilter.add(tier);
+  el.classList.toggle('active', _staleFilter.has(tier));
+  renderPipeline();
+}
+function stalePass(o){ return !_staleFilter.size || _staleFilter.has(oppStaleness(o).tier); }
+// Summary: per-rep hygiene — counts by tier and the value sitting in stale+ records.
+function renderSummaryStale(data){
+  const el = document.getElementById('sum-stale'); if (!el) return;
+  const rows = new Map();
+  (data||[]).forEach(o => {
+    const k = (o.lead||'').trim() || '—';
+    if (!rows.has(k)) rows.set(k, { lead:k, open:0, fresh:0, stale:0, moldy:0, rotten:0, unknown:0, staleVal:0, oldest:0 });
+    const r = rows.get(k), st = oppStaleness(o);
+    r.open++; r[st.tier]++;
+    if (st.tier==='stale'||st.tier==='moldy'||st.tier==='rotten') r.staleVal += Number(o.val)||0;
+    if (st.days != null) r.oldest = Math.max(r.oldest, st.days);
+  });
+  const list = [...rows.values()].sort((a,b) => b.staleVal - a.staleVal || (b.stale+b.moldy+b.rotten) - (a.stale+a.moldy+a.rotten));
+  const tot = list.reduce((t,r) => { ['open','fresh','stale','moldy','rotten','staleVal'].forEach(k => t[k]+=r[k]); t.oldest=Math.max(t.oldest,r.oldest); return t; }, { open:0,fresh:0,stale:0,moldy:0,rotten:0,staleVal:0,oldest:0 });
+  const cell = (n, dim) => `<td class="n${(!n&&dim)?' dim':''}">${n||'—'}</td>`;
+  const tr = (r, cls) => `<tr class="${cls||''}"><td>${cls?'All reps':_stEsc(leadName(r.lead))}</td>${cell(r.open)}${cell(r.fresh,1)}${cell(r.stale,1)}${cell(r.moldy,1)}${cell(r.rotten,1)}<td class="n">${r.staleVal?fmt(r.staleVal):'—'}</td><td class="n">${r.oldest?r.oldest+' d':'—'}</td></tr>`;
+  el.innerHTML = `<div class="detail-section-title" style="margin-bottom:6px">Pipeline hygiene by rep <span class="olr-count">· open opps by days since the last substantive update · 🍞 30–59 · 🦠 60–89 · 💀 ≥ 90</span></div>
+    <table class="stale-table"><thead><tr><th>Rep</th><th class="n">Open</th><th class="n">Fresh</th><th class="n">🍞 Stale</th><th class="n">🦠 Moldy</th><th class="n">💀 Rotten</th><th class="n">Stale value</th><th class="n">Oldest</th></tr></thead>
+    <tbody>${list.map(r => tr(r)).join('')}${list.length>1 ? tr(tot,'total') : ''}</tbody></table>`;
 }
 
 function stampUpdate(id) {
@@ -10928,6 +11041,7 @@ function openDetail(id) {
   showDetailTab('overview');
   renderDetailOverview(o);
   renderDetailLinked(o);
+  renderDetailStale(o);
   renderDetailSchedule(o);
   renderDetailNotes(o);
   // Render resources when tab is opened
@@ -13141,6 +13255,7 @@ function renderSummary() {
   populateSummaryFilters();
   const data = getSummaryData();
   renderSummaryKPIs(data);
+  renderSummaryStale(data);
   renderTimelineChart(data);
   renderSummaryMap(data);
 }
@@ -15063,19 +15178,20 @@ TableKit.register('pip-table', {
     { i:15, label:'Close',            col:'close',sortable:true, sortVal:o=>{const d=parseCloseDate(o.close);return d?d.getTime():Infinity;}, filterVal:o=>o.close||'TBD', dateRange:true, dateVal:o=>parseCloseDate(o.close) },
     { i:16, label:'Lead',             col:'lead', sortable:true },
     { i:17, label:'Notes' },
-    { i:18, label:'Last Update' },
+    { i:18, label:'Last Update',      col:'stale', sortable:true, sortVal:o=>{const d=oppStaleness(o).days;return d==null?-1:d;}, filterVal:o=>STALE_LABEL[oppStaleness(o).tier] },
   ],
   colsVersion: 3,          // bumped: inserted the Phase column after Stage (indices shifted)
   defaultHidden: [6, 14],  // Parent account + Phase hidden by default — toggle on via ▦ Columns
   capture: () => { const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
-    return { search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), fprob:g('fprob'),
+    return { search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), fsource:g('fsource'), fprob:g('fprob'), staleFilter:[..._staleFilter],
       tagFilter:[..._tagFilter],
       closeChip:(typeof activeCloseChip!=='undefined')?activeCloseChip:null,
       starredOnly:!!(typeof starredOnly!=='undefined'&&starredOnly),
       followingOnly:!!(typeof followingOnly!=='undefined'&&followingOnly),
       linkedOnly:!!(typeof linkedOnly!=='undefined'&&linkedOnly) }; },
   apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
-    setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc); setv('flead',st.flead); setv('fprob',st.fprob);
+    setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc); setv('flead',st.flead); setv('fsource',st.fsource); setv('fprob',st.fprob);
+    _staleFilter.clear(); (st.staleFilter||[]).forEach(t=>_staleFilter.add(t)); ['stale','moldy','rotten'].forEach(t=>{ const c=document.getElementById('chip-'+t); if(c) c.classList.toggle('active',_staleFilter.has(t)); });
     _tagFilter = new Set(st.tagFilter||[]); if(typeof updateTagFilterBtn==='function') updateTagFilterBtn();
     if(typeof starredOnly!=='undefined') starredOnly=!!st.starredOnly;
     const sc=document.getElementById('chip-starred'); if(sc) sc.classList.toggle('active',!!st.starredOnly);
@@ -16123,6 +16239,9 @@ startAdminPoll();
   <!-- KPI strip -->
   <div id="sum-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px"></div>
 
+  <!-- Pipeline hygiene — staleness by rep (open opps in the current summary filter) -->
+  <div id="sum-stale" style="margin-bottom:16px"></div>
+
   <!-- Timeline chart — collapsible -->
   <div class="detail-section" style="margin-bottom:14px">
     <div class="detail-section-title" style="display:flex;align-items:center;cursor:pointer" onclick="toggleSumSection('timeline')">
@@ -16560,6 +16679,7 @@ startAdminPoll();
       <div class="detail-subtitle" id="detail-subtitle"></div>
     </div>
     <button class="btn-detail-edit" onclick="editFromDetail()">✎ Edit</button>
+    <button class="btn-detail-edit" id="detail-still-ok" onclick="markOppReviewed(_detailId)" style="display:none">Still accurate ✓</button>
     <button class="btn-detail-edit" id="detail-next-phase" onclick="addNextPhaseFrom(_detailId)" title="Create the next phase of this program: same account, site and lead, linked to this record">+ Next phase</button>
   </div>
 
