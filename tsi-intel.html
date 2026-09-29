@@ -1144,6 +1144,13 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 
 /* ── SCOPE TAGS SORTABLE IN TABLE ────────────────────── */
 .stag { cursor:default; }
+/* scope-tag filter dropdown: Any / All / None mode + per-tag counts */
+.ftag-modes { display:flex; gap:0; margin:2px 0 6px; border:1px solid var(--color-border-mid); border-radius:var(--radius-sm); overflow:hidden; }
+.ftag-mode { flex:1; padding:5px 0; font-size:11px; font-family:var(--font-ui); background:transparent; border:none; color:var(--color-text-secondary); cursor:pointer; }
+.ftag-mode + .ftag-mode { border-left:1px solid var(--color-border-mid); }
+.ftag-mode.active { background:var(--tsi-teal); color:#fff; }
+.ftag-n { font-family:var(--font-mono); font-size:10px; color:var(--color-text-muted); min-width:18px; text-align:right; }
+.views-btn.ftag-active { border-color:var(--tsi-teal); color:var(--tsi-teal); }
 
 /* ── UPLOAD HIDDEN ───────────────────────────────────── */
 #opp-upload-input { display:none; }
@@ -3502,7 +3509,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th class="sortable" data-col="parent" style="width:140px" title="Parent (top-level) account">Parent account<span class="sort-icon"></span></th>
         <th class="sortable" data-col="loc" style="width:110px">Location<span class="sort-icon"></span></th>
         <th class="sortable" data-col="type" style="width:180px">Project<span class="sort-icon"></span></th>
-        <th style="width:180px">Scope Tags</th>
+        <th class="sortable" data-col="tags" style="width:180px" title="Sort: most matches to the scope-tag filter first, then by tag">Scope Tags<span class="sort-icon"></span></th>
         <th class="sortable" data-col="val" style="width:90px">Value<span class="sort-icon"></span></th>
         <th class="sortable" data-col="prob" style="width:55px">Prob<span class="sort-icon"></span></th>
         <th class="sortable" data-col="wtd" style="width:80px">Wtd<span class="sort-icon"></span></th>
@@ -3566,7 +3573,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
         <th class="sortable" data-col="acct" style="width:130px">Account<span class="sort-icon"></span></th>
         <th style="width:110px">Location</th>
         <th class="sortable" data-col="type" style="width:200px">Project<span class="sort-icon"></span></th>
-        <th style="width:180px">Scope Tags</th>
+        <th class="sortable" data-col="tags" style="width:180px" title="Sort: most matches to the scope-tag filter first, then by tag">Scope Tags<span class="sort-icon"></span></th>
         <th class="sortable" data-col="val" style="width:90px">Value<span class="sort-icon"></span></th>
         <th class="sortable" data-col="prob" style="width:55px">Prob<span class="sort-icon"></span></th>
         <th style="width:80px">Wtd</th>
@@ -3712,7 +3719,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#175 · 2026-09-29 · save-opportunity feedback (toast, row flash, sync status); linkedIds shape fix';
+const APP_BUILD = '#176 · 2026-09-29 · scope-tag filter: any/all/none mode + counts; Scope Tags column sortable + filterable';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -4114,21 +4121,41 @@ function toggleLinkedFilter(el) {
 }
 
 // ── Multi-select scope-tag filter (checkbox dropdown) ──
+// _tagMode decides how the checked tags combine:
+//   any  → opp carries at least one checked tag (default)
+//   all  → opp carries every checked tag (e.g. DRY + SGF projects only)
+//   none → opp carries none of the checked tags (exclude)
 let _tagFilter = new Set();
+let _tagMode = 'any';
+function tagPass(o){
+  if (!_tagFilter.size) return true;
+  const t = o.tags || [];
+  if (_tagMode === 'all')  return [..._tagFilter].every(k => t.includes(k));
+  if (_tagMode === 'none') return !t.some(k => _tagFilter.has(k));
+  return t.some(k => _tagFilter.has(k));
+}
+function tagMatchCount(o){ return (o.tags||[]).filter(k => _tagFilter.has(k)).length; }
 function renderTagFilterMenu(){
   const menu=document.getElementById('ftag-menu'); if(!menu) return;
-  const present=[...new Set(open().flatMap(o=>o.tags||[]))];
+  const counts=new Map(); open().forEach(o=>(o.tags||[]).forEach(k=>counts.set(k,(counts.get(k)||0)+1)));
+  const present=[...counts.keys()];
   const keys=(typeof TAG_KEYS!=='undefined'?TAG_KEYS:present).filter(k=>present.includes(k)||_tagFilter.has(k));
+  const seg=(m,l,t)=>`<button type="button" class="ftag-mode${_tagMode===m?' active':''}" title="${t}" onclick="event.stopPropagation();setTagMode('${m}')">${l}</button>`;
   menu.innerHTML =
     `<div class="views-menu-user">Scope tags${_tagFilter.size?` · ${_tagFilter.size} selected`:''}</div>` +
+    `<div class="ftag-modes">${seg('any','Any','Has at least one checked tag')}${seg('all','All','Has every checked tag')}${seg('none','None','Has none of the checked tags')}</div>` +
     keys.map(k=>{ const d=TAG_DEFS[k]||[k,'888888']; return `<label class="views-menu-item" style="cursor:pointer">
       <input type="checkbox" ${_tagFilter.has(k)?'checked':''} onchange="toggleTagInFilter('${k}')" style="accent-color:var(--tsi-teal)">
-      <span class="vm-name"><span class="stag" style="background:#${d[1]}">${d[0]}</span></span></label>`; }).join('') +
+      <span class="vm-name"><span class="stag" style="background:#${d[1]}">${d[0]}</span></span><span class="ftag-n">${counts.get(k)||0}</span></label>`; }).join('') +
     `<div class="views-menu-save"><button style="flex:1;background:transparent;border:1px solid var(--color-border-mid);color:var(--color-text-secondary)" onclick="clearTagFilter()">Clear tags</button></div>`;
 }
+function setTagMode(m){ _tagMode = m; updateTagFilterBtn(); renderTagFilterMenu(); renderPipeline(); }
 function toggleTagInFilter(k){ if(_tagFilter.has(k)) _tagFilter.delete(k); else _tagFilter.add(k); updateTagFilterBtn(); renderPipeline(); }
-function clearTagFilter(){ _tagFilter.clear(); updateTagFilterBtn(); renderTagFilterMenu(); renderPipeline(); }
-function updateTagFilterBtn(){ const b=document.getElementById('ftag-btn'); if(b) b.textContent = _tagFilter.size ? `🏷 Scope Tags (${_tagFilter.size}) ▾` : '🏷 Scope Tags ▾'; }
+function clearTagFilter(){ _tagFilter.clear(); _tagMode='any'; updateTagFilterBtn(); renderTagFilterMenu(); renderPipeline(); }
+function updateTagFilterBtn(){ const b=document.getElementById('ftag-btn'); if(!b) return;
+  const n=_tagFilter.size, m=_tagMode==='any'?'':(' · '+(_tagMode==='all'?'all':'exclude'));
+  b.textContent = n ? `🏷 Scope Tags (${n}${m}) ▾` : '🏷 Scope Tags ▾';
+  b.classList.toggle('ftag-active', n>0); }
 function toggleTagFilterMenu(ev){ if(ev) ev.stopPropagation(); const m=document.getElementById('ftag-menu'); if(!m) return;
   if(m.style.display==='none'){ renderTagFilterMenu(); m.style.display=''; setTimeout(()=>document.addEventListener('click', _closeTagFilterOutside),0); }
   else closeTagFilterMenu(); }
@@ -5241,7 +5268,7 @@ function renderPipeline() {
     (!cat  || o.cat===cat) &&
     (!loc  || o.loc===loc) &&
     (!lead || o.lead===lead) &&
-    (!_tagFilter.size || (o.tags||[]).some(t=>_tagFilter.has(t))) &&
+    tagPass(o) &&
     probFilter(o,prob) && closeFilter(o)
   );
   f = applyColFilters(f);
@@ -6103,7 +6130,7 @@ function currentFilteredRows() {
     (!imminentOnly||(typeof IMMINENT_IDS!=='undefined'&&IMMINENT_IDS.includes(o.id)))&&
     (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q))&&
     (!cat||o.cat===cat)&&(!loc||o.loc===loc)&&(!lead||o.lead===lead)&&
-    (!_tagFilter.size||(o.tags||[]).some(t=>_tagFilter.has(t)))&&probFilter(o,prob)&&closeFilter(o)
+    tagPass(o)&&probFilter(o,prob)&&closeFilter(o)
   );
   return applyColFilters(_f);
 }
@@ -15209,7 +15236,13 @@ TableKit.register('pip-table', {
     { i:6,  label:'Parent account',   col:'parent', sortable:true, sortVal:o=>(typeof oppParentAccount==='function'?oppParentAccount(o):(o.acct||'')).toLowerCase(), filterVal:o=>(typeof oppParentAccount==='function'?oppParentAccount(o):(o.acct||'—')) },
     { i:7,  label:'Location',         col:'loc',  sortable:true },
     { i:8,  label:'Project',          col:'type', sortable:true, sortVal:o=>(o.type||'').toLowerCase() },
-    { i:9,  label:'Scope Tags' },
+    { i:9,  label:'Scope Tags',       col:'tags', sortable:true,
+      // Ascending = most matches to the checked tags first (ties: fewer tags,
+      // then tags in TAG_KEYS order so the same scope combinations group).
+      sortVal:o=>{ const t=o.tags||[]; const order=k=>String(Math.max(0,TAG_KEYS.indexOf(k))).padStart(2,'0');
+        const key=[...t].sort((a,b)=>TAG_KEYS.indexOf(a)-TAG_KEYS.indexOf(b)).map(order).join('.');
+        return String(99-tagMatchCount(o)).padStart(2,'0')+'|'+(t.length?String(t.length).padStart(2,'0'):'99')+'|'+(key||'zz'); },
+      filterMulti:o=>(o.tags&&o.tags.length?o.tags.map(k=>(TAG_DEFS[k]||[k])[0]):['—']) },
     { i:10, label:'Value',            col:'val',  sortable:true, sortVal:o=>o.val??-1, filterVal:o=>o.val!=null?fmt(o.val):'TBD' },
     { i:11, label:'Prob',             col:'prob', sortable:true, sortVal:o=>o.prob??-1, filterVal:o=>o.prob!=null?Math.round(o.prob*100)+'%':'TBD' },
     { i:12, label:'Wtd',              col:'wtd',  sortable:true, sortVal:o=>(o.val&&o.prob)?o.val*o.prob:-1 },
@@ -15224,7 +15257,7 @@ TableKit.register('pip-table', {
   defaultHidden: [6, 14],  // Parent account + Phase hidden by default — toggle on via ▦ Columns
   capture: () => { const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
     return { search:g('search'), fcat:g('fcat'), floc:g('floc'), flead:g('flead'), fsource:g('fsource'), fprob:g('fprob'), staleFilter:[..._staleFilter],
-      tagFilter:[..._tagFilter],
+      tagFilter:[..._tagFilter], tagMode:_tagMode,
       closeChip:(typeof activeCloseChip!=='undefined')?activeCloseChip:null,
       starredOnly:!!(typeof starredOnly!=='undefined'&&starredOnly),
       followingOnly:!!(typeof followingOnly!=='undefined'&&followingOnly),
@@ -15232,7 +15265,7 @@ TableKit.register('pip-table', {
   apply: (st) => { const setv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
     setv('search',st.search); setv('fcat',st.fcat); setv('floc',st.floc); setv('flead',st.flead); setv('fsource',st.fsource); setv('fprob',st.fprob);
     _staleFilter.clear(); (st.staleFilter||[]).forEach(t=>_staleFilter.add(t)); ['stale','moldy','rotten'].forEach(t=>{ const c=document.getElementById('chip-'+t); if(c) c.classList.toggle('active',_staleFilter.has(t)); });
-    _tagFilter = new Set(st.tagFilter||[]); if(typeof updateTagFilterBtn==='function') updateTagFilterBtn();
+    _tagFilter = new Set(st.tagFilter||[]); _tagMode = ['any','all','none'].includes(st.tagMode)?st.tagMode:'any'; if(typeof updateTagFilterBtn==='function') updateTagFilterBtn();
     if(typeof starredOnly!=='undefined') starredOnly=!!st.starredOnly;
     const sc=document.getElementById('chip-starred'); if(sc) sc.classList.toggle('active',!!st.starredOnly);
     if(typeof followingOnly!=='undefined') followingOnly=!!st.followingOnly;

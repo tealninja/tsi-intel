@@ -179,6 +179,16 @@ Roles (cumulative ladder):
 
 ## ✅ Recently done
 
+### 🗒️ 2026-09-29 — scope-tag filter modes + sort (build #176)
+- [x] **Scope tags: multi-checkbox filter with Any / All / None** (raised by JT). The 🏷 Scope Tags
+  dropdown on Pipeline now has a match-mode switch: *Any* (at least one checked tag — the old
+  behaviour), *All* (every checked tag, e.g. DRY + SGF projects only), *None* (exclude). Each tag
+  shows its open-opp count; the button reads e.g. "Scope Tags (2 · all)" and turns teal when active.
+  Mode is saved with ⭐ Views. Shared predicate `tagPass(o)` drives table, tree, stages, charts and map.
+- [x] **Scope Tags column is sortable + column-filterable.** Sort = most matches to the checked tags
+  first, then fewer tags, then tags in TAG_KEYS order (so the same scope combos group). The ▾▾ column
+  filter lists individual tags (multi-value).
+
 ### 🗒️ 2026-09-29 — save-opportunity feedback + linkedIds crash (build #175, on top of #174)
 - [x] **Save opportunity feedback** (raised by JT: "tough to tell if it saves"). Root cause: the
   drawer closed on click, so the button's "Saved!" flash was never seen, and the toast waited on
