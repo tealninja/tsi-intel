@@ -572,6 +572,8 @@ thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content:'↕'; }
 /* ── STARRED ROWS ───────────────────────────────────────── */
 /* Deepened teal so white text keeps a readable contrast ratio (was medium teal ~3.4:1) */
 .tr-starred td { background:color-mix(in srgb, var(--tsi-teal) 74%, #000)!important; color:white!important; font-weight:500; }
+@keyframes trJustSaved { 0%,55% { background:color-mix(in srgb, var(--tsi-succ-green) 22%, transparent); } 100% { background:transparent; } }
+.tr-just-saved:not(.tr-starred) td { animation:trJustSaved 2.5s ease-out forwards; }
 .tr-starred td .opp-id,
 .tr-starred td .acct-name,
 .tr-starred td .notes-cell,
@@ -3710,7 +3712,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#174 · 2026-09-24 · staleness: badges, chips, sort, per-rep hygiene, Still accurate; source filter';
+const APP_BUILD = '#175 · 2026-09-29 · save-opportunity feedback (toast, row flash, sync status); linkedIds shape fix';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -7503,27 +7505,34 @@ function saveOppDrawer() {
   checkOppLinkIntegrity(true);                 // and repair anything one-sided elsewhere
   window._drawerWeather = null;
   closeOppDrawer();
+
+  // Immediate feedback: the record is already committed locally (DATA + the
+  // store's localStorage cache below), so say so now rather than after the
+  // network round-trip — with the drawer closing on click there was otherwise
+  // nothing to see until the PUT resolved (or never, on a slow link).
+  const isNew = !_drawerEditId;
+  const label = opp.acct + (isNew ? ' added' : ' saved');
+  showToast('✓ ' + label + ' · syncing to cloud…', 'var(--tsi-teal)', 8000);
+
+  // Persist to the D1 'opportunities' collection (cache-first, then server).
+  // Kicked off before the re-renders so a render error can't stall the write.
+  // Resolve the toast once the server answers; if it hasn't in 6s, say so.
+  let _settled = false;
+  const slow = setTimeout(() => { if (!_settled) showToast('✓ ' + label + ' on this device · cloud sync is slow, still trying…', 'var(--tsi-teal)', 8000); }, 6000);
+  oppStore().put(opp).then(ok => {
+    _settled = true; clearTimeout(slow);
+    showToast(ok ? '✓ ' + label + ' · synced to cloud'
+                 : '✓ ' + label + ' on this device only · cloud sync failed (offline?)',
+              ok ? 'var(--tsi-succ-green)' : 'var(--tsi-coral)', ok ? 3000 : 6000);
+  });
+
   populateFilters();
   renderPipeline();
   renderImminent();
   renderTorr();
   renderHotCards();
   updateMap(currentFilteredRows());
-
-  // Persist to the D1 'opportunities' collection (cache-first, then server).
-  const isNew = !_drawerEditId;
-  oppStore().put(opp).then(ok => {
-    showToast(ok ? (isNew ? '✓ New opportunity saved' : '✓ ' + opp.acct + ' updated')
-                 : '✓ Saved locally (offline)', ok ? 'var(--tsi-succ-green)' : 'var(--tsi-teal)');
-  });
-
-  // Flash save confirmation
-  const btn=document.querySelector('.btn-save-opp');
-  if(btn){
-    btn.textContent = '✓ Saved!';
-    btn.style.background = 'var(--tsi-succ-green)';
-    setTimeout(() => { btn.textContent = 'Save Opportunity'; btn.style.background = ''; }, 1500);
-  }
+  flashSavedRow(opp.id);
 
   // Gap-fix step-through: after saving, advance to the next still-flagged opp and
   // keep the review list docked open. If nothing's left, the list stays visible.
@@ -8255,7 +8264,7 @@ function confirmClose() {
 }
 
 // ── TOAST NOTIFICATION ────────────────────────────────────────
-function showToast(msg, color='var(--tsi-teal)') {
+function showToast(msg, color='var(--tsi-teal)', ms=3000) {
   let t = document.getElementById('tsi-toast');
   if (!t) {
     t = document.createElement('div');
@@ -8270,7 +8279,17 @@ function showToast(msg, color='var(--tsi-teal)') {
   t.style.background = color;
   t.style.opacity    = '1';
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, ms);
+}
+
+// Briefly highlight an opportunity's row in the pipeline table after a save so
+// the change is visible where the user lands once the drawer closes.
+function flashSavedRow(id) {
+  const tr = document.querySelector(`#pipeline-body tr[data-row-id="${String(id).replace(/"/g,'\\"')}"]`);
+  if (!tr) return;
+  tr.classList.remove('tr-just-saved'); void tr.offsetWidth;   // restart the animation
+  tr.classList.add('tr-just-saved');
+  setTimeout(() => tr.classList.remove('tr-just-saved'), 2600);
 }
 
 // One-time welcome / session-status card shown once identity resolves on login.
