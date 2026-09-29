@@ -179,7 +179,7 @@ Roles (cumulative ladder):
 
 ## ✅ Recently done
 
-### 🗒️ 2026-09-29 — save-opportunity feedback (build #169)
+### 🗒️ 2026-09-29 — save-opportunity feedback + linkedIds crash (build #175, on top of #174)
 - [x] **Save opportunity feedback** (raised by JT: "tough to tell if it saves"). Root cause: the
   drawer closed on click, so the button's "Saved!" flash was never seen, and the toast waited on
   the D1 PUT (no timeout — silent on a slow link). Now: an immediate toast ("<acct> added/saved ·
@@ -187,6 +187,13 @@ Roles (cumulative ladder):
   green in the pipeline table, and the toast resolves to "synced to cloud" (green) or "on this
   device only · cloud sync failed" (coral); after 6 s without an answer it says the sync is slow.
   The PUT is now kicked off before the re-renders so a render error can't stall the write.
+- [x] **Save crashed: `a.linkedIds.filter is not a function`** (reported by JT on #174). A record in
+  D1 carried `linkedIds` as a string (not an array) and `checkOppLinkIntegrity` — which runs inside
+  `saveOppDrawer` before the persist — threw, so the save was silently lost (drawer stayed open,
+  nothing written). New `normLinkIds()` coerces string / JSON-string / object / single id → `string[]`;
+  used by every linkedIds reader (integrity check, syncOppLinks, relatedOppIds, oppSupersededBy).
+  The integrity pass now also repairs + persists wrong-shaped records, and the two hygiene calls in
+  `saveOppDrawer` are try/caught so link hygiene can never block a save again.
 
 ### 🗒️ 2026-07-16/17 session cont. — visits, familiarity, quotes, opp→site (builds #154–#168)
 Branch `claude/reintegrate-features-tablekit` → fast-forwarded to `main` after each change.

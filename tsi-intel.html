@@ -6956,11 +6956,27 @@ function addDrawerLinkFromInput(){
 // Resolve the full related set for an opp id, BIDIRECTIONALLY: opps this one links
 // to, plus opps that link to it. Used by the presentation and badges so a link
 // only has to be recorded on one side.
+// linkedIds should be an array of ids, but records written by importers / the
+// Update Agent / hand edits have arrived as a comma-separated string, a JSON
+// string, a single id, or an object — and `.filter` on those threw inside
+// checkOppLinkIntegrity, which silently killed the whole save. Coerce any
+// shape to a clean string[] (never throws).
+function normLinkIds(v){
+  if (v == null || v === '') return [];
+  if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t.startsWith('[')) { try { return normLinkIds(JSON.parse(t)); } catch(_){} }
+    return t.split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+  }
+  if (typeof v === 'object') return normLinkIds(Object.values(v));
+  return [String(v)];
+}
 function relatedOppIds(id){
   const set = new Set();
   const self = (typeof DATA!=='undefined'?DATA:[]).find(o => o.id === id);
-  (self && self.linkedIds || []).forEach(x => set.add(x));
-  (typeof DATA!=='undefined'?DATA:[]).forEach(o => { if (o.linkedIds && o.linkedIds.includes(id)) set.add(o.id); });
+  normLinkIds(self && self.linkedIds).forEach(x => set.add(x));
+  (typeof DATA!=='undefined'?DATA:[]).forEach(o => { if (o.linkedIds && normLinkIds(o.linkedIds).includes(id)) set.add(o.id); });
   set.delete(id);
   return [...set];
 }
@@ -6990,7 +7006,7 @@ function oppLinkedSiblings(id){
   return relatedOppIds(id).map(x => DATA.find(o => o.id === x)).filter(o => o && o.status !== 'X');
 }
 function oppSupersededBy(id){
-  return DATA.filter(o => o.id !== id && o.status === 'X' && (o.linkedIds || []).includes(id));
+  return DATA.filter(o => o.id !== id && o.status === 'X' && normLinkIds(o.linkedIds).includes(id));
 }
 // Link integrity: if A lists B, B must list A. Repairs one-sided links by adding
 // the reverse, and dedupes / strips self-links. Ids that point at no record are
@@ -6999,13 +7015,16 @@ function checkOppLinkIntegrity(persist){
   const byId = new Map(DATA.map(o => [o.id, o]));
   const fixed = new Set(), dangling = [];
   DATA.forEach(a => {
+    if (a.linkedIds != null && !Array.isArray(a.linkedIds)) {       // wrong shape → repair + persist
+      a.linkedIds = normLinkIds(a.linkedIds); fixed.add(a.id);
+    }
     if (!a.linkedIds || !a.linkedIds.length) return;
     const clean = [...new Set(a.linkedIds.filter(x => x !== a.id))];
     if (clean.length !== a.linkedIds.length) { a.linkedIds = clean; fixed.add(a.id); }
     clean.forEach(x => {
       const b = byId.get(x);
       if (!b) { dangling.push(a.id + '→' + x); return; }
-      b.linkedIds = b.linkedIds || [];
+      if (!Array.isArray(b.linkedIds)) { const had = b.linkedIds != null; b.linkedIds = normLinkIds(b.linkedIds); if (had) fixed.add(b.id); }
       if (!b.linkedIds.includes(a.id)) { b.linkedIds.push(a.id); fixed.add(b.id); }
     });
   });
@@ -7086,12 +7105,13 @@ function renderDetailLinked(o){
   el.innerHTML = html; el.style.display = html ? '' : 'none';
 }
 function syncOppLinks(oppId, links){
+  links = normLinkIds(links);
   const affected = new Set(links);
-  DATA.forEach(o => { if (o.id !== oppId && o.linkedIds && o.linkedIds.includes(oppId)) affected.add(o.id); });
+  DATA.forEach(o => { if (o.id !== oppId && o.linkedIds && normLinkIds(o.linkedIds).includes(oppId)) affected.add(o.id); });
   affected.forEach(id => {
     if (id === oppId) return;
     const o = DATA.find(r => r.id === id); if (!o) return;
-    o.linkedIds = o.linkedIds || [];
+    o.linkedIds = normLinkIds(o.linkedIds);
     const shouldLink = links.includes(id), has = o.linkedIds.includes(oppId);
     if (shouldLink && !has) o.linkedIds.push(oppId);
     else if (!shouldLink && has) o.linkedIds = o.linkedIds.filter(x => x !== oppId);
@@ -7501,8 +7521,9 @@ function saveOppDrawer() {
     _lastSnap.set(opp.id, snapOf(opp));
   }
   markDirty(opp.id);
-  syncOppLinks(opp.id, opp.linkedIds || []);   // keep the relationship symmetric on both opps
-  checkOppLinkIntegrity(true);                 // and repair anything one-sided elsewhere
+  // Link hygiene must never block the save itself — log and carry on.
+  try { syncOppLinks(opp.id, opp.linkedIds || []); } catch(e){ console.warn('syncOppLinks:', e); }        // keep the relationship symmetric on both opps
+  try { checkOppLinkIntegrity(true); }           catch(e){ console.warn('checkOppLinkIntegrity:', e); } // and repair anything one-sided elsewhere
   window._drawerWeather = null;
   closeOppDrawer();
 
