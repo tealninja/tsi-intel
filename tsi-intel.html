@@ -883,9 +883,12 @@ thead th.col-filtered .sort-icon::before { content:'▼ '; font-size:8px; opacit
 .opp-drawer.open { transform:translateX(0); }
 
 .drawer-header {
-  background:var(--tsi-deep-blue); color:white;
+  /* Teal, not deep blue: the app's top bar is deep blue, so a deep-blue drawer
+     header merged into it with no visible edge. Teal reads as "a panel over
+     the app" and keeps white text/buttons legible. */
+  background:rgb(0,116,125); color:white;
   padding:14px 18px; display:flex; align-items:center; gap:10px;
-  flex-shrink:0;
+  flex-shrink:0; border-bottom:1px solid rgba(255,255,255,0.18);
 }
 .drawer-header h2 { font-family:var(--font-display); font-size:18px; font-weight:400; flex:1; }
 .drawer-nav { display:flex; align-items:center; gap:2px; flex-shrink:0; }
@@ -2170,6 +2173,29 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   .acct-back-btn{display:inline-flex}
 }
 
+
+/* ── ACCOUNTS: overview (nothing selected) + parent-group summary ── */
+.acct-ov-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 20px 6px;flex-wrap:wrap}
+.acct-ov-title{font-size:16px;font-weight:500;color:var(--color-heading)}
+.acct-ov-sub{font-size:11.5px;color:var(--color-text-muted);margin-top:2px}
+.acct-ov-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:8px 20px 12px}
+.acct-ov-kpis .detail-kpi{padding:10px 12px;margin:0}
+.acct-ov-kpis .detail-kpi-val{font-size:20px}
+.acct-ov-kpis .detail-kpi.clickable{cursor:pointer}
+.acct-ov-kpis .detail-kpi.clickable:hover{border-color:var(--tsi-teal)}
+.acct-ov-map{height:300px;border-radius:var(--radius-md);background:var(--color-bg);overflow:hidden;margin:0 20px 6px;border:0.5px solid var(--color-border)}
+.acct-ov-cols{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.acct-ov-cols .acct-section{border-bottom:none}
+.acct-ov-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border);font-size:12px;cursor:pointer}
+.acct-ov-row:last-child{border-bottom:none}
+.acct-ov-row:hover{background:var(--color-hover);margin:0 -8px;padding:6px 8px}
+.acct-ov-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.acct-ov-num{font-family:var(--font-mono);font-size:11px;color:var(--tsi-teal);white-space:nowrap}
+.acct-ov-muted{font-size:10.5px;color:var(--color-text-muted)}
+.acct-grp-sites tbody tr{cursor:pointer}
+.acct-grp-sites tbody tr:hover td{background:var(--color-hover)}
+.acct-grp-site-badge{font-size:10px;color:var(--color-text-secondary);background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius-sm);padding:1px 6px;margin-right:8px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:768px){ .acct-ov-cols{grid-template-columns:1fr} .acct-ov-map{margin:0 12px} .acct-ov-head,.acct-ov-kpis{padding-left:12px;padding-right:12px} }
 
 /* ── COLLAPSIBLE CUES ────────────────────────────────────── */
 /* Main page collapse headers */
@@ -3719,7 +3745,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#176 · 2026-09-29 · scope-tag filter: any/all/none mode + counts; Scope Tags column sortable + filterable';
+const APP_BUILD = '#177 · 2026-09-30 · accounts: overview on load + group summary (KPIs, map, sites, opps, activity); teal drawer header';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5552,10 +5578,9 @@ function showTab(name) {
   if(name==='usage')     renderUsage();
   if(name==='accounts'){
     renderAcctSidebar();
-    // Desktop default: with nothing selected, show the all-sites map instead of
-    // a blank panel. Mobile keeps the list (the map would take over the screen).
-    if(!_acctSelectedSite && !_acctMapShowing && !_acctTableShowing
-       && typeof L !== 'undefined' && window.matchMedia('(min-width:769px)').matches) toggleAcctMap();
+    // The main panel never sits empty: the all-accounts overview, the selected
+    // group's summary, or the selected site's detail (unless map/table is up).
+    if (typeof renderAcctPanel === 'function') renderAcctPanel();
   }
   if(name==='summary')   renderSummary();
   if(name==='products' && typeof renderProducts==='function') renderProducts();
@@ -10163,17 +10188,9 @@ function toggleAcctGroup(groupId) {
   _acctSelectedSite  = null; // clear any previously selected site
   renderAcctSidebar();
 
-  // Reset main panel back to empty state when selecting a parent group
-  if (!_acctMapShowing) {
-    const main = document.getElementById('acct-main');
-    if (main) {
-      main.style.display = '';
-      main.innerHTML = `<div class="acct-empty-state">
-        <div class="ae-icon">🏭</div>
-        <div>Select a site to view account details</div>
-      </div>`;
-    }
-  }
+  // Main panel: the group's summary (selected) or the all-accounts overview
+  // (deselected) — never the old "select a site" placeholder.
+  if (!_acctMapShowing && !_acctTableShowing) renderAcctPanel();
   acctSetDetailOpen(false);   // mobile: expanding a group returns to the list view
   if (_acctMapShowing) renderAcctMap();
   if (_acctTableShowing && typeof renderAcctTable === 'function') renderAcctTable();
@@ -10243,6 +10260,222 @@ function acctBackToList(){
   if (main) main.style.display = '';
   acctSetDetailOpen(false);
   renderAcctSidebar();
+  renderAcctPanel();
+}
+
+// ── Accounts main panel: overview (nothing selected) / parent-group summary ──
+// Before: the right-hand panel sat on a "Select a site" placeholder until a
+// SITE was clicked, and clicking a parent group showed nothing at all. Now the
+// panel always has content: an all-accounts overview (KPIs, map, top accounts,
+// recent activity), a group summary (KPIs, group map, sites table, every open
+// opportunity across the group, recent activity), or the site detail.
+let _acctPanelMap = null;
+function _acctPanelMapDestroy(){ if (_acctPanelMap) { try { _acctPanelMap.remove(); } catch(_){} _acctPanelMap = null; } }
+function _acctPanelDrawMap(elId, accounts, oppsBySite){
+  _acctPanelMapDestroy();
+  const el = document.getElementById(elId);
+  if (!el || typeof L === 'undefined') return;
+  const pts = accounts.filter(a => a.lat && a.lon);
+  try {
+    _acctPanelMap = L.map(elId, { zoomControl:true, attributionControl:false, scrollWheelZoom:false }).setView([35, -40], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png?key=cb1_3vl0_1_d5fd75a2350d6017620f3bd6',
+      { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_acctPanelMap);
+    pts.forEach(a => {
+      const gid = a.parentId || a.id;
+      const n = ((oppsBySite||{})[a.id] || []).length;
+      const m = L.circleMarker([a.lat, a.lon], { radius: n ? 8 : 6, fillColor:getGroupColor(gid), color:'white', weight:2, fillOpacity:.9 }).addTo(_acctPanelMap);
+      m.bindTooltip(qesc(a.name) + (n ? ' · ' + n + ' open' : ''), { direction:'top', offset:[0,-6] });
+      m.on('click', () => { if (a.parentId) selectAcctSite(a.id); else if (_acctSelectedGroup !== a.id) toggleAcctGroup(a.id); });
+    });
+    if (pts.length > 1) _acctPanelMap.fitBounds(pts.map(a => [a.lat, a.lon]), { padding:[24,24], maxZoom:8 });
+    else if (pts.length === 1) _acctPanelMap.setView([pts[0].lat, pts[0].lon], 6);
+    setTimeout(() => { try { _acctPanelMap.invalidateSize(); } catch(_){} }, 100);
+  } catch(_) {}
+}
+// Open opps keyed (acctId) to any of these account/site ids.
+function _acctOppsFor(ids){ const set = new Set(ids); return DATA.filter(o => o.status === 'O' && o.acctId && set.has(o.acctId)); }
+// Open opps NOT keyed to a site whose account name matches the group or one of its sites.
+function _acctSuggestedFor(group, sites){
+  const keys = [group.acctMatch, group.name].concat(sites.map(s => s.acctMatch)).filter(Boolean).map(k => String(k).toLowerCase());
+  return DATA.filter(o => o.status === 'O' && !o.acctId && o.acct && keys.some(k => { const a = o.acct.toLowerCase(); return a === k || a.includes(k) || k.includes(a); }));
+}
+function _acctKpi(v, label, color, onclick){
+  return `<div class="detail-kpi${onclick?' clickable':''}" style="border-left-color:${color}"${onclick?` onclick="${onclick}"`:''}>
+    <div class="detail-kpi-val">${v}</div><div class="detail-kpi-label">${label}</div></div>`;
+}
+function _acctOppRow(o, siteName){
+  return `<div class="acct-opp-row" onclick="openOppDrawer('${qattr(o.id)}')">
+    ${siteName ? `<span class="acct-grp-site-badge" title="${qattr(siteName)}">${qesc(siteName)}</span>` : ''}
+    <span class="acct-opp-id">${qesc(o.id)}</span>
+    <span style="flex:1;color:var(--color-text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${qesc(o.type||'')}</span>
+    ${o.stage ? `<span class="acct-ov-muted" style="margin-right:8px">${qesc(o.stage)}</span>` : ''}
+    <span style="color:var(--tsi-teal);font-family:var(--font-mono);font-size:10px">${fmt(o.val)}</span>
+    <span style="color:var(--color-text-muted);font-size:10px;margin-left:8px;font-family:var(--font-mono)">${Math.round((o.prob||0)*100)}%</span>
+  </div>`;
+}
+function renderAcctPanel(){
+  if (_acctMapShowing || _acctTableShowing) return;
+  if (_acctSelectedSite) return renderAcctMain(_acctSelectedSite);
+  if (_acctSelectedGroup) return renderAcctGroupSummary(_acctSelectedGroup);
+  renderAcctOverview();
+}
+function renderAcctOverview(){
+  const main = document.getElementById('acct-main'); if (!main) return;
+  main.style.display = '';
+  const data   = getAccounts();
+  const groups = data.groups, sites = data.sites;
+  const keyed  = DATA.filter(o => o.status === 'O' && o.acctId);
+  const openVal = keyed.reduce((t,o) => t + (o.val||0), 0);
+  const current = groups.filter(g => g.customerStatus === 'current').length;
+  const noGeo   = sites.filter(s => !(s.lat && s.lon)).length;
+  const byId    = new Map(data.accounts.map(a => [a.id, a]));
+  const byGroup = {}, oppsBySite = {};
+  keyed.forEach(o => {
+    const a = byId.get(o.acctId); if (!a) return;
+    const gid = a.parentId || a.id;
+    (byGroup[gid] = byGroup[gid] || { n:0, v:0 }); byGroup[gid].n++; byGroup[gid].v += o.val||0;
+    (oppsBySite[o.acctId] = oppsBySite[o.acctId] || []).push(o);
+  });
+  const top = Object.entries(byGroup).map(([gid,t]) => ({ gid, ...t, name:(byId.get(gid)||{}).name || gid }))
+    .sort((a,b) => b.v - a.v).slice(0, 8);
+  const siteName = id => (byId.get(id)||{}).name || '—';
+  const acts = (typeof activityStore === 'function' ? activityStore().all() : [])
+    .filter(a => a.siteId).sort((a,b) => (b.date||'').localeCompare(a.date||'')).slice(0, 8);
+  main.innerHTML = `
+    <div class="acct-ov-head">
+      <div>
+        <div class="acct-ov-title">All accounts</div>
+        <div class="acct-ov-sub">Pick an account on the left for its group summary, or a site for the full detail.</div>
+      </div>
+      <div class="acct-hdr-btns">
+        <button class="btn-acct-add" onclick="toggleAcctMap()" title="Full-size map with location / plant-type / region filters">🗺 Full map</button>
+        <button class="btn-acct-add" onclick="toggleAcctTable()" title="Every account &amp; site as a sortable table">▦ Table</button>
+      </div>
+    </div>
+    <div class="acct-ov-kpis">
+      ${_acctKpi(groups.length, 'Accounts', 'var(--tsi-deep-blue)')}
+      ${_acctKpi(sites.length, 'Sites', 'var(--tsi-teal)')}
+      ${_acctKpi(current, 'Current customers', 'var(--tsi-sage)', "setAcctCustFilter('current')")}
+      ${_acctKpi(keyed.length, 'Open opps keyed to a site', 'var(--tsi-teal)')}
+      ${_acctKpi(fmt(openVal), 'Open value', 'var(--tsi-deep-blue)')}
+      ${_acctKpi(noGeo, 'Sites not geocoded', noGeo ? 'var(--tsi-coral)' : 'var(--tsi-sage)', noGeo ? 'openAcctReview()' : '')}
+    </div>
+    <div id="acct-ov-map" class="acct-ov-map"${typeof L === 'undefined' ? ' style="display:none"' : ''}></div>
+    <div class="acct-ov-cols">
+      <div class="acct-section">
+        <div class="acct-section-header"><span class="acct-section-title">Top accounts by open pipeline</span></div>
+        ${top.length ? top.map(g => `<div class="acct-ov-row" onclick="toggleAcctGroup('${qattr(g.gid)}')">
+            <span class="acct-ov-dot" style="background:${getGroupColor(g.gid)}"></span>
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${qesc(g.name)}</span>
+            <span class="acct-ov-muted">${g.n} open</span>
+            <span class="acct-ov-num">${fmt(g.v)}</span>
+          </div>`).join('') : '<div class="acct-ov-muted" style="padding:4px 0">No open opportunities are keyed to a site yet — open one and pick its account.</div>'}
+      </div>
+      <div class="acct-section">
+        <div class="acct-section-header"><span class="acct-section-title">Recent field activity</span></div>
+        ${acts.length ? acts.map(v => `<div class="acct-ov-row" onclick="selectAcctSite('${qattr(v.siteId)}')">
+            <span class="acct-ov-num" style="color:var(--color-text-secondary)">${qesc(v.date||'—')}</span>
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${qesc(siteName(v.siteId))}</span>
+            <span class="acct-ov-muted">${qesc((v.people||[]).join(', '))}${v.type && v.type !== 'visit' ? ' · ' + qesc(activityTypeLabel(v.type)) : ''}</span>
+          </div>`).join('') : '<div class="acct-ov-muted" style="padding:4px 0">No visits logged yet.</div>'}
+      </div>
+    </div>`;
+  setTimeout(() => _acctPanelDrawMap('acct-ov-map', data.accounts, oppsBySite), 50);
+}
+function renderAcctGroupSummary(gid){
+  const main = document.getElementById('acct-main'); if (!main) return;
+  const data  = getAccounts();
+  const group = data.accounts.find(a => a.id === gid && !a.parentId);
+  if (!group) return renderAcctOverview();
+  main.style.display = '';
+  const sites = data.sites.filter(s => s.groupId === gid).sort((a,b) => a.name.localeCompare(b.name));
+  const ids   = [gid].concat(sites.map(s => s.id));
+  const opps  = _acctOppsFor(ids).sort((a,b) => (b.val||0) - (a.val||0));
+  const suggested = _acctSuggestedFor(group, sites).slice(0, 20);
+  const openVal = opps.reduce((t,o) => t + (o.val||0), 0);
+  const wtd     = opps.reduce((t,o) => t + (o.val||0) * (o.prob||0), 0);
+  const oppsBySite = {}; opps.forEach(o => (oppsBySite[o.acctId] = oppsBySite[o.acctId] || []).push(o));
+  const byId = new Map(data.accounts.map(a => [a.id, a]));
+  const siteName = id => id === gid ? 'HQ' : ((byId.get(id)||{}).name || '—');
+  const contacts = data.contacts.filter(c => (c.accountIds||[]).some(id => ids.includes(id))).length;
+  const visits = (typeof activityStore === 'function' ? activityStore().all() : []).filter(a => ids.includes(a.siteId));
+  const events = data.events.filter(e => ids.includes(e.siteId));
+  const recent = visits.map(v => ({ date:v.date||'', site:siteName(v.siteId), what:(v.people||[]).join(', ') + (v.type && v.type !== 'visit' ? ' · ' + activityTypeLabel(v.type) : ' · visit'), notes:v.notes||'', click:`editVisitModal('${qattr(v.id)}')` }))
+    .concat(events.map(e => ({ date:e.date||'', site:siteName(e.siteId), what:e.type||'event', notes:e.notes||'', click:`selectAcctSite('${qattr(e.siteId)}')` })))
+    .sort((a,b) => b.date.localeCompare(a.date)).slice(0, 8);
+  const lastVisit = visits.map(v => v.date||'').sort().pop() || '—';
+  const logo = acctLogo(gid);
+  const cs = group.customerStatus;
+  const geo = [group].concat(sites).filter(a => a.lat && a.lon).length;
+  main.innerHTML = `
+    <button class="acct-back-btn" onclick="acctBackToList()">← All accounts</button>
+    <div class="acct-site-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+      <div style="display:flex;gap:12px;align-items:flex-start;min-width:0">
+        ${logo ? `<img class="acct-logo-img" src="${logo}" alt="account logo">` : ''}
+        <div style="min-width:0">
+          <div class="acct-site-name">${qesc(group.name)}</div>
+          <div class="acct-site-meta">
+            <span class="acct-loctype corp">Account group</span>
+            ${cs ? `<span class="accf-chip active" style="flex:0 0 auto;font-size:10px;padding:1px 8px">${cs === 'current' ? '✅ Current customer' : '🎯 Potential'}</span>` : ''}
+            ${group.loc ? `<span>📍 ${qesc(group.loc)}</span>` : ''}
+            <span>${sites.length} site${sites.length === 1 ? '' : 's'}</span>
+            ${sites.length && geo < sites.length ? `<span style="color:var(--tsi-coral)">⚠ ${sites.length - (geo - (group.lat && group.lon ? 1 : 0))} site${sites.length - (geo - (group.lat && group.lon ? 1 : 0)) === 1 ? '' : 's'} not geocoded</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="acct-hdr-btns" style="flex-shrink:0">
+        <button class="btn-acct-add" onclick="openSiteDrawer('${qattr(gid)}')">✎ Edit account</button>
+        <button class="btn-acct-add" onclick="openSiteDrawerForParent('${qattr(gid)}')">+ Site</button>
+      </div>
+    </div>
+    <div class="acct-ov-kpis">
+      ${_acctKpi(sites.length, 'Sites', 'var(--tsi-teal)')}
+      ${_acctKpi(opps.length, 'Open opportunities', 'var(--tsi-teal)')}
+      ${_acctKpi(fmt(openVal), 'Open value', 'var(--tsi-deep-blue)')}
+      ${_acctKpi(fmt(wtd), 'Weighted', 'var(--tsi-deep-blue)')}
+      ${_acctKpi(contacts, 'Contacts', 'var(--tsi-sage)')}
+      ${_acctKpi(lastVisit, 'Last visit', 'var(--tsi-sage)')}
+    </div>
+    ${geo && typeof L !== 'undefined' ? `<div id="acct-grp-map" class="acct-ov-map"></div>`
+      : `<div class="acct-ov-muted" style="padding:0 20px 8px">${sites.length ? 'No geocoded sites yet — edit a site and set its location to see the map.' : ''}</div>`}
+    <div class="acct-section">
+      <div class="acct-section-header">
+        <span class="acct-section-title">Sites (${sites.length})</span>
+        <button class="btn-acct-add" onclick="openSiteDrawerForParent('${qattr(gid)}')">+ Add</button>
+      </div>
+      ${sites.length ? `<table class="acct-eq-table acct-grp-sites">
+        <thead><tr><th>Site</th><th>Location</th><th>Type</th><th>Capacity</th><th style="text-align:right">Open</th><th style="text-align:right">Value</th></tr></thead>
+        <tbody>${sites.map(s => { const so = oppsBySite[s.id] || []; const tags = acctSitePlantTags(s);
+          return `<tr onclick="selectAcctSite('${qattr(s.id)}')">
+            <td><strong>${qesc(s.name)}</strong>${!(s.lat && s.lon) ? ' <span style="color:var(--tsi-coral)" title="Not geocoded">⚠</span>' : ''}</td>
+            <td>${qesc(s.loc||'—')}</td>
+            <td>${s.locType === 'corporate' ? 'Corporate' : (tags.length ? tags.map(t => `<span class="acct-ptag">${qesc(t)}</span>`).join(' ') : '—')}</td>
+            <td>${s.locType !== 'corporate' && fmtCapacity(s) ? qesc(fmtCapacity(s)) : '—'}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${so.length || '—'}</td>
+            <td style="text-align:right;font-family:var(--font-mono);color:var(--tsi-teal)">${so.length ? fmt(so.reduce((t,o) => t + (o.val||0), 0)) : '—'}</td>
+          </tr>`; }).join('')}</tbody>
+      </table>` : `<div class="acct-ov-muted" style="padding:4px 0">No sites yet —
+          <span style="color:var(--tsi-teal);cursor:pointer" onclick="openSiteDrawerForParent('${qattr(gid)}')">add a site</span>.</div>`}
+    </div>
+    <div class="acct-section">
+      <div class="acct-section-header"><span class="acct-section-title">Open opportunities across the group (${opps.length})</span></div>
+      ${opps.length ? opps.map(o => _acctOppRow(o, siteName(o.acctId))).join('')
+        : '<div class="acct-ov-muted" style="padding:4px 0">No opportunities keyed to this group’s sites yet.</div>'}
+      ${suggested.length ? `
+        <div class="acct-section-header" style="margin-top:12px">
+          <span class="acct-section-title" style="color:var(--color-text-muted)">Suggested by name (${suggested.length}) · not keyed to a site — open one to assign its account</span>
+        </div>
+        ${suggested.map(o => `<div style="opacity:.85">${_acctOppRow(o, '')}</div>`).join('')}` : ''}
+    </div>
+    <div class="acct-section">
+      <div class="acct-section-header"><span class="acct-section-title">Recent activity</span></div>
+      ${recent.length ? recent.map(r => `<div class="acct-ov-row" onclick="${r.click}">
+          <span class="acct-ov-num" style="color:var(--color-text-secondary)">${qesc(r.date||'—')}</span>
+          <span class="acct-grp-site-badge" style="margin:0">${qesc(r.site)}</span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${qesc(r.what)}${r.notes ? ` <span class="acct-ov-muted">— ${qesc(r.notes)}</span>` : ''}</span>
+        </div>`).join('') : '<div class="acct-ov-muted" style="padding:4px 0">No visits or events logged for this group yet.</div>'}
+    </div>`;
+  if (geo) setTimeout(() => _acctPanelDrawMap('acct-grp-map', [group].concat(sites), oppsBySite), 50);
 }
 
 /* ── Account media (parent-account logo + photos, one prime for the card) ──

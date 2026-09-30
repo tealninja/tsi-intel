@@ -179,6 +179,23 @@ Roles (cumulative ladder):
 
 ## ✅ Recently done
 
+### 🗒️ 2026-09-30 — accounts overview + group summary, drawer contrast (build #177)
+- [x] **Accounts: main panel never empty** (raised by JT: "waits for an account to be selected to
+  show anything on right"). On opening the tab with nothing selected it now shows an **All accounts
+  overview**: KPIs (accounts, sites, current customers, open opps keyed to a site, open value, sites
+  not geocoded → opens Gaps), an embedded all-sites map (pin click → site / group), top accounts by
+  open pipeline (click → group), recent field activity (click → site). Full map / Table buttons
+  remain for the filterable views. `renderAcctPanel()` dispatches overview / group / site.
+- [x] **Accounts: selecting a parent group shows a group summary** (was a blank "select a site").
+  Header (logo, customer status, HQ, site count, not-geocoded warning, Edit account / + Site),
+  KPIs (sites, open opps, open value, weighted, contacts, last visit), a map of the group's sites,
+  a sites table (location, type, capacity, open opps, value → click for detail), every open
+  opportunity across the group with a site badge (+ name-suggested opps not yet keyed), and
+  recent visits/events. Empty groups get an inline "add a site" prompt.
+- [x] **Drawer header contrast** (raised by JT): the Edit Account / opportunity drawer header was
+  the same deep blue as the app bar, so the two merged. Header is now teal (`rgb(0,116,125)`)
+  with a hairline under it.
+
 ### 🗒️ 2026-09-29 — scope-tag filter modes + sort (build #176)
 - [x] **Scope tags: multi-checkbox filter with Any / All / None** (raised by JT). The 🏷 Scope Tags
   dropdown on Pipeline now has a match-mode switch: *Any* (at least one checked tag — the old
