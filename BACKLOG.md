@@ -179,6 +179,30 @@ Roles (cumulative ladder):
 
 ## ✅ Recently done
 
+### 🗒️ 2026-10-01 — opportunity audit trail + History/aging view + market drivers (build #178)
+- [x] **Audit trail in D1** (raised by JT: "how are opps aging, how do close dates slip, probabilities
+  and prices change"). New `opp_events` (append-only) + `pipeline_snapshots` (daily) tables — created
+  live; initial snapshot taken 2026-10-01. The API worker now diffs every opportunity write against the
+  stored row (app, MCP, Claude, import all captured) and exposes `/api/events`, `/api/events/backfill`,
+  `/api/snapshots`, `/api/snapshots/run`; daily cron snapshot. **Worker redeploy pending**
+  (`cd deploy && wrangler deploy`).
+- [x] **Backfill of the prose history** — the Sept 23–24 cleanup / sales-update lines ("close 2026-Q3 →
+  2026-Q4 (Pass 4)", "Stale review: prob 0.75 → 0.25; …") are parsed into structured events; the app
+  pushes everything the server lacks the first time the History tab opens.
+- [x] **History tab rebuilt as "Opportunity history & aging"**: KPIs (weighted pipeline + 30-day delta,
+  close slips with net months, avg age / idle, stale), pipeline-over-time chart reconstructed from the
+  change log, close-date slippage leaders, prob/value moves (90 d), aging table (age, idle, changes,
+  slip), full change log with source badges. Per-opportunity **timeline modal** (value & probability
+  step charts, expected-close ladder with months slipped, every event) from any row or the drawer's
+  📈 History button.
+- [x] **Market drivers** (raised by JT: NB Power 400,000 t/yr pellet tender as context for the equipment
+  deals). ⚡ Drivers drawer (list / new / detail with linked opps + "Show in pipeline"), "Market
+  drivers" field in the opp drawer with the driver's summary shown inline, ⚡ badge on pipeline rows,
+  driver names searchable. Stored as D1 collection `drivers`.
+- [ ] Worker: also log `drivers` changes and site/account edits to the event table (same diff helper).
+- [ ] History: pipeline-over-time from `pipeline_snapshots` once a few weeks of daily rows exist
+  (replay is an estimate where early `from` values are unknown).
+
 ### 🗒️ 2026-09-30 — accounts overview + group summary, drawer contrast (build #177)
 - [x] **Accounts: main panel never empty** (raised by JT: "waits for an account to be selected to
   show anything on right"). On opening the tab with nothing selected it now shows an **All accounts

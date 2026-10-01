@@ -31,3 +31,8 @@ database_id = "e18ad8cb-ce35-42b2-ba01-8a1d31551398"
 
 # Optional: the AI proxy (/api/ai) reads env.ANTHROPIC_API_KEY. It's a secret, not
 # set here — add it only if you use that route:  wrangler secret put ANTHROPIC_API_KEY
+
+# Daily 06:00 UTC: snapshot every opportunity into pipeline_snapshots (audit
+# trail / aging). The worker's scheduled() handler does the insert.
+[triggers]
+crons = ["0 6 * * *"]

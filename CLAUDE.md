@@ -60,6 +60,35 @@ static assets — the two `wrangler deploy` steps and all secrets are **human/CL
 the new route strings, then after the user saves a quote / edits an account,
 `d1_database_query` that `quotes` / `collections` gained rows.
 
+## Opportunity audit trail (added 2026-10-01, build #178)
+- **D1 tables** `opp_events` (append-only field changes: val, prob, close, stage, lead,
+  status, acctId, created; `source` = app | api | mcp | prose | record, `backfill:` prefix
+  when pushed by the app) and `pipeline_snapshots` (one row per opportunity per day).
+  DDL in `migrations/006_opp_events.sql`; both were created live via the Cloudflare
+  connector, so they exist before the worker ships.
+- **API worker** (`deploy/tsi-intel-api.js`): every PUT/POST to the `opportunities`
+  collection is diffed against the stored row → `opp_events`. Routes: `GET /api/events`
+  (`?opp=&since=&limit=`), `POST /api/events/backfill` (idempotent via unique index),
+  `GET /api/snapshots`, `POST /api/snapshots/run`. `scheduled()` + `[triggers] crons`
+  in `deploy/wrangler.toml` snapshot daily 06:00 UTC. **Needs `cd deploy && wrangler
+  deploy`** — until then the app works from record history alone.
+- **App**: `parseHistoryAction()` turns the prose history lines (Sept 2026 cleanup /
+  sales-update passes) back into field changes; `oppEvents(o)` merges record history
+  with the server log; `oppStateAt(o, ts)` replays to any date; `pipelineSeries()`
+  feeds the History tab chart. Opening the History tab fetches `/api/events` and
+  pushes any local events the server lacks (one-time backfill, then incremental).
+- When writing opportunities from chat (tsi-intel-update skill / direct D1), keep adding
+  a `history` entry — prose like `close 2026-Q3 → 2026-Q4` is parsed into events.
+  Send `X-TSI-Source: mcp` from the MCP worker if it starts writing opportunities.
+
+## Market drivers (added 2026-10-01)
+A **driver** is a tender / program / policy / project that creates demand without being
+the customer (e.g. NB Power buying 400,000 t/yr of pellets — TSI sells plants to the
+suppliers). Stored as D1 collection `drivers` via `Store('drivers')`; opportunities carry
+`driverIds[]`. UI: ⚡ Drivers launcher (list / form / detail with linked opps and
+"Show in pipeline" filter), a "Market drivers" field in the opp drawer that shows the
+driver's summary inline, a ⚡ badge on pipeline rows, driver names in pipeline search.
+
 ## Conventions
 - Match the surrounding style in `tsi-intel.html`; data lives inline as JS consts.
 - Products/prices/quote lines key on `products.seed_id` (stable across SKU schemes).

@@ -2197,6 +2197,48 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .acct-grp-site-badge{font-size:10px;color:var(--color-text-secondary);background:var(--color-bg);border:0.5px solid var(--color-border);border-radius:var(--radius-sm);padding:1px 6px;margin-right:8px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:768px){ .acct-ov-cols{grid-template-columns:1fr} .acct-ov-map{margin:0 12px} .acct-ov-head,.acct-ov-kpis{padding-left:12px;padding-right:12px} }
 
+/* ── HISTORY & AGING ─────────────────────────────────────── */
+.hist-kpi-row.five{grid-template-columns:repeat(5,1fr)}
+.hist-kpi .k-sub{font:400 10px var(--font-ui);color:var(--color-text-muted);margin-top:3px}
+.hist-kpi .k-sub.up{color:var(--tsi-succ-green)} .hist-kpi .k-sub.down{color:var(--tsi-coral)}
+.hist-card{border:0.5px solid var(--color-border);border-radius:var(--radius-lg);padding:14px 16px;margin:12px 0;background:var(--color-surface)}
+.hist-card-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.hist-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hist-src{font:400 11px var(--font-ui);color:var(--color-text-muted)}
+.hist-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:baseline;padding:6px 0;border-bottom:0.5px solid var(--color-border);font-size:12px;cursor:pointer}
+.hist-row:last-child{border-bottom:none}
+.hist-row .h-name{color:var(--color-heading);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-row .h-sub{font-size:10.5px;color:var(--color-text-muted)}
+.hist-row .h-num{font-family:var(--font-mono);font-size:11px;white-space:nowrap}
+.ev-src{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-muted);border:0.5px solid var(--color-border);border-radius:3px;padding:0 4px;margin-left:6px;vertical-align:middle}
+.tl-modal{max-width:760px;width:94%}
+.tl-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px}
+.tl-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:10px 0}
+.tl-stat{border:0.5px solid var(--color-border);border-radius:var(--radius-md);padding:8px 10px}
+.tl-stat b{display:block;font:500 16px var(--font-mono);color:var(--color-heading)}
+.tl-stat span{font-size:10px;color:var(--color-text-muted)}
+.tl-charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0}
+.tl-chart{height:150px;position:relative;border:0.5px solid var(--color-border);border-radius:var(--radius-md);padding:6px}
+.tl-chart .tl-chart-t{font-size:10px;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.04em}
+.tl-ladder .hist-row{grid-template-columns:150px 1fr auto;cursor:default}
+.tl-events{max-height:260px;overflow:auto;border-top:0.5px solid var(--color-border);margin-top:8px;padding-top:6px}
+@media(max-width:768px){.hist-cols,.tl-charts{grid-template-columns:1fr}.hist-kpi-row.five{grid-template-columns:repeat(2,1fr)}.tl-stats{grid-template-columns:repeat(2,1fr)}}
+/* ── MARKET DRIVERS (tenders / programs / policies behind deals) ── */
+.drv-card{border:1px solid var(--color-border);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:8px;background:var(--color-surface);cursor:pointer}
+.drv-card:hover{border-color:var(--tsi-teal)}
+.drv-name{font-size:13px;font-weight:500;color:var(--color-heading)}
+.drv-meta{font-size:11px;color:var(--color-text-muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.drv-chip{font-size:10px;border-radius:999px;padding:1px 8px;background:rgba(0,146,159,.12);color:var(--tsi-teal);font-weight:600;white-space:nowrap}
+.drv-chip.st-open{background:rgba(110,140,52,.14);color:var(--tsi-succ-green)} .drv-chip.st-watching{background:rgba(25,68,108,.12);color:var(--tsi-deep-blue)}
+.drv-chip.st-awarded{background:rgba(234,222,134,.45);color:#6b5d0f} .drv-chip.st-closed{background:var(--color-bg);color:var(--color-text-muted)}
+.drv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:12px;margin:8px 0}
+.drv-grid label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-muted)}
+.drv-summary{font-size:12.5px;line-height:1.5;color:var(--color-text-primary);white-space:pre-wrap;border-left:3px solid var(--tsi-teal);padding:6px 10px;background:var(--color-bg);border-radius:var(--radius-sm);margin:8px 0}
+.drv-ctx{font-size:11px;color:var(--color-text-secondary);border-left:3px solid var(--tsi-teal);padding:4px 8px;margin:6px 0 0;background:var(--color-bg);border-radius:var(--radius-sm);line-height:1.45}
+.drv-ctx b{color:var(--color-heading)}
+.drv-ctx .dl-open{color:var(--tsi-teal);cursor:pointer}
+.row-drv-badge{color:var(--tsi-amber)}
+
 /* ── COLLAPSIBLE CUES ────────────────────────────────────── */
 /* Main page collapse headers */
 .collapse-header {
@@ -3376,6 +3418,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
     oninput="saveUserInitials()" onblur="this.value=this.value.toUpperCase()">
   <span class="user-last-updated" id="last-updated-label"></span>
   <button class="import-btn" onclick="openLeadsDrawer()" title="Capture & triage unassigned leads">📥 Leads<span class="leads-badge" id="leads-badge" style="display:none">0</span></button>
+  <button class="import-btn" onclick="openDriversDrawer()" title="Market drivers — tenders, programs and policies that create opportunities (context, not customers)">⚡ Drivers<span class="leads-badge" id="drivers-badge" style="display:none;background:var(--tsi-teal)">0</span></button>
   <button class="import-btn" onclick="document.getElementById('opp-upload-input').click()">⬆ Import JSON</button>
   <button class="import-btn" id="sync-btn" onclick="manualSync()" style="display:none">☁ Sync</button>
   <button class="view-toggle-btn" id="compact-btn" onclick="toggleCompact()" title="Toggle compact view">⊟ Compact</button>
@@ -3745,7 +3788,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#177 · 2026-09-30 · accounts: overview on load + group summary (KPIs, map, sites, opps, activity); teal drawer header';
+const APP_BUILD = '#178 · 2026-10-01 · audit trail: event layer + History/aging view + per-opp timeline; market drivers (tenders/programs) linkable to opps';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -5290,11 +5333,11 @@ function renderPipeline() {
     (!needsLocOnly || !locVerified(o)) &&
     (!linkedOnly || relatedOppIds(o.id).length > 0) &&
     stalePass(o) && (!src || (o.source||'').trim()===src) &&
-    (!q || [o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q)) &&
+    (!q || [o.acct,o.loc,o.type,o.cat,o.notes,o.id,oppDriverNames(o)].join(' ').toLowerCase().includes(q)) &&
     (!cat  || o.cat===cat) &&
     (!loc  || o.loc===loc) &&
     (!lead || o.lead===lead) &&
-    tagPass(o) &&
+    tagPass(o) && driverPass(o) &&
     probFilter(o,prob) && closeFilter(o)
   );
   f = applyColFilters(f);
@@ -5326,6 +5369,15 @@ function renderPipeline() {
       badge.title="Linked: "+_rel.join(", ");
       badge.onclick=(e)=>{ e.stopPropagation(); openDetail(o.id); };
       tdId.appendChild(badge);
+    }
+    // Market-driver badge — the tender / program / policy this deal rides on.
+    const _drv=oppDriverIds(o);
+    if(_drv.length){
+      const db=document.createElement("span");
+      db.className="row-link-badge row-drv-badge"; db.textContent="⚡";
+      db.title="Driver: "+_drv.map(id=>(driverById(id)||{}).name||id).join(', ');
+      db.onclick=(e)=>{ e.stopPropagation(); openDriversDrawer(_drv[0]); };
+      tdId.appendChild(db);
     }
     // Staleness badge (🍞 / 🦠 / 💀) — hover for the last substantive update, click = still accurate.
     if(o.status==='O'){ const _sb=staleBadgeHtml(o); if(_sb) tdId.insertAdjacentHTML('beforeend', _sb); }
@@ -6153,9 +6205,9 @@ function currentFilteredRows() {
     (!linkedOnly||relatedOppIds(o.id).length>0)&&
     stalePass(o)&&(!src||(o.source||'').trim()===src)&&
     (!imminentOnly||(typeof IMMINENT_IDS!=='undefined'&&IMMINENT_IDS.includes(o.id)))&&
-    (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id].join(' ').toLowerCase().includes(q))&&
+    (!q||[o.acct,o.loc,o.type,o.cat,o.notes,o.id,oppDriverNames(o)].join(' ').toLowerCase().includes(q))&&
     (!cat||o.cat===cat)&&(!loc||o.loc===loc)&&(!lead||o.lead===lead)&&
-    tagPass(o)&&probFilter(o,prob)&&closeFilter(o)
+    tagPass(o)&&driverPass(o)&&probFilter(o,prob)&&closeFilter(o)
   );
   return applyColFilters(_f);
 }
@@ -6483,7 +6535,7 @@ const BUGS_KEY = 'tsi_pipeline_bugs_v1';   // legacy localStorage key (pre-Store
 async function storeApi(method, path, body){
   if (!API_WORKER_URL) return { ok:false };
   try {
-    const opt = { method, headers: workerHeaders() };
+    const opt = { method, headers: { ...workerHeaders(), 'X-TSI-Source': 'app' } };
     if (body != null) opt.body = JSON.stringify(body);
     const res = await fetch(API_WORKER_URL + '/api/store/' + path, opt);
     if (!res.ok) return { ok:false, status:res.status };
@@ -6736,7 +6788,7 @@ function openOppDrawer(editId, opts) {
     _drawerNavList = (isEdit && ids.includes(editId)) ? ids : (isEdit ? [editId] : []);
   }
   document.getElementById('drawer-title').textContent = isEdit ? 'Edit Opportunity' : 'New Opportunity';
-  { const _np = document.getElementById('drawer-next-phase'); if (_np) _np.style.display = isEdit ? '' : 'none'; }
+  { const _np = document.getElementById('drawer-next-phase'); if (_np) _np.style.display = isEdit ? '' : 'none'; const _tl = document.getElementById('drawer-timeline'); if (_tl) _tl.style.display = isEdit ? '' : 'none'; }
 
   if (isEdit) {
     const o = DATA.find(r => r.id === editId);
@@ -6783,6 +6835,7 @@ function openOppDrawer(editId, opts) {
     setDrawerField('d-phase', o.phase || '');
     setDrawerField('d-lob', o.lob || '');
     _drawerLinks = relatedOppIds(o.id);   // union of both directions (self-heals legacy one-sided links)
+    _drawerDrivers = oppDriverIds(o);
     // Restore climate if available
     if (o._monthlyHigh && o._monthlyLow && o._monthlyMean && o._monthlyPrecip) {
       drawClimatogram(o._monthlyHigh, o._monthlyMean, o._monthlyLow, o._monthlyPrecip);
@@ -6807,6 +6860,7 @@ function openOppDrawer(editId, opts) {
     _drawerTags = [];
     _drawerProducts = [];
     _drawerLinks = [];
+    _drawerDrivers = [];
     _drawerLat = null; _drawerLon = null;
     const _ws2 = document.getElementById('d-weather-section');
     if(_ws2) _ws2.style.display = 'none';
@@ -6817,6 +6871,7 @@ function openOppDrawer(editId, opts) {
   rebuildDrawerTags();
   rebuildDrawerProducts();
   rebuildDrawerLinks();
+  rebuildDrawerDrivers();
   _drawerDirty = false;      // fresh load — no unsaved edits yet
   window._drawerLocMeta = null;
   updateDrawerNavUI();
@@ -7532,6 +7587,7 @@ function saveOppDrawer() {
     lob:        document.getElementById('d-lob')?.value || '',
     phase:      document.getElementById('d-phase')?.value.trim() || '',
     linkedIds:  [..._drawerLinks],
+    driverIds:  [..._drawerDrivers],
     notes:      document.getElementById('d-notes').value.trim(),
     details:    (function(){ const el=document.getElementById('d-details'); return el ? rteToValue(el.innerHTML) : ''; })(),
     lat:        _drawerLat,
@@ -10478,6 +10534,197 @@ function renderAcctGroupSummary(gid){
   if (geo) setTimeout(() => _acctPanelDrawMap('acct-grp-map', [group].concat(sites), oppsBySite), 50);
 }
 
+// ══ MARKET DRIVERS ════════════════════════════════════════════
+// A driver is the thing that creates demand without being the customer: a
+// tender (NB Power buying 400,000 t/yr of pellets), a program, a policy, a
+// project. TSI sells equipment to the people who answer it, so the driver's
+// facts are context every linked opportunity needs. Stored as the D1
+// collection 'drivers'; opportunities carry driverIds[].
+let _driverStore=null;
+function driverStore(){ return _driverStore || (_driverStore = Store('drivers')); }
+function driversAll(){ return driverStore().all().filter(d => d && d.id); }
+function driverById(id){ return driversAll().find(d => d.id === id) || null; }
+const DRIVER_KINDS  = { tender:'Tender / RFP', program:'Program / offtake', policy:'Policy / incentive', project:'Project', event:'Market event', other:'Other' };
+const DRIVER_STATUS = { open:'Open', watching:'Watching', awarded:'Awarded', closed:'Closed' };
+function oppDriverIds(o){ return normLinkIds(o && o.driverIds); }
+function oppDriverNames(o){ return oppDriverIds(o).map(id => (driverById(id)||{}).name || '').join(' '); }
+function driverOpps(id){ return DATA.filter(o => oppDriverIds(o).includes(id)); }
+let _driverFilter=null, _driverView={ mode:'list', id:null }, _drawerDrivers=[];
+function driverPass(o){ return !_driverFilter || oppDriverIds(o).includes(_driverFilter); }
+function updateDriversBadge(){ const b=document.getElementById('drivers-badge'); if(!b) return; const n=driversAll().filter(d=>d.status==='open'||d.status==='watching').length; b.style.display=n?'':'none'; b.textContent=n; }
+function driverChip(d){ return `<span class="drv-chip st-${d.status||'open'}">${DRIVER_STATUS[d.status]||'Open'}</span> <span class="drv-chip">${DRIVER_KINDS[d.kind]||'Other'}</span>`; }
+function driverRollup(id){ const opps=driverOpps(id).filter(o=>o.status==='O'); return { n:opps.length, v:opps.reduce((t,o)=>t+(o.val||0),0), w:opps.reduce((t,o)=>t+(o.val||0)*(o.prob||0),0) }; }
+async function openDriversDrawer(id){
+  try { await driverStore().pull(); } catch(_){}
+  _driverView = id ? { mode:'detail', id } : { mode:'list', id:null };
+  renderDriversDrawer();
+  document.getElementById('drivers-drawer-overlay').classList.add('open');
+  document.getElementById('drivers-drawer').classList.add('open');
+}
+function closeDriversDrawer(){
+  document.getElementById('drivers-drawer-overlay').classList.remove('open');
+  document.getElementById('drivers-drawer').classList.remove('open');
+}
+function renderDriversDrawer(){
+  const body=document.getElementById('drivers-body'), t=document.getElementById('drivers-title'); if(!body) return;
+  if(_driverView.mode==='form'){ body.innerHTML=driverFormHtml(_driverView.id); if(t) t.textContent=_driverView.id?'⚡ Edit driver':'⚡ New driver'; }
+  else if(_driverView.mode==='detail'){ body.innerHTML=driverDetailHtml(_driverView.id); if(t) t.textContent='⚡ Market driver'; }
+  else { body.innerHTML=driverListHtml(); if(t) t.textContent='⚡ Market drivers'; }
+}
+function driverListHtml(){
+  const order={open:0,watching:1,awarded:2,closed:3};
+  const list=driversAll().slice().sort((a,b)=>(order[a.status]??1)-(order[b.status]??1)||a.name.localeCompare(b.name));
+  return `<div class="dsec">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--color-text-muted);flex:1">Tenders, programs and policies that create demand. Link opportunities to them so the context travels with the deal.</div>
+      <button class="btn-save-opp" style="flex:0 0 auto;width:auto;padding:7px 14px" onclick="openDriverForm()">+ New driver</button>
+    </div>
+    ${list.length?list.map(d=>{ const r=driverRollup(d.id); return `<div class="drv-card" onclick="openDriverDetail('${qattr(d.id)}')">
+        <div class="drv-name">${qesc(d.name)}</div>
+        <div class="drv-meta">${driverChip(d)}${d.issuer?`<span>${qesc(d.issuer)}</span>`:''}${d.scale?`<span>· ${qesc(d.scale)}</span>`:''}${d.due?`<span>· due ${qesc(d.due)}</span>`:''}</div>
+        <div class="drv-meta"><span style="color:var(--tsi-teal);font-family:var(--font-mono);font-size:10.5px">${r.n} open opp${r.n===1?'':'s'}${r.n?' · '+fmt(r.v)+' · '+fmt(r.w)+' wtd':''}</span></div>
+      </div>`; }).join('')
+      :'<div style="font-size:12px;color:var(--color-text-muted);padding:10px 0">No drivers yet. Add the first one — e.g. “NB Power pellet tender · 400,000 t/yr”.</div>'}
+  </div>`;
+}
+function driverFormHtml(id){
+  const d=id?(driverById(id)||{}):{};
+  const g=k=>qattr(d[k]||'');
+  const kinds=Object.entries(DRIVER_KINDS).map(([k,l])=>`<option value="${k}" ${(d.kind||'tender')===k?'selected':''}>${l}</option>`).join('');
+  const sts=Object.entries(DRIVER_STATUS).map(([k,l])=>`<option value="${k}" ${(d.status||'open')===k?'selected':''}>${l}</option>`).join('');
+  return `<div class="dsec">
+    <div class="drow"><label>Name *</label><input class="dinput" id="drv-name" value="${g('name')}" placeholder="e.g. NB Power wood-pellet tender"></div>
+    <div class="drow-2">
+      <div><label>Kind</label><select class="dselect" id="drv-kind">${kinds}</select></div>
+      <div><label>Status</label><select class="dselect" id="drv-status">${sts}</select></div>
+    </div>
+    <div class="drow-2">
+      <div><label>Issuer / owner</label><input class="dinput" id="drv-issuer" value="${g('issuer')}" placeholder="Who issued it — NB Power"></div>
+      <div><label>Region</label><input class="dinput" id="drv-region" value="${g('region')}" placeholder="New Brunswick, Canada"></div>
+    </div>
+    <div class="drow"><label>Scale <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— volume, capacity or money, units attached</span></label><input class="dinput" id="drv-scale" value="${g('scale')}" placeholder="400,000 t/yr wood pellets"></div>
+    <div class="drow-2">
+      <div><label>Issued</label><input class="dinput" id="drv-issued" value="${g('issued')}" placeholder="2026-09"></div>
+      <div><label>Bids due</label><input class="dinput" id="drv-due" value="${g('due')}" placeholder="2026-12-15"></div>
+    </div>
+    <div class="drow-2">
+      <div><label>Award expected</label><input class="dinput" id="drv-award" value="${g('award')}" placeholder="2027-Q1"></div>
+      <div><label>Supply / start</label><input class="dinput" id="drv-start" value="${g('start')}" placeholder="2028"></div>
+    </div>
+    <div class="drow"><label>Link</label><input class="dinput" id="drv-url" value="${g('url')}" placeholder="https://… tender notice, press release"></div>
+    <div class="drow"><label>Summary <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— the context every linked deal should know</span></label>
+      <textarea class="dtextarea" id="drv-summary" style="min-height:90px" placeholder="What is being bought, by whom, on what terms, and why it matters to TSI (we build the plants that will supply it).">${qesc(d.summary||'')}</textarea></div>
+    <div class="drow"><label>Notes</label><textarea class="dtextarea" id="drv-notes" placeholder="Bidders we know of, contacts, intel, next steps…">${qesc(d.notes||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn-cancel-drawer" onclick="${id?`openDriverDetail('${qattr(id)}')`:'openDriversList()'}">Cancel</button>
+      ${id?`<button class="btn-cancel-drawer" style="color:var(--tsi-coral);border-color:var(--tsi-coral)" onclick="deleteDriver('${qattr(id)}')">Delete</button>`:''}
+      <button class="btn-save-opp" onclick="saveDriverForm('${qattr(id||'')}')">Save driver</button>
+    </div>
+  </div>`;
+}
+function driverDetailHtml(id){
+  const d=driverById(id); if(!d) return driverListHtml();
+  const opps=driverOpps(id).sort((a,b)=>(b.val||0)-(a.val||0)); const r=driverRollup(id);
+  const row=(l,v)=>v?`<div><label>${l}</label>${qesc(v)}</div>`:'';
+  window._driverLinkMap={};
+  const opts=DATA.filter(o=>o.status==='O'&&!oppDriverIds(o).includes(id)).map(o=>{ const lbl=oppLinkLabel(o); window._driverLinkMap[lbl]=o.id; return `<option value="${qattr(lbl)}">`; }).join('');
+  return `<div class="dsec">
+    <button class="acct-back-btn" style="display:inline-flex;margin:0 0 8px" onclick="openDriversList()">← All drivers</button>
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div style="flex:1;min-width:0"><div class="drv-name" style="font-size:16px;font-family:var(--font-display);font-weight:400">${qesc(d.name)}</div>
+        <div class="drv-meta">${driverChip(d)}${d.issuer?`<span>${qesc(d.issuer)}</span>`:''}${d.region?`<span>· ${qesc(d.region)}</span>`:''}</div></div>
+      <button class="btn-acct-add" onclick="openDriverForm('${qattr(id)}')">✎ Edit</button>
+      <button class="btn-acct-add" onclick="showDriverInPipeline('${qattr(id)}')" title="Filter the pipeline to deals linked to this driver">Show in pipeline</button>
+    </div>
+    ${d.summary?`<div class="drv-summary">${qesc(d.summary)}</div>`:''}
+    <div class="drv-grid">${row('Scale',d.scale)}${row('Issued',d.issued)}${row('Bids due',d.due)}${row('Award expected',d.award)}${row('Supply / start',d.start)}
+      ${d.url?`<div><label>Link</label><a href="${qattr(d.url)}" target="_blank" rel="noopener" style="color:var(--tsi-teal)">${qesc(d.url.replace(/^https?:\/\//,'').slice(0,40))}…</a></div>`:''}</div>
+    ${d.notes?`<div class="drow"><label>Notes</label><div style="font-size:12px;white-space:pre-wrap;line-height:1.5;color:var(--color-text-secondary)">${qesc(d.notes)}</div></div>`:''}
+  </div>
+  <div class="dsec">
+    <div class="dsec-title">Linked opportunities <span class="q-line-count">${r.n} open · ${fmt(r.v)} · ${fmt(r.w)} wtd</span></div>
+    ${opps.length?opps.map(o=>`<div class="acct-opp-row" onclick="closeDriversDrawer();openOppDrawer('${qattr(o.id)}')">
+        <span class="acct-opp-id">${qesc(o.id)}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="font-weight:500;color:var(--color-heading)">${qesc(o.acct||'')}</b> — ${qesc(o.type||'')}</span>
+        <span style="color:var(--tsi-teal);font-family:var(--font-mono);font-size:10px">${fmt(o.val)}</span>
+        <span style="color:var(--color-text-muted);font-size:10px;margin-left:8px;font-family:var(--font-mono)">${Math.round((o.prob||0)*100)}%</span>
+        <span class="dtag-x" title="Unlink" onclick="event.stopPropagation();unlinkOppFromDriver('${qattr(id)}','${qattr(o.id)}')">×</span>
+      </div>`).join(''):'<div style="font-size:11px;color:var(--color-text-muted);padding:4px 0">No opportunities linked yet.</div>'}
+    <div class="drow" style="margin-top:10px"><label>Link an opportunity</label>
+      <input class="dinput" id="drv-link-input" list="drv-link-options" placeholder="Search an open opportunity…" autocomplete="off"
+             onchange="const id=(window._driverLinkMap||{})[this.value.trim()]; if(id){ linkOppToDriver('${qattr(id)}', id); } this.value='';">
+      <datalist id="drv-link-options">${opts}</datalist></div>
+    <div style="font-size:10.5px;color:var(--color-text-muted)">Or open any opportunity and pick this driver in its “Market drivers” field.</div>
+  </div>`;
+}
+function openDriversList(){ _driverView={mode:'list',id:null}; renderDriversDrawer(); }
+function openDriverForm(id){ _driverView={mode:'form',id:id||null}; renderDriversDrawer(); setTimeout(()=>document.getElementById('drv-name')?.focus(),50); }
+function openDriverDetail(id){ _driverView={mode:'detail',id}; renderDriversDrawer(); }
+async function saveDriverForm(id){
+  const g=k=>(document.getElementById('drv-'+k)?.value||'').trim();
+  const name=g('name'); if(!name){ showToast('Give the driver a name','var(--tsi-coral)'); return; }
+  const prev=id?driverById(id):null; const now=new Date().toISOString(); const me=getUserInitials()||'?';
+  const d={ ...(prev||{}), id: id||('DRV-'+Date.now().toString(36).toUpperCase().slice(-5)), name, kind:g('kind')||'tender', status:g('status')||'open',
+    issuer:g('issuer'), region:g('region'), scale:g('scale'), issued:g('issued'), due:g('due'), award:g('award'), start:g('start'), url:g('url'),
+    summary:g('summary'), notes:g('notes'), createdAt:prev?.createdAt||now, createdBy:prev?.createdBy||me, updatedAt:now, updatedBy:me };
+  const ok=await driverStore().put(d);
+  showToast(ok?'✓ Driver saved · synced to cloud':'✓ Driver saved on this device only','var(--tsi-succ-green)');
+  updateDriversBadge(); openDriverDetail(d.id); renderPipeline();
+}
+async function deleteDriver(id){
+  const d=driverById(id); if(!d) return;
+  if(!confirm(`Delete “${d.name}”? Linked opportunities keep their other data.`)) return;
+  driverOpps(id).forEach(o=>{ o.driverIds=oppDriverIds(o).filter(x=>x!==id); markDirty(o.id); oppPersist(o); });
+  await driverStore().remove(id);
+  if(_driverFilter===id) clearDriverFilter();
+  updateDriversBadge(); openDriversList(); renderPipeline();
+}
+function linkOppToDriver(driverId, oppId){
+  const o=DATA.find(x=>x.id===oppId); if(!o||!driverById(driverId)) return;
+  const ids=oppDriverIds(o); if(!ids.includes(driverId)) ids.push(driverId);
+  o.driverIds=ids; markDirty(o.id); oppPersist(o);
+  if(_drawerEditId===oppId){ _drawerDrivers=ids.slice(); rebuildDrawerDrivers(); }
+  renderDriversDrawer(); renderPipeline();
+}
+function unlinkOppFromDriver(driverId, oppId){
+  const o=DATA.find(x=>x.id===oppId); if(!o) return;
+  o.driverIds=oppDriverIds(o).filter(x=>x!==driverId); markDirty(o.id); oppPersist(o);
+  if(_drawerEditId===oppId){ _drawerDrivers=o.driverIds.slice(); rebuildDrawerDrivers(); }
+  renderDriversDrawer(); renderPipeline();
+}
+function showDriverInPipeline(id){ _driverFilter=id; closeDriversDrawer(); showTab('pipeline'); renderDriverFilterChip(); renderPipeline(); }
+function clearDriverFilter(){ _driverFilter=null; renderDriverFilterChip(); renderPipeline(); }
+function renderDriverFilterChip(){
+  let chip=document.getElementById('chip-driver');
+  if(!_driverFilter){ if(chip) chip.remove(); return; }
+  const d=driverById(_driverFilter); const anchor=document.getElementById('chip-needsloc'); if(!anchor) return;
+  if(!chip){ chip=document.createElement('span'); chip.id='chip-driver'; chip.className='chip active'; anchor.insertAdjacentElement('afterend', chip); }
+  chip.innerHTML=`⚡ ${qesc(d?d.name:_driverFilter)} <span style="margin-left:4px;cursor:pointer" onclick="event.stopPropagation();clearDriverFilter()">✕</span>`;
+  chip.title='Showing only deals linked to this driver — click ✕ to clear'; chip.onclick=()=>openDriversDrawer(_driverFilter);
+}
+// Opp-drawer field: chips + the drivers' context shown inline so the deal is edited with the tender in view.
+function rebuildDrawerDrivers(){
+  const wrap=document.getElementById('d-drivers-wrap'), inp=document.getElementById('d-driver-input'), ctx=document.getElementById('d-drivers-context'), dl=document.getElementById('driver-options');
+  if(!wrap||!inp) return;
+  wrap.querySelectorAll('.drawer-link-item').forEach(el=>el.remove());
+  _drawerDrivers.forEach(id=>{ const d=driverById(id); const sp=document.createElement('span'); sp.className='drawer-link-item';
+    sp.innerHTML=`⚡ <span class="dl-open" onclick="event.stopPropagation();openDriversDrawer('${qattr(id)}')">${qesc(d?d.name:id)}</span> <span class="dtag-x" onclick="event.stopPropagation();removeDrawerDriver('${qattr(id)}')">×</span>`;
+    wrap.insertBefore(sp, inp); });
+  window._driverMap={};
+  if(dl) dl.innerHTML=driversAll().filter(d=>!_drawerDrivers.includes(d.id)).map(d=>{ const lbl=d.name+(d.issuer?' · '+d.issuer:''); window._driverMap[lbl]=d.id; return `<option value="${qattr(lbl)}">`; }).join('');
+  if(ctx) ctx.innerHTML=_drawerDrivers.map(id=>{ const d=driverById(id); if(!d) return ''; const r=driverRollup(id);
+    return `<div class="drv-ctx"><b>${qesc(d.name)}</b> ${driverChip(d)}${d.scale?` · ${qesc(d.scale)}`:''}${d.due?` · bids due ${qesc(d.due)}`:''}${d.award?` · award ${qesc(d.award)}`:''}
+      ${d.summary?`<div style="margin-top:3px">${qesc(d.summary.length>260?d.summary.slice(0,257)+'…':d.summary)}</div>`:''}
+      <div style="margin-top:3px;color:var(--color-text-muted)">${r.n} linked open opp${r.n===1?'':'s'}${r.n?' · '+fmt(r.v):''} · <span class="dl-open" onclick="openDriversDrawer('${qattr(id)}')">open driver</span></div></div>`; }).join('');
+}
+function addDrawerDriverFromInput(){
+  const inp=document.getElementById('d-driver-input'); if(!inp) return;
+  const id=(window._driverMap||{})[inp.value.trim()];
+  if(id&&!_drawerDrivers.includes(id)){ _drawerDrivers.push(id); _drawerDirty=true; rebuildDrawerDrivers(); }
+  inp.value='';
+}
+function removeDrawerDriver(id){ _drawerDrivers=_drawerDrivers.filter(x=>x!==id); _drawerDirty=true; rebuildDrawerDrivers(); }
+
 /* ── Account media (parent-account logo + photos, one prime for the card) ──
    Client-compressed data URLs via Store('account_media') (local now, D1 on
    deploy). For large photo libraries, R2 is the production upgrade. */
@@ -11851,67 +12098,268 @@ function describeHistory(h){
   return `${label} <span class="hist-from">${from}</span><span class="hist-arrow ${cls}">→</span><span class="hist-to ${cls}">${to}</span>`;
 }
 
-// ── HISTORY / ESTIMATE-DRIFT VIEW ────────────────────────────
+// ══ OPPORTUNITY EVENT LAYER ═══════════════════════════════════
+// One view of "what changed, when, by whom" for an opportunity, merged from:
+//   • o.history structured entries {field,from,to} (drawer / inline edits),
+//   • o.history prose entries parsed back into field changes (the Sept 2026
+//     cleanup / sales-update passes were written from chat as sentences),
+//   • the server's append-only opp_events table (worker diffs every write,
+//     whatever client sent it), fetched via /api/events when the worker has it.
+// Local events the server lacks are pushed through /api/events/backfill so the
+// table becomes the system of record. Replay (oppStateAt) reconstructs the
+// pipeline at any past date for the "over time" chart.
+const DAY_MS = 86400000;
+const OPP_EV_FIELDS = ['val','prob','close','stage','lead','status'];
+const OPP_EV_LABEL  = { val:'Value', prob:'Probability', close:'Expected close', stage:'Stage', lead:'Lead', status:'Status', acctId:'Site', created:'Created', review:'Reviewed — no change', note:'Note' };
+const _STATUS_LBL = { O:'Open', W:'Won', X:'Lost / closed' };
+function _evParseVal(sv){ if(sv==null) return null; const t=String(sv).trim().replace(/[$,]/g,''); const m=t.match(/^(-?\d+(?:\.\d+)?)\s*([kKmM])?$/); if(!m) return t||null; let n=parseFloat(m[1]); if(m[2]) n*=/m/i.test(m[2])?1e6:1e3; return String(n); }
+function _evParseProb(sv){ if(sv==null||sv==='') return null; const t=String(sv).trim(); const n=parseFloat(t.replace('%','')); if(isNaN(n)) return null; return String(t.includes('%')||n>1?n/100:n); }
+// "close 2026-Q3 → 2026-Q4 (Pass 4)", "Stale review: prob 0.75 → 0.25; close → 2027-Q2; lead TF → JT",
+// "Won — status O → W, stage Qualified → PO Received", "val 19M → 20M" → [{field,from,to}]
+function parseHistoryAction(action){
+  const out=[]; if(!action) return out;
+  const re=/\b(close|prob|val|lead|status|stage)\s+((?:(?!→)[^,;])*?)\s*→\s*([^,;()]+)/g; let m;
+  while((m=re.exec(action))){
+    const field=m[1]; let from=m[2].trim(), to=m[3].trim();
+    if(/^\(none\)$|^none$|^—$|^-$/i.test(from)) from='';
+    if(/^see notes/i.test(to)) continue;
+    if(field==='val'){ from=from?_evParseVal(from):null; to=_evParseVal(to); }
+    else if(field==='prob'){ from=from?_evParseProb(from):null; to=_evParseProb(to); }
+    else { from=from||null; }
+    if(to==null||to==='') continue;
+    out.push({ field, from, to });
+  }
+  return out;
+}
+function oppEventsLocal(o){
+  const ev=[];
+  if(o.createdAt) ev.push({ opp_id:o.id, at:o.createdAt, by:o.createdBy||'?', field:'created', from_v:null, to_v:null, source:'record', note:null });
+  (o.history||[]).forEach(h=>{
+    if(!h||!h.at) return;
+    if(h.field){ ev.push({ opp_id:o.id, at:h.at, by:h.by||'?', field:h.field, from_v:h.from==null?null:String(h.from), to_v:h.to==null?null:String(h.to), source:'app', note:null }); return; }
+    const a=h.action||'';
+    const parsed=parseHistoryAction(a);
+    if(parsed.length){ parsed.forEach(x=>ev.push({ opp_id:o.id, at:h.at, by:h.by||'?', field:x.field, from_v:x.from, to_v:x.to, source:'prose', note:a })); return; }
+    if(/^Opportunity created/i.test(a)){ if(!o.createdAt) ev.push({ opp_id:o.id, at:h.at, by:h.by||'?', field:'created', from_v:null, to_v:null, source:'prose', note:a }); return; }
+    ev.push({ opp_id:o.id, at:h.at, by:h.by||'?', field:/reviewed|no change/i.test(a)?'review':'note', from_v:null, to_v:null, source:'prose', note:a });
+  });
+  return ev;
+}
+let _serverEvents=null;          // Map opp_id → events[] once /api/events answers
+async function loadServerEvents(){
+  if(typeof API_WORKER_URL==='undefined'||!API_WORKER_URL) return null;
+  try{
+    const r=await fetch(API_WORKER_URL+'/api/events?limit=50000',{headers:workerHeaders()});
+    if(!r.ok) return null;
+    const d=await r.json(); const m=new Map();
+    (d.events||[]).forEach(e=>{ if(!m.has(e.opp_id)) m.set(e.opp_id,[]); m.get(e.opp_id).push(e); });
+    _serverEvents=m; return m;
+  }catch(_){ return null; }
+}
+// Same change logged by two writers (client history + worker diff) lands with
+// timestamps a few ms apart — treat same field/from/to within 2 min as one.
+function _evSame(a,b){ return a.field===b.field && (a.from_v??'')===(b.from_v??'') && (a.to_v??'')===(b.to_v??'') && Math.abs(+new Date(a.at)-+new Date(b.at))<120000; }
+function oppEvents(o){
+  const srv=_serverEvents?(_serverEvents.get(o.id)||[]):[];
+  const all=[];
+  srv.concat(oppEventsLocal(o)).forEach(e=>{ if(!all.some(x=>_evSame(x,e))) all.push(e); });
+  return all.sort((a,b)=>a.at<b.at?-1:a.at>b.at?1:0);
+}
+async function backfillServerEvents(){
+  if(!_serverEvents||typeof API_WORKER_URL==='undefined'||!API_WORKER_URL) return 0;
+  const missing=[];
+  DATA.forEach(o=>{ const have=_serverEvents.get(o.id)||[]; oppEventsLocal(o).forEach(e=>{ if(!have.some(x=>_evSame(x,e))) missing.push({...e, source:'backfill:'+e.source}); }); });
+  if(!missing.length) return 0;
+  try{
+    const r=await fetch(API_WORKER_URL+'/api/events/backfill',{method:'POST',headers:{...workerHeaders(),'X-TSI-Source':'app'},body:JSON.stringify({events:missing})});
+    if(!r.ok) return 0;
+    missing.forEach(e=>{ if(!_serverEvents.has(e.opp_id)) _serverEvents.set(e.opp_id,[]); _serverEvents.get(e.opp_id).push(e); });
+    return missing.length;
+  }catch(_){ return 0; }
+}
+// State of the tracked fields at time ts, by rewinding later changes.
+function oppStateAt(o, ts, evs){
+  const st={ val:o.val, prob:o.prob, close:o.close, stage:o.stage, lead:o.lead, status:o.status };
+  (evs||oppEvents(o)).filter(e=>OPP_EV_FIELDS.includes(e.field)&&+new Date(e.at)>ts).sort((a,b)=>a.at<b.at?1:-1)
+    .forEach(e=>{ if(e.from_v==null) return; st[e.field]=(e.field==='val'||e.field==='prob')?parseFloat(e.from_v):e.from_v; });
+  return st;
+}
+function _closeSlipMonths(from,to){ const a=parseCloseDate(from), b=parseCloseDate(to); if(!a||!b||isNaN(a)||isNaN(b)) return null; return Math.round((b-a)/(30.44*DAY_MS)); }
+function describeEvent(e){
+  if(e.field==='created') return 'Created';
+  if(e.field==='review')  return 'Reviewed — no change';
+  if(e.field==='note')    return _histEsc(e.note||'Updated');
+  if(e.field==='status')  return `Status <span class="hist-from">${_STATUS_LBL[e.from_v]||e.from_v||'—'}</span><span class="hist-arrow hist-neutral">→</span><span class="hist-to">${_STATUS_LBL[e.to_v]||e.to_v||'—'}</span>`;
+  if(e.field==='acctId')  return 'Site link changed';
+  const num=v=>v==null?null:parseFloat(v);
+  const h={ field:e.field, from:(e.field==='val'||e.field==='prob')?num(e.from_v):e.from_v, to:(e.field==='val'||e.field==='prob')?num(e.to_v):e.to_v };
+  let out=describeHistory(h);
+  if(e.field==='close'){ const mo=_closeSlipMonths(e.from_v,e.to_v); if(mo) out+=` <span class="${mo>0?'hist-down':'hist-up'}" style="font-family:var(--font-mono);font-size:10px">${mo>0?'+':'−'}${Math.abs(mo)} mo</span>`; }
+  return out;
+}
+const _evSrcBadge = e => { const src=String(e.source||'app').replace(/^backfill:/,''); const lbl=src==='prose'?'cleanup':(src==='api'||src==='mcp'?'connector':(src==='record'?'record':'app'));
+  return `<span class="ev-src" title="${_histEsc(e.note||'')}">${lbl}</span>`; };
+// Weekly series of open gross / weighted value and count, replayed from events.
+function pipelineSeries(stepDays, evOf){
+  const now=Date.now();
+  const starts=DATA.map(o=>+new Date(o.createdAt||0)).filter(t=>t>0);
+  let t0=starts.length?Math.min(...starts):now-90*DAY_MS; t0=Math.max(t0, now-400*DAY_MS);
+  const pts=[]; for(let t=t0;t<now;t+=stepDays*DAY_MS) pts.push(t); pts.push(now);
+  return pts.map(t=>{ let gross=0,wtd=0,n=0;
+    DATA.forEach(o=>{ const c=o.createdAt?+new Date(o.createdAt):0; if(c>t) return; const st=oppStateAt(o,t,evOf?evOf(o):null); if(st.status!=='O') return; n++; const v=Number(st.val)||0; gross+=v; wtd+=v*(Number(st.prob)||0); });
+    return { t, gross, wtd, n }; });
+}
+
+// ── HISTORY / AGING VIEW ────────────────────────────────────
 const _histEsc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function _closeSlipDir(from, to){
   const a=parseCloseDate(from), b=parseCloseDate(to);
   if(!a||!b||isNaN(a)||isNaN(b)) return 0;
-  return b>a ? 1 : (b<a ? -1 : 0);
+  return b>a?1:(b<a?-1:0);
 }
-// Open an opportunity's detail drawer straight to its change timeline.
-function openOppHistory(id){
-  if(typeof openDetail==='function'){ openDetail(id); if(typeof showDetailTab==='function') showDetailTab('notes');
-    const o=DATA.find(r=>r.id===id); if(o && typeof renderHistory==='function') renderHistory(o); }
-  else if(typeof openOppDrawer==='function') openOppDrawer(id);
+let _evCache=new Map(), _evLoadTried=false, _histChart=null;
+function _oppEv(o){ let e=_evCache.get(o.id); if(!e){ e=oppEvents(o); _evCache.set(o.id,e); } return e; }
+function oppAgeDays(o){ const c=o.createdAt?+new Date(o.createdAt):null; return c?Math.max(0,Math.round((Date.now()-c)/DAY_MS)):null; }
+function oppIdleDays(o){
+  const ev=_oppEv(o).filter(e=>e.field!=='acctId'); const last=ev.length?+new Date(ev[ev.length-1].at):(o.updatedAt?+new Date(o.updatedAt):(o.createdAt?+new Date(o.createdAt):Date.now()));
+  return Math.max(0,Math.round((Date.now()-last)/DAY_MS));
 }
+function oppSlipMonths(o){ return _oppEv(o).filter(e=>e.field==='close').reduce((t,e)=>t+(_closeSlipMonths(e.from_v,e.to_v)||0),0); }
+function openOppHistory(id){ openOppTimeline(id); }
 function renderHistoryView(){
-  const rows = (typeof open==='function') ? open() : DATA.filter(o=>o.status==='O');
-  const now = Date.now(), DAY = 86400000;
-  const staleOnly = document.getElementById('hist-stale-only')?.checked;
-  const meta = rows.map(o=>{
-    const t = o.updatedAt ? +new Date(o.updatedAt) : (o.createdAt ? +new Date(o.createdAt) : now);
-    const days = Math.max(0, Math.round((now-t)/DAY));
-    const edits = (o.history||[]).filter(h=>h.field).length;
-    return { o, t, days, edits };
-  });
-  const total=meta.length, fresh=meta.filter(m=>m.days<=14).length, stale=meta.filter(m=>m.days>30).length;
-  const changes = rows.flatMap(o=>(o.history||[]).filter(h=>h.field).map(h=>({o,h})));
-  const slips = changes.filter(c=>c.h.field==='close' && _closeSlipDir(c.h.from,c.h.to)>0).length;
+  _evCache=new Map();
+  if(!_evLoadTried){ _evLoadTried=true; loadServerEvents().then(async m=>{ if(m){ const n=await backfillServerEvents(); if(n) showToast('✓ '+n+' history entries written to the server log','var(--tsi-teal)'); _evCache=new Map(); renderHistoryView(); } }); }
+  const rows=(typeof open==='function')?open():DATA.filter(o=>o.status==='O');
+  const now=Date.now();
+  const meta=rows.map(o=>({ o, age:oppAgeDays(o), idle:oppIdleDays(o), changes:_oppEv(o).filter(e=>OPP_EV_FIELDS.includes(e.field)).length, slip:oppSlipMonths(o) }));
+  const allEv=DATA.flatMap(o=>_oppEv(o).map(e=>({o,e})));
+  const changes=allEv.filter(x=>OPP_EV_FIELDS.includes(x.e.field)||x.e.field==='acctId');
+  const slipEv=changes.filter(x=>x.e.field==='close'&&(_closeSlipMonths(x.e.from_v,x.e.to_v)||0)>0);
+  const netSlip=slipEv.reduce((t,x)=>t+_closeSlipMonths(x.e.from_v,x.e.to_v),0);
+  const series=pipelineSeries(7, _oppEv);
+  const last=series[series.length-1]; const ago=series.find(pt=>pt.t>=now-30*DAY_MS)||series[0];
+  const delta=last.wtd-ago.wtd;
+  const stale=meta.filter(m=>m.idle>30).length;
+  const avgAge=meta.length?Math.round(meta.reduce((t,m)=>t+(m.age||0),0)/meta.length):0;
+  const avgIdle=meta.length?Math.round(meta.reduce((t,m)=>t+m.idle,0)/meta.length):0;
+  const srcEl=document.getElementById('hist-source');
+  if(srcEl) srcEl.textContent=_serverEvents?`${allEv.length} events · server log + record history`:`${allEv.length} events · from record history (server log appears once the API worker is redeployed)`;
   const kEl=document.getElementById('hist-kpis');
   if(kEl) kEl.innerHTML=[
-    {v:total,l:'Open opportunities',c:''},
-    {v:fresh,l:'Refreshed ≤ 14 days',c:''},
-    {v:stale,l:'Stale > 30 days',c:stale?'stale':''},
-    {v:changes.length,l:'Estimate changes logged'+(slips?` · ${slips} close slips`:''),c:''},
-  ].map(k=>`<div class="hist-kpi ${k.c}"><div class="k-val">${k.v}</div><div class="k-lbl">${k.l}</div></div>`).join('');
+    {v:rows.length, l:'Open opportunities', s:`${fmt(last.gross)} gross`},
+    {v:fmt(last.wtd), l:'Weighted pipeline', s:(delta>=0?'+':'−')+fmt(Math.abs(delta))+' vs 30 days ago', c:delta>=0?'up':'down'},
+    {v:slipEv.length, l:'Close-date slips logged', s:`net +${netSlip} months pushed out`, c:slipEv.length?'down':''},
+    {v:avgAge, l:'Avg age (days since created)', s:`avg ${avgIdle} days since last change`},
+    {v:stale, l:'Stale > 30 days idle', s:`${meta.filter(m=>m.idle<=14).length} refreshed in last 14 days`, k:stale?'stale':''},
+  ].map(k=>`<div class="hist-kpi ${k.k||''}"><div class="k-val">${k.v}</div><div class="k-lbl">${k.l}</div><div class="k-sub ${k.c||''}">${k.s}</div></div>`).join('');
 
-  let cov = meta.slice().sort((a,b)=>b.days-a.days);
-  if(staleOnly) cov = cov.filter(m=>m.days>30);
-  const dotCls = d=> d>30?'stale':(d>14?'aging':'fresh');
+  // Pipeline over time
+  const cv=document.getElementById('hist-chart');
+  if(cv && typeof Chart!=='undefined'){
+    if(_histChart){ try{ _histChart.destroy(); }catch(_){} _histChart=null; }
+    const lbl=series.map(pt=>new Date(pt.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    try{ _histChart=new Chart(cv,{ type:'line', data:{ labels:lbl, datasets:[
+        { label:'Gross open', data:series.map(pt=>pt.gross), borderColor:'rgb(25,68,108)', backgroundColor:'rgba(25,68,108,.08)', fill:true, tension:.25, pointRadius:0, yAxisID:'y' },
+        { label:'Weighted', data:series.map(pt=>pt.wtd), borderColor:'rgb(0,146,159)', backgroundColor:'rgba(0,146,159,.10)', fill:true, tension:.25, pointRadius:0, yAxisID:'y' },
+        { label:'Open count', data:series.map(pt=>pt.n), borderColor:'rgb(128,152,72)', borderDash:[4,3], pointRadius:0, tension:.2, yAxisID:'y2' } ] },
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+        plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}, tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y2'?` ${c.dataset.label}: ${c.parsed.y}`:` ${c.dataset.label}: ${fmt(c.parsed.y)}`}} },
+        scales:{ x:{ticks:{maxTicksLimit:10,font:{size:10}},grid:{display:false}}, y:{ticks:{callback:v=>fmt(v),font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}}, y2:{position:'right',ticks:{font:{size:10},precision:0},grid:{display:false}} } } }); }catch(_){}
+  }
+
+  // Slippage leaders
+  const slipsEl=document.getElementById('hist-slips');
+  if(slipsEl){ const top=meta.filter(m=>m.slip>0).sort((a,b)=>b.slip-a.slip).slice(0,10);
+    slipsEl.innerHTML=top.length?top.map(m=>{ const ce=_oppEv(m.o).filter(e=>e.field==='close'&&e.from_v); const first=ce.length?ce[0].from_v:m.o.close;
+      return `<div class="hist-row" onclick="openOppTimeline('${qattr(m.o.id)}')"><div><div class="h-name">${_histEsc(m.o.acct||m.o.id)}</div><div class="h-sub">${_histEsc(m.o.type||'')}</div></div>
+        <span class="h-num">${_histEsc(first||'—')} → ${_histEsc(m.o.close||'TBD')}</span><span class="h-num" style="color:var(--tsi-coral)">+${m.slip} mo</span></div>`; }).join('')
+      :'<div class="drift-empty" style="padding:12px">No close-date slips logged yet.</div>'; }
+  // Probability & value moves, last 90 days
+  const mvEl=document.getElementById('hist-moves');
+  if(mvEl){ const mv=changes.filter(x=>(x.e.field==='prob'||x.e.field==='val')&&+new Date(x.e.at)>now-90*DAY_MS).sort((a,b)=>b.e.at<a.e.at?-1:1).slice(0,12);
+    mvEl.innerHTML=mv.length?mv.map(({o,e})=>`<div class="hist-row" onclick="openOppTimeline('${qattr(o.id)}')"><div><div class="h-name">${_histEsc(o.acct||o.id)}</div><div class="h-sub">${describeEvent(e)}</div></div>
+        <span class="h-num">${new Date(e.at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span class="h-sub">${_histEsc(e.by||'?')}</span></div>`).join('')
+      :'<div class="drift-empty" style="padding:12px">No value or probability changes in the last 90 days.</div>'; }
+
+  // Aging table
+  const staleOnly=document.getElementById('hist-stale-only')?.checked;
+  let cov=meta.slice().sort((a,b)=>b.idle-a.idle); if(staleOnly) cov=cov.filter(m=>m.idle>30);
+  const dotCls=d=>d>30?'stale':(d>14?'aging':'fresh');
   const body=document.getElementById('hist-coverage-body');
-  if(body) body.innerHTML = cov.length ? cov.map(({o,days,edits,t})=>{
-    const upd=new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    return `<tr class="${days>30?'row-stale':''}" style="cursor:pointer" onclick="openOppHistory('${o.id}')">
-      <td style="text-align:center"><span class="hist-dot ${dotCls(days)}"></span></td>
-      <td><span style="color:var(--color-heading);font-weight:500">${_histEsc(o.acct||o.id)}</span>
-        <div style="font-size:10px;color:var(--color-text-muted)">${_histEsc(o.type||'')}</div></td>
-      <td>${_histEsc(o.lead||'—')}</td>
-      <td class="num">${o.val!=null?fmt(o.val):'—'}</td>
-      <td class="num">${o.prob!=null?pct(o.prob):'—'}</td>
-      <td>${_histEsc(o.close||'TBD')}</td>
-      <td class="num">${edits}</td><td>${upd}</td><td class="num hist-days">${days}</td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:12px">No opportunities${staleOnly?' older than 30 days':''}.</td></tr>`;
+  if(body) body.innerHTML=cov.length?cov.map(({o,age,idle,changes,slip})=>`<tr class="${idle>30?'row-stale':''}" style="cursor:pointer" onclick="openOppTimeline('${qattr(o.id)}')">
+      <td style="text-align:center"><span class="hist-dot ${dotCls(idle)}"></span></td>
+      <td><span style="color:var(--color-heading);font-weight:500">${_histEsc(o.acct||o.id)}</span><div style="font-size:10px;color:var(--color-text-muted)">${_histEsc(o.type||'')}</div></td>
+      <td>${_histEsc(o.lead||'—')}</td><td class="num">${o.val!=null?fmt(o.val):'—'}</td><td class="num">${o.prob!=null?pct(o.prob):'—'}</td><td>${_histEsc(o.close||'TBD')}</td>
+      <td class="num hist-days">${age==null?'—':age}</td><td class="num hist-days">${idle}</td><td class="num">${changes}</td>
+      <td class="num" style="color:${slip>0?'var(--tsi-coral)':(slip<0?'var(--tsi-succ-green)':'inherit')}">${slip?(slip>0?'+':'−')+Math.abs(slip):'—'}</td></tr>`).join('')
+    :`<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:12px">No opportunities${staleOnly?' older than 30 days':''}.</td></tr>`;
 
-  const feed = changes.map(c=>({...c, ts:+new Date(c.h.at)})).sort((a,b)=>b.ts-a.ts).slice(0,80);
+  // Change log
+  const feed=changes.map(x=>({...x, ts:+new Date(x.e.at)})).sort((a,b)=>b.ts-a.ts).slice(0,150);
   const drift=document.getElementById('hist-drift');
-  if(drift) drift.innerHTML = feed.length ? '<div class="drift-feed">'+feed.map(({o,h})=>{
-    const dt=new Date(h.at);
-    const time=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-    return `<div class="drift-row"><span class="d-time">${time}</span><span class="d-by">${_histEsc(h.by||'?')}</span>
-      <span class="d-body"><span class="d-opp" style="cursor:pointer" onclick="openOppHistory('${o.id}')">${_histEsc(o.acct||o.id)}</span> — ${describeHistory(h)}</span></div>`;
-  }).join('')+'</div>'
-  : '<div class="drift-empty">No estimate changes recorded yet. As the team edits value, probability, or expected close, each movement lands here — with who changed it and by how much.</div>';
+  if(drift) drift.innerHTML=feed.length?'<div class="drift-feed">'+feed.map(({o,e})=>{ const dt=new Date(e.at);
+      const time=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      return `<div class="drift-row"><span class="d-time">${time}</span><span class="d-by">${_histEsc(e.by||'?')}</span>
+        <span class="d-body"><span class="d-opp" style="cursor:pointer" onclick="openOppTimeline('${qattr(o.id)}')">${_histEsc(o.acct||o.id)}</span> — ${describeEvent(e)}${_evSrcBadge(e)}</span></div>`; }).join('')+'</div>'
+    :'<div class="drift-empty">No changes logged yet. As the team edits value, probability, expected close, stage or lead, each movement lands here.</div>';
+}
+
+// ── PER-OPPORTUNITY TIMELINE (modal) ─────────────────────────
+let _tlCharts=[];
+function closeOppTimeline(){ const ov=document.getElementById('opp-timeline-overlay'); if(ov) ov.style.display='none'; _tlCharts.forEach(c=>{ try{ c.destroy(); }catch(_){} }); _tlCharts=[]; }
+function openOppTimeline(id){
+  const o=DATA.find(r=>r.id===id); const ov=document.getElementById('opp-timeline-overlay'), body=document.getElementById('opp-timeline-body');
+  if(!o||!ov||!body) return;
+  const evs=oppEvents(o);
+  const changes=evs.filter(e=>OPP_EV_FIELDS.includes(e.field));
+  const closeEv=evs.filter(e=>e.field==='close');
+  const slip=closeEv.reduce((t,e)=>t+(_closeSlipMonths(e.from_v,e.to_v)||0),0);
+  const age=oppAgeDays(o); const lastAt=evs.length?evs[evs.length-1].at:(o.updatedAt||o.createdAt);
+  const idle=lastAt?Math.max(0,Math.round((Date.now()-+new Date(lastAt))/DAY_MS)):'—';
+  const fmtD=t=>t?new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+  // Step series for value / probability: state at created, after each change, now.
+  const t0=o.createdAt?+new Date(o.createdAt):(evs.length?+new Date(evs[0].at):Date.now()-30*DAY_MS);
+  const times=[t0].concat(changes.map(e=>+new Date(e.at)+1), [Date.now()]).filter((t,i,a)=>a.indexOf(t)===i).sort((a,b)=>a-b);
+  const states=times.map(t=>({t, ...oppStateAt(o,t,evs)}));
+  body.innerHTML=`
+    <div class="tl-head">
+      <div style="flex:1;min-width:0">
+        <div style="font:400 18px var(--font-display);color:var(--color-heading)">${_histEsc(o.acct||o.id)}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${_histEsc(o.type||'')} · <span style="font-family:var(--font-mono);font-size:11px">${_histEsc(o.id)}</span> · ${_histEsc(o.stage||'')} · ${_STATUS_LBL[o.status]||o.status||''}</div>
+      </div>
+      <button class="btn-acct-add" onclick="closeOppTimeline();openOppDrawer('${qattr(o.id)}')">✎ Open</button>
+      <button class="drawer-close" style="color:var(--color-text-muted)" onclick="closeOppTimeline()">✕</button>
+    </div>
+    <div class="tl-stats">
+      <div class="tl-stat"><b>${fmtD(o.createdAt)}</b><span>Created${o.createdBy?' · '+_histEsc(o.createdBy):''}</span></div>
+      <div class="tl-stat"><b>${age==null?'—':age} d</b><span>Age</span></div>
+      <div class="tl-stat"><b>${idle} d</b><span>Since last change</span></div>
+      <div class="tl-stat"><b>${changes.length}</b><span>Estimate changes</span></div>
+      <div class="tl-stat"><b style="color:${slip>0?'var(--tsi-coral)':(slip<0?'var(--tsi-succ-green)':'inherit')}">${slip?(slip>0?'+':'−')+Math.abs(slip)+' mo':'0'}</b><span>Close slipped</span></div>
+    </div>
+    <div class="tl-charts">
+      <div class="tl-chart"><div class="tl-chart-t">Value</div><canvas id="tl-val"></canvas></div>
+      <div class="tl-chart"><div class="tl-chart-t">Probability</div><canvas id="tl-prob"></canvas></div>
+    </div>
+    <div class="tl-ladder">
+      <div class="acct-section-title" style="margin:6px 0 2px">Expected close</div>
+      ${closeEv.length?closeEv.map(e=>{ const mo=_closeSlipMonths(e.from_v,e.to_v); return `<div class="hist-row"><span class="h-num" style="color:var(--color-text-muted)">${fmtD(e.at)} · ${_histEsc(e.by||'?')}</span>
+          <span>${_histEsc(e.from_v||'—')} → <b>${_histEsc(e.to_v||'—')}</b></span><span class="h-num" style="color:${mo>0?'var(--tsi-coral)':(mo<0?'var(--tsi-succ-green)':'var(--color-text-muted)')}">${mo==null?'':(mo>0?'+':(mo<0?'−':''))+(mo==null?'':Math.abs(mo)+' mo')}</span></div>`; }).join('')
+        :`<div class="h-sub" style="padding:4px 0;font-size:11px;color:var(--color-text-muted)">Expected close has not moved since it was recorded (${_histEsc(o.close||'TBD')}).</div>`}
+    </div>
+    <div class="acct-section-title" style="margin:10px 0 2px">All events (${evs.length})</div>
+    <div class="tl-events">${evs.length?evs.slice().reverse().map(e=>{ const dt=new Date(e.at);
+        return `<div class="drift-row"><span class="d-time">${dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})} · ${dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span><span class="d-by">${_histEsc(e.by||'?')}</span><span class="d-body">${describeEvent(e)}${_evSrcBadge(e)}</span></div>`; }).join('')
+      :'<div class="drift-empty">No events for this opportunity yet.</div>'}</div>`;
+  ov.style.display='flex';
+  _tlCharts.forEach(c=>{ try{ c.destroy(); }catch(_){} }); _tlCharts=[];
+  if(typeof Chart!=='undefined'){
+    const lbl=states.map(st=>new Date(st.t).toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+    const mk=(elId, data, color, fmtFn)=>{ const el=document.getElementById(elId); if(!el) return; try{ _tlCharts.push(new Chart(el,{ type:'line', data:{ labels:lbl, datasets:[{ data, borderColor:color, backgroundColor:color.replace(')',',.12)').replace('rgb(','rgba('), fill:true, stepped:true, pointRadius:3, pointBackgroundColor:color }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+fmtFn(c.parsed.y)}}}, scales:{ x:{ticks:{maxTicksLimit:5,font:{size:9}},grid:{display:false}}, y:{ticks:{callback:v=>fmtFn(v),font:{size:9},maxTicksLimit:4},grid:{color:'rgba(0,0,0,.05)'}} } } })); }catch(_){} };
+    mk('tl-val', states.map(st=>Number(st.val)||0), 'rgb(25,68,108)', v=>fmt(v));
+    mk('tl-prob', states.map(st=>Math.round((Number(st.prob)||0)*100)), 'rgb(0,146,159)', v=>v+'%');
+  }
 }
 
 // ── AUTO-SAVE HELPER ─────────────────────────────────────────
@@ -15577,6 +16025,7 @@ activityStore().pull().then(()=>{ renderVisits(); if(typeof renderAcctMain==='fu
 
 viewStore.pull().then(() => { const p=_tkPopEl; if(p && p.id==='tk-views-pop') TableKit.renderViewsMenu(p.dataset.table); });
 followStore.pull().then(() => renderPipeline());
+driverStore().pull().then(() => { updateDriversBadge(); renderPipeline(); }).catch(()=>{});
 
 // ── INIT ──────────────────────────────────────────────────────
 populateFilters();
@@ -15646,6 +16095,8 @@ startAdminPoll();
     <h2 id="drawer-title">New Opportunity</h2>
     <button class="btn-next-phase" id="drawer-next-phase" onclick="addNextPhase()" style="display:none"
             title="Start the next phase of this program: same account, site and lead, linked to this record">+ Next phase</button>
+    <button class="btn-next-phase" id="drawer-timeline" onclick="if(_drawerEditId)openOppTimeline(_drawerEditId)" style="display:none"
+            title="History &amp; aging: value, probability and close-date changes over time">📈 History</button>
     <button class="drawer-close" onclick="closeOppDrawer()">✕</button>
   </div>
 
@@ -15800,6 +16251,15 @@ startAdminPoll();
                  autocomplete="off" onchange="addDrawerLinkFromInput()">
         </div>
         <datalist id="link-opp-options"></datalist>
+      </div>
+      <div class="drow" style="margin-top:10px">
+        <label>Market drivers <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;color:var(--color-text-muted)">— the tender, program or policy behind this deal (context, not the customer)</span></label>
+        <div class="drawer-tag-editor" id="d-drivers-wrap" onclick="const _di=document.getElementById('d-driver-input');if(_di)_di.focus()">
+          <input class="drawer-tag-input" id="d-driver-input" list="driver-options" placeholder="Search a driver to link… (create under ⚡ Drivers)"
+                 autocomplete="off" onchange="addDrawerDriverFromInput()">
+        </div>
+        <datalist id="driver-options"></datalist>
+        <div id="d-drivers-context"></div>
       </div>
       </div><!-- /dsec-body -->
     </div>
@@ -16588,33 +17048,61 @@ startAdminPoll();
 
 </div>
 
-<!-- ══ HISTORY / ESTIMATE-DRIFT TAB ══ -->
+<!-- ══ HISTORY / AGING TAB ══ -->
 <div id="view-history" class="view" style="padding:16px 20px">
-  <h2 style="font:400 22px var(--font-display);color:var(--color-heading);margin:0 0 2px">Estimate history</h2>
-  <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 16px;max-width:720px">
-    How value, probability, and expected close move over time — and which opportunities are getting
-    refreshed versus going stale. Field-level changes are captured as the team edits the pipeline;
-    trajectories fill in from there.</p>
-  <div class="hist-kpi-row" id="hist-kpis"></div>
-  <div style="display:flex;align-items:baseline;gap:12px">
-    <h3 class="hist-section-title">Update coverage</h3>
-    <label style="font-size:11px;color:var(--color-text-secondary);cursor:pointer;margin-left:auto">
-      <input type="checkbox" id="hist-stale-only" onchange="renderHistoryView()" style="vertical-align:middle"> Stale only (&gt;30 days)</label>
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+    <h2 style="font:400 22px var(--font-display);color:var(--color-heading);margin:0 0 2px">Opportunity history &amp; aging</h2>
+    <span class="hist-src" id="hist-source"></span>
   </div>
-  <p class="hist-section-sub">Sorted by longest time since last update — the top rows are what nobody has touched.</p>
+  <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 16px;max-width:760px">
+    Where the pipeline came from and where it is drifting: value, probability and expected close over time,
+    how long each deal has been open, and how long since anyone touched it. Changes made in the app, through
+    the connector, or in cleanup passes all count. Click any row for that opportunity’s full timeline.</p>
+  <div class="hist-kpi-row five" id="hist-kpis"></div>
+  <div class="hist-card">
+    <div class="hist-card-head">
+      <h3 class="hist-section-title" style="margin:0">Pipeline over time</h3>
+      <span class="hist-section-sub" style="margin:0">Open gross and weighted value, reconstructed weekly from the change log · open count on the right axis.</span>
+    </div>
+    <div style="height:260px;position:relative"><canvas id="hist-chart"></canvas></div>
+  </div>
+  <div class="hist-cols">
+    <div class="hist-card">
+      <h3 class="hist-section-title" style="margin:0 0 2px">Close-date slippage</h3>
+      <p class="hist-section-sub">Opportunities whose expected close has moved out the most, net months.</p>
+      <div id="hist-slips"></div>
+    </div>
+    <div class="hist-card">
+      <h3 class="hist-section-title" style="margin:0 0 2px">Probability &amp; value moves</h3>
+      <p class="hist-section-sub">Last 90 days, newest first.</p>
+      <div id="hist-moves"></div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:baseline;gap:12px">
+    <h3 class="hist-section-title">Aging</h3>
+    <label style="font-size:11px;color:var(--color-text-secondary);cursor:pointer;margin-left:auto">
+      <input type="checkbox" id="hist-stale-only" onchange="renderHistoryView()" style="vertical-align:middle"> Stale only (&gt;30 days idle)</label>
+  </div>
+  <p class="hist-section-sub">Every open opportunity: age since created, days since the last change, how many times its estimate moved, and net close slip. Sorted by longest idle.</p>
   <div class="tbl-wrap">
     <table class="tbl-editable" id="hist-coverage-table">
       <thead><tr>
         <th style="width:22px"></th><th>Opportunity</th><th>Lead</th>
         <th class="num">Value</th><th class="num">Prob</th><th>Close</th>
-        <th class="num">Edits</th><th>Last update</th><th class="num">Days idle</th>
+        <th class="num" title="Days since created">Age d</th><th class="num" title="Days since the last logged change">Idle d</th>
+        <th class="num" title="Value / probability / close / stage / lead changes">Changes</th><th class="num" title="Net months the expected close moved">Slip mo</th>
       </tr></thead>
       <tbody id="hist-coverage-body"></tbody>
     </table>
   </div>
-  <h3 class="hist-section-title">Estimate drift</h3>
-  <p class="hist-section-sub">Recent value / probability / expected-close changes across the book, newest first.</p>
+  <h3 class="hist-section-title">Change log</h3>
+  <p class="hist-section-sub">Newest first — every value, probability, close, stage, lead, status and site change, with who made it and where it came from.</p>
   <div id="hist-drift"></div>
+</div>
+
+<!-- Per-opportunity timeline -->
+<div class="acct-modal-overlay" id="opp-timeline-overlay" style="display:none" onclick="if(event.target===this)closeOppTimeline()">
+  <div class="acct-modal tl-modal"><div id="opp-timeline-body"></div></div>
 </div>
 
 <!-- ══ TRAFFIC — assignment & workload ══ -->
@@ -17721,6 +18209,16 @@ startAdminPoll();
       <div id="leads-list"></div>
     </div>
   </div>
+</div>
+
+<!-- ══ MARKET DRIVERS DRAWER ══ -->
+<div class="opp-drawer-overlay" id="drivers-drawer-overlay" onclick="closeDriversDrawer()"></div>
+<div class="opp-drawer" id="drivers-drawer">
+  <div class="drawer-header">
+    <h2 id="drivers-title">⚡ Market drivers</h2>
+    <button class="drawer-close" onclick="closeDriversDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="drivers-body"></div>
 </div>
 
 <!-- ══════════════ PROJECT TRACK — present mode ══════════════ -->

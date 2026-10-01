@@ -67,7 +67,7 @@ function corsHeaders(origin) {
   const allow = (origin && origin !== 'null') ? origin : '*';
   const h = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User, X-TSI-Email',
+    'Access-Control-Allow-Headers': 'Content-Type, X-TSI-Key, X-TSI-User, X-TSI-Email, X-TSI-Source',
     'Access-Control-Max-Age':       '86400',
     'Vary':                         'Origin',
   };
@@ -86,7 +86,42 @@ function err(msg, status=400, origin) {
   return json({ success: false, error: msg }, status, origin);
 }
 
+// ══════════════════════════════════════════════════════════
+//  OPPORTUNITY AUDIT TRAIL — append-only `opp_events` + daily `pipeline_snapshots`
+//  Every write to the 'opportunities' collection (app drawer, MCP connector,
+//  Claude direct writes, bulk import) is diffed here against the stored row,
+//  so the trail is complete regardless of which client wrote. The app also
+//  pushes its locally-derived history through /api/events/backfill (idempotent
+//  via the unique index) so pre-worker edits land in the same table.
+// ══════════════════════════════════════════════════════════
+const OPP_EVENT_FIELDS = ['val', 'prob', 'close', 'stage', 'lead', 'status', 'acctId'];
+function _evNorm(v) { if (v == null || v === '') return null; return typeof v === 'object' ? JSON.stringify(v) : String(v); }
+function oppDiffEvents(prev, next, by, at, source) {
+  const rows = [];
+  if (!prev) rows.push({ field: 'created', from_v: null, to_v: null });
+  else OPP_EVENT_FIELDS.forEach(f => { const a = _evNorm(prev[f]), b = _evNorm(next[f]); if (a !== b) rows.push({ field: f, from_v: a, to_v: b }); });
+  return rows.map(r => ({ ...r, opp_id: String(next.id), at, by: by || next.updatedBy || next.createdBy || null, source, note: null }));
+}
+function oppEventStmts(env, rows) {
+  return rows.map(r => env.DB.prepare(
+    `INSERT OR IGNORE INTO opp_events (opp_id, at, by, field, from_v, to_v, source, note) VALUES (?,?,?,?,?,?,?,?)`
+  ).bind(String(r.opp_id), String(r.at), r.by == null ? null : String(r.by), String(r.field),
+         r.from_v == null ? null : String(r.from_v), r.to_v == null ? null : String(r.to_v),
+         r.source == null ? null : String(r.source), r.note == null ? null : String(r.note).slice(0, 500)));
+}
+async function snapshotPipeline(env, date) {
+  const d = date || new Date().toISOString().slice(0, 10);
+  await env.DB.prepare(`INSERT OR REPLACE INTO pipeline_snapshots (snap_date, opp_id, status, val, prob, close, expected_close, stage, lead, acct, cat)
+    SELECT ?, id, json_extract(data,'$.status'), json_extract(data,'$.val'), json_extract(data,'$.prob'), json_extract(data,'$.close'),
+           json_extract(data,'$.expectedCloseDate'), json_extract(data,'$.stage'), json_extract(data,'$.lead'), json_extract(data,'$.acct'), json_extract(data,'$.cat')
+    FROM collections WHERE collection='opportunities'`).bind(d).run();
+  return d;
+}
+
 export default {
+  // Cron (deploy/wrangler.toml [triggers]) — daily pipeline snapshot.
+  async scheduled(event, env, ctx) { if (env.DB) ctx.waitUntil(snapshotPipeline(env)); },
+
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin');
    try {
@@ -325,7 +360,7 @@ export default {
     // Every route below needs the D1 binding. If the Worker was deployed without
     // it (no `DB` binding in wrangler.toml), fail with a clear message rather than
     // a cryptic "Cannot read properties of undefined (reading 'prepare')" 500.
-    if (!env.DB && (path.startsWith('/api/prices') || path.startsWith('/api/quotes') || path.startsWith('/api/store'))) {
+    if (!env.DB && (path.startsWith('/api/prices') || path.startsWith('/api/quotes') || path.startsWith('/api/store') || path.startsWith('/api/events') || path.startsWith('/api/snapshots'))) {
       return err('D1 not bound: add the `DB` binding (database tsi-intel, id e18ad8cb-ce35-42b2-ba01-8a1d31551398) to wrangler.toml and redeploy', 503, origin);
     }
 
@@ -479,6 +514,46 @@ export default {
     //  Backs the app's Store(collection) client (bugs, saved views,
     //  follows, prefs, …) so features persist without a bespoke table.
     // ══════════════════════════════════════════════════════════
+    // ── Opportunity audit trail ───────────────────────────────
+    // GET /api/events?opp=ID&since=ISO&limit=N  → append-only field changes
+    if (path === '/api/events' && request.method === 'GET') {
+      const opp = url.searchParams.get('opp'), since = url.searchParams.get('since');
+      const limit = Math.min(parseInt(url.searchParams.get('limit') || '5000', 10) || 5000, 50000);
+      const where = [], binds = [];
+      if (opp)   { where.push('opp_id=?'); binds.push(opp); }
+      if (since) { where.push('at>=?');    binds.push(since); }
+      const sql = `SELECT id, opp_id, at, by, field, from_v, to_v, source, note FROM opp_events`
+        + (where.length ? ' WHERE ' + where.join(' AND ') : '') + ' ORDER BY at ASC, id ASC LIMIT ' + limit;
+      const { results } = await env.DB.prepare(sql).bind(...binds).all();
+      return json({ success: true, events: results }, 200, origin);
+    }
+    // POST /api/events/backfill  { events:[{opp_id, at, field, from_v, to_v, by, source, note}] }
+    // Idempotent: the unique index on (opp_id, at, field, to, from) drops repeats.
+    if (path === '/api/events/backfill' && request.method === 'POST') {
+      let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
+      const rows = (Array.isArray(body.events) ? body.events : []).filter(e => e && e.opp_id && e.at && e.field);
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += 100) {
+        const res = await env.DB.batch(oppEventStmts(env, rows.slice(i, i + 100)));
+        inserted += res.reduce((n, r) => n + ((r.meta && r.meta.changes) || 0), 0);
+      }
+      return json({ success: true, received: rows.length, inserted }, 200, origin);
+    }
+    // GET /api/snapshots?since=YYYY-MM-DD&opp=ID  → daily pipeline snapshots
+    if (path === '/api/snapshots' && request.method === 'GET') {
+      const opp = url.searchParams.get('opp');
+      const since = url.searchParams.get('since') || new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10);
+      const sql = `SELECT snap_date, opp_id, status, val, prob, close, expected_close, stage, lead, acct, cat FROM pipeline_snapshots WHERE snap_date>=?`
+        + (opp ? ' AND opp_id=?' : '') + ' ORDER BY snap_date ASC';
+      const { results } = await (opp ? env.DB.prepare(sql).bind(since, opp) : env.DB.prepare(sql).bind(since)).all();
+      return json({ success: true, snapshots: results }, 200, origin);
+    }
+    // POST /api/snapshots/run  → take today's snapshot now (the cron does this daily)
+    if (path === '/api/snapshots/run' && request.method === 'POST') {
+      const d = await snapshotPipeline(env);
+      return json({ success: true, snap_date: d }, 200, origin);
+    }
+
     const collMatch = path.match(/^\/api\/store\/([A-Za-z0-9_-]+)$/);
     const collItemMatch = path.match(/^\/api\/store\/([A-Za-z0-9_-]+)\/(.+)$/);
 
@@ -499,11 +574,21 @@ export default {
       const items = Array.isArray(body.items) ? body.items : [];
       const now = new Date().toISOString();
       const stmts = [ env.DB.prepare(`DELETE FROM collections WHERE collection=?`).bind(coll) ];
+      // Audit trail: diff each opportunity against what is stored before it is replaced.
+      let prevMap = null;
+      if (coll === 'opportunities') {
+        try {
+          const { results } = await env.DB.prepare(`SELECT id, data FROM collections WHERE collection=?`).bind(coll).all();
+          prevMap = new Map(results.map(r => { try { return [r.id, JSON.parse(r.data)]; } catch { return [r.id, null]; } }));
+        } catch (_) { prevMap = null; }
+      }
+      const source = request.headers.get('X-TSI-Source') || 'api';
       for (const it of items) {
         if (it == null || it.id == null) continue;
         stmts.push(env.DB.prepare(
           `INSERT OR REPLACE INTO collections (collection, id, data, updated_at, updated_by) VALUES (?,?,?,?,?)`
         ).bind(coll, String(it.id), JSON.stringify(it), now, user));
+        if (prevMap) stmts.push(...oppEventStmts(env, oppDiffEvents(prevMap.get(String(it.id)) || null, it, user, now, source)));
       }
       await env.DB.batch(stmts);
       return json({ success: true, count: stmts.length - 1 }, 200, origin);
@@ -514,9 +599,20 @@ export default {
       let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
       const [, coll, id] = collItemMatch;
       const obj = { ...body, id };
-      await env.DB.prepare(
+      const now = new Date().toISOString();
+      const stmts = [ env.DB.prepare(
         `INSERT OR REPLACE INTO collections (collection, id, data, updated_at, updated_by) VALUES (?,?,?,?,?)`
-      ).bind(coll, id, JSON.stringify(obj), new Date().toISOString(), user).run();
+      ).bind(coll, id, JSON.stringify(obj), now, user) ];
+      // Audit trail: every opportunity write is diffed against the stored row,
+      // whatever client sent it (app, MCP, Claude, import).
+      if (coll === 'opportunities') {
+        try {
+          const prevRow = await env.DB.prepare(`SELECT data FROM collections WHERE collection=? AND id=?`).bind(coll, id).first();
+          const prev = prevRow ? JSON.parse(prevRow.data) : null;
+          stmts.push(...oppEventStmts(env, oppDiffEvents(prev, obj, user, now, request.headers.get('X-TSI-Source') || 'api')));
+        } catch (_) {}
+      }
+      await env.DB.batch(stmts);
       return json({ success: true, id }, 200, origin);
     }
 
