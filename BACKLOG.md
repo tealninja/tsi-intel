@@ -22,6 +22,17 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   was ~457px on a 390px phone and every view opened zoomed-out / side-scrolling. Header now
   ellipsizes the title and shows avatar-only profile on phones; verified 390 and 360 widths lay out
   at exactly the viewport width with no horizontal overflow.
+- [x] **Sharing slides with outsiders = send the saved HTML** (decided 2026-10-08). Cloudflare Access
+  has no "unguessable link" option (policies are about *who*, not *which URL*); the built-in way to
+  let a guest past the login is **One-time PIN** (add their email to the Access policy). For slides,
+  "⬇ Save HTML" in present mode is the answer: one self-contained file, no login, only the slides
+  chosen. A `/deck/<token>` share route (worker + KV + path-scoped Access Bypass) is possible later
+  if emailing files gets old.
+- [x] **Saved deck honours "Hide $"** (build #170) — the export used to ship every dollar figure
+  (the live view only blurs them with CSS). With Hide $ on, money boxes/charts are removed from the
+  file and inline figures become •••, with a regex sweep for anything missed. Also tagged the agenda
+  counts, stage-column totals and snapshot blurb as money (they weren't blurred before) and dropped
+  the $ from hover titles. The saved deck pages by **swipe** on phones too.
 - [ ] Deck builder **drag & drop on touch** — HTML5 DnD doesn't fire on mobile; needs pointer-event
   fallback (or tap-to-move) if arranging from a phone matters.
 

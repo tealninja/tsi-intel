@@ -3666,7 +3666,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-10-08 · present mode fits phones (fluid slide, swipe paging); header no longer forces a wide layout';
+const APP_BUILD = '#170 · 2026-10-08 · present mode fits phones; saved deck honours Hide $ (figures stripped from the file) + swipes on phones';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -19589,6 +19589,7 @@ async function presoExportDeck(){
   try{ if(!_presoDeck||!_presoDeck.length) _presoDeck=await presoBuildDeck(); }catch(_){}
   try{ presoMapViewStore().pull(); }catch(_){}
   const light=ov.classList.contains('preso-light');
+  const hideMoney=ov.classList.contains('hide-money');
   const stage=document.getElementById('pz-stage');
   const savedIdx=_presoIdx;
   const slidesHTML=[];
@@ -19600,7 +19601,13 @@ async function presoExportDeck(){
     sl.querySelectorAll('canvas').forEach(cv=>{ try{ const url=cv.toDataURL('image/png'); const img=document.createElement('img'); img.src=url; img.className=cv.className||''; img.setAttribute('style',(cv.getAttribute('style')||'')+';max-width:100%'); cv.parentNode.replaceChild(img,cv); }catch(_){}} );
     // drop live-map controls (non-functional in a snapshot); the framed tiles stay
     sl.querySelectorAll('.leaflet-control-container').forEach(c=>c.remove());
-    slidesHTML.push(sl.outerHTML);
+    // "Hide $" on → strip the commercial figures from the file itself. In the live
+    // view they're only blurred by CSS; a file that's going to be emailed must not
+    // carry them at all (whole money boxes/charts go, inline figures become •••).
+    if(hideMoney) sl.querySelectorAll('.pz-money').forEach(m=>{
+      if(m.querySelector('canvas,img,.pz-comm,.pz-lbl')) m.remove(); else m.textContent='•••'; });
+    // belt and braces: redact any dollar figure that slipped through (notes, tooltips)
+    slidesHTML.push(hideMoney ? sl.outerHTML.replace(/\$\s?\d[\d.,]*\s?(?:[MkKBb]\b|million|billion)?/g,'•••') : sl.outerHTML);
   }
   _presoIdx=savedIdx; presoRender();
   if(!wasOpen) ov.classList.remove('open');
@@ -19619,6 +19626,9 @@ async function presoExportDeck(){
    +'function show(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach(function(x,k){x.classList.toggle("on",k===i);});if(c)c.textContent=(i+1)+" / "+s.length;var o=s[i];if(o){var d=o.querySelector(".pz-slide");if(d)d.scrollTop=0;}}'
    +'window.exGo=function(d){show(i+d);};'
    +'document.addEventListener("keydown",function(e){if(e.key==="ArrowRight"||e.key===" "||e.key==="PageDown"){e.preventDefault();show(i+1);}else if(e.key==="ArrowLeft"||e.key==="PageUp"){e.preventDefault();show(i-1);}else if(e.key==="Home"){show(0);}else if(e.key==="End"){show(s.length-1);}});'
+   // phones: a mostly-horizontal swipe pages the deck (maps/boards keep their own gestures)
+   +'var ts=null;document.addEventListener("touchstart",function(e){if(e.touches.length!==1||e.target.closest(".leaflet-container,.pzs-board")){ts=null;return;}ts={x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()};},{passive:true});'
+   +'document.addEventListener("touchend",function(e){var st=ts;ts=null;if(!st||!e.changedTouches.length)return;var dx=e.changedTouches[0].clientX-st.x,dy=e.changedTouches[0].clientY-st.y;if(Date.now()-st.t<900&&Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6)show(i+(dx<0?1:-1));},{passive:true});'
    +'show(0);})();';
   const body = slidesHTML.map(h=>'<section class="ex-slide"><div class="pz-stage">'+h+'</div></section>').join('\n');
   const stamp=new Date().toISOString().slice(0,10);
@@ -19775,14 +19785,15 @@ function presoOverviewHTML(s){
       const dup=acctCount[o.acct]>1;
       const extra=(o.phase||o.type||o.stage||'').trim();
       const label=(dup&&extra)?`${o.acct} · ${extra}`:o.acct;
-      return `<span class="pz-ag-job" style="--acc:${sec.acc}" onclick="event.stopPropagation();presoJumpToId('${qattr(o.id)}')" title="${qattr(o.acct+' — '+(o.type||'')+' · '+presoMoney(o.val))}">${qesc(label)}${o.__quote?' <span class="pz-ag-sample">sample</span>':''}</span>`;
+      // no $ in the hover title — it would show through "Hide $" and ship in the saved file
+      return `<span class="pz-ag-job" style="--acc:${sec.acc}" onclick="event.stopPropagation();presoJumpToId('${qattr(o.id)}')" title="${qattr(o.acct+' — '+(o.type||''))}">${qesc(label)}${o.__quote?' <span class="pz-ag-sample">sample</span>':''}</span>`;
     }).join('');
     return `<div class="pz-ag-sec">
       <div class="pz-ag-row" onclick="presoJumpToSection('${qattr(sec.key)}')" title="Go to the ${qattr(sec.label)} section">
         <span class="pz-ag-dot" style="background:${sec.acc}"></span>
         <span class="pz-ag-nm">${qesc(sec.label)}</span>
         <span class="pz-ag-bl">${qesc(sec.blurb||'')}</span>
-        <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?' · '+presoMoney(val):''}</span>
+        <span class="pz-ag-ct">${jobs.length} ${jobs.length===1?'job':'jobs'}${val?`<span class="pz-money"> · ${presoMoney(val)}</span>`:''}</span>
         <span class="pz-ag-go">→</span></div>
       ${chips?`<div class="pz-ag-jobs">${chips}</div>`:''}</div>`;
   }).join('');
@@ -20017,13 +20028,13 @@ function presoStagesHTML(s){
         <div class="pzs-m"><span class="pz-money">${o.val!=null?presoMoney(o.val):'TBD'}</span><span>${o.prob!=null?Math.round(o.prob*100)+'%':'—'}</span></div>
       </div>`).join('') : `<div class="pzs-empty">—</div>`;
     return `<div class="pzs-col" style="--c:${color}">
-      <div class="pzs-col-h"><span class="pzs-dot"></span><span class="pzs-nm">${qesc(st)}</span><span class="pzs-ct">${list.length}${val?' · '+presoMoney(val):''}</span></div>
+      <div class="pzs-col-h"><span class="pzs-dot"></span><span class="pzs-nm">${qesc(st)}</span><span class="pzs-ct">${list.length}${val?`<span class="pz-money"> · ${presoMoney(val)}</span>`:''}</span></div>
       <div class="pzs-body">${cards}</div></div>`;
   }).join('');
   return `<div class="pz-slide pz-slide-stages" style="--acc:${sec.acc}">
     <div class="pz-eyebrow">${_presoSectionsActive.map(x=>`<span class="pz-eye-link ${x.key===sec.key?'on':''}" onclick="presoJumpToSection('${qattr(x.key)}')" title="Go to ${qattr(x.label)}">${qesc(x.label)}</span>`).join('<span class="sep">·</span>')}<span class="pos">Stage snapshot</span></div>
     <div class="pz-sec-big">${qesc(sec.label)} — pipeline stages</div>
-    <div class="pz-sec-blurb">${jobs.length} opportunit${jobs.length===1?'y':'ies'} under review${totalVal?` · ${presoMoney(totalVal)} combined`:''}</div>
+    <div class="pz-sec-blurb">${jobs.length} opportunit${jobs.length===1?'y':'ies'} under review${totalVal?`<span class="pz-money"> · ${presoMoney(totalVal)} combined</span>`:''}</div>
     <div class="pzs-board">${colHTML}</div></div>`;
 }
 
