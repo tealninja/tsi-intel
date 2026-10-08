@@ -8,6 +8,23 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗒️ 2026-10-08 — "make everything better on mobile" (raised by JT)
+- [~] **Mobile pass, view by view** — umbrella item. Present mode first (done, below); the rest of
+  the app is next (pipeline table, drawers, quotes, accounts, visits map).
+- [x] **Present mode on phones** (build #169) — below 760px (or a short landscape window) the
+  slide drops the fixed 16:9 letterbox and becomes a fluid, naturally-scrolling card: columns
+  stack, type steps down, the eyebrow shows only the current section + position, toolbar buttons
+  collapse to icons, ‹ › dock into the rail bar (no longer covering content), the rail auto-scrolls
+  to the current node, and **swipe left/right pages the deck** (swipes over the map, stage board
+  and charts are left to those widgets). Full-screen button hidden where unsupported (iOS Safari).
+  "What to present" modal and deck-builder toolbar tidied for phones too.
+- [x] **Page loaded wider than the phone** — the app header didn't shrink, so the layout viewport
+  was ~457px on a 390px phone and every view opened zoomed-out / side-scrolling. Header now
+  ellipsizes the title and shows avatar-only profile on phones; verified 390 and 360 widths lay out
+  at exactly the viewport width with no horizontal overflow.
+- [ ] Deck builder **drag & drop on touch** — HTML5 DnD doesn't fire on mobile; needs pointer-event
+  fallback (or tap-to-move) if arranging from a phone matters.
+
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
 - [x] Pipeline **Value** shows thousands separators (commas).

@@ -1414,7 +1414,15 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   .header-logo  { height:34px; margin-left:8px; }
   .header-title { font-size:16px; }
   .header-sub   { font-size:10px; }
-  .header-top   { padding-left:10px; gap:8px; }
+  .header-top   { padding-left:10px; padding-right:12px; gap:8px; min-width:0; }
+  /* Let the title shrink/ellipsize instead of forcing the page wider than the
+     phone (a fixed-width header made the layout viewport ~457px on a 390px
+     phone, so every view loaded zoomed-out / side-scrolling). */
+  .header-left  { flex:1 1 auto; min-width:0; gap:8px; }
+  .header-left > div { min-width:0; }
+  .header-title { overflow:hidden; text-overflow:ellipsis; }
+  .header-right { flex:0 0 auto; gap:10px; }
+  .user-profile-btn .up-name { max-width:72px; }
   .header-badge { display:none; }
   .tsi-intel    { display:none; }
   .dm-icon      { display:none; }
@@ -1513,6 +1521,11 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
   .kpi-value { font-size:1.2rem; }
   .drow-3 { grid-template-columns:1fr; }
   .close-outcome-btns { grid-template-columns:1fr; }
+  .header-title { font-size:15px; }
+  .user-profile-btn { padding-right:8px; }
+  .user-profile-btn .up-name { display:none; }   /* avatar + caret only on phones */
+  .onboard-box { padding:24px 18px; width:94%; }
+  .onboard-box h2 { font-size:21px; }
 }
 
 
@@ -3272,7 +3285,7 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
   </div>
   <div class="collapse-body" id="hot-body" style="max-height:760px">
     <div style="padding:10px var(--sp-4) 4px">
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
+      <div class="preso-launch-row" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <button class="preso-launch" style="background:#161d27;color:#cdd8e4;border:1px solid #2a3644" onclick="openPresoSettings()" title="Choose what to present: auto, smart rules, or describe it in words">⚙ What to present</button>
         <button class="preso-launch" style="background:#161d27;color:#cdd8e4;border:1px solid #2a3644" onclick="openPresoBuilder()" title="Hand-pick: drag opportunities between business lines, reorder, or hide them">🗂 Arrange deck</button>
         <button class="preso-launch" onclick="openPreso()" title="Full-screen walk-through, using the current 'what to present' settings">🎤 Present</button>
@@ -3653,7 +3666,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
+const APP_BUILD = '#169 · 2026-10-08 · present mode fits phones (fluid slide, swipe paging); header no longer forces a wide layout';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -17073,6 +17086,7 @@ startAdminPoll();
 .preso-launch{background:linear-gradient(135deg,#19446c,#00929f);color:#fff;border:none;border-radius:8px;
   padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-ui);box-shadow:0 2px 8px rgba(0,0,0,.18)}
 .preso-launch:hover{filter:brightness(1.08)}
+@media(max-width:600px){.preso-launch{flex:1 1 auto;padding:9px 10px;font-size:12px;white-space:nowrap}}
 #preso-overlay{
   --pz-bg:#05080c; --pz-panel:#161d27; --pz-panel2:#1d2632; --pz-line:#2a3644; --pz-line2:#1e2a37;
   --pz-ink:#eaf0f7; --pz-muted:#8fa2b7; --pz-faint:#5f7288; --pz-node:#33475b;
@@ -17225,17 +17239,96 @@ startAdminPoll();
 .pz-nav button{width:46px;height:46px;border-radius:50%;border:1px solid var(--pz-line);background:var(--pz-panel);color:var(--pz-ink);font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)}
 .pz-nav button:hover{background:var(--pz-panel2)}
 .pz-empty{color:var(--pz-faint);font-style:italic;font-size:15px;padding:8px 0}
-@media(max-width:760px){.pz-grid,.pz-ov-grid{grid-template-columns:1fr}.pz-acct{font-size:28px}.pz-sec-big{font-size:36px}.pz-slide{padding:22px 20px}}
+/* ── Phones & short windows ─────────────────────────────────────────────
+   The fixed 16:9 slide is right for a projector but useless on a phone: at
+   390px wide it letterboxes to a ~240px-tall box with everything scrolling
+   inside it. Below 760px (or in a short landscape window) the slide becomes a
+   fluid card that fills the stage and scrolls naturally; columns stack, type
+   steps down, toolbar labels collapse to icons, and swipes page the deck. */
+@media(max-width:760px),(max-height:520px){
+  .pz-top{gap:5px;padding:8px 10px;flex-wrap:wrap}
+  .pz-brand{font-size:13px;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pz-brand small{display:none}
+  .pz-btn{padding:6px 8px;font-size:12px;white-space:nowrap}
+  .pz-bl{display:none}
+  .pz-stage{display:block;padding:8px;container-type:normal}
+  .pz-slide{aspect-ratio:auto;width:100%;height:100%;max-height:none;border-radius:12px;padding:14px 14px 22px;
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .pz-slide::before{width:4px}
+  .pz-has-footer{padding-top:14px}
+  .pz-slide-footer{top:12px;right:12px;gap:2px}
+  .pz-foot-svg{height:15px}
+  .pz-foot-conf{font-size:7.5px;letter-spacing:.14em}
+  .pz-has-footer > .pz-eyebrow{padding-right:64px}
+  .pz-eyebrow{font-size:10.5px;letter-spacing:.1em;gap:6px;margin-bottom:12px}
+  /* eyebrow: current section + position only (the other sections live on the rail) */
+  .pz-eyebrow .pz-eye-link:not(.on),.pz-eyebrow .pz-eye-link ~ .sep{display:none}
+  .pz-eyebrow .pos{margin-left:auto}
+  .pz-head{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:10px}
+  .pz-logo{height:56px;max-width:170px;padding:6px 8px}
+  .pz-acct{font-size:25px;letter-spacing:-.3px}
+  .pz-ptype{font-size:15px;margin-top:4px}
+  .pz-loc{font-size:13px;margin-top:6px}
+  .pz-flag{white-space:normal;font-size:11.5px;padding:4px 10px}
+  .pz-ribbon{font-size:12px;padding:6px 10px;margin-bottom:12px}
+  .pz-grid,.pz-ov-grid{grid-template-columns:1fr;gap:10px}
+  .pz-box{padding:12px 13px;border-radius:10px}
+  .pz-box+.pz-box{margin-top:10px}
+  .pz-lbl{margin-bottom:8px}
+  .pz-chips{gap:6px;margin-bottom:10px}
+  .pz-chip{font-size:12px;padding:5px 9px}
+  .pz-spec{font-size:14.5px;line-height:1.55}
+  .pz-details{font-size:13.5px}
+  .pz-caps{gap:16px}
+  .pz-cap .big{font-size:22px}
+  .pz-pill{font-size:12px;padding:4px 9px}
+  .pz-map{height:190px}
+  .pz-clima{height:130px}
+  .pz-comm{font-size:13px;gap:6px 12px}
+  /* overview */
+  .pz-ov-title{font-size:24px}
+  .pz-ov-sub{font-size:13px;margin-bottom:12px}
+  #pz-ovmap{height:220px}
+  .pz-ov-chart{padding:10px 12px;margin-top:10px}
+  .pz-kpis{gap:8px;margin-bottom:10px}
+  .pz-kpi{padding:10px 12px}
+  .pz-kpi .n{font-size:20px}
+  .pz-agenda{padding:4px 2px}
+  .pz-ag-row{flex-wrap:wrap;gap:6px 10px;padding:9px 10px}
+  .pz-ag-bl,.pz-ag-go{display:none}
+  .pz-ag-jobs{padding:0 10px 10px 10px}
+  /* section divider */
+  .pz-sec-head{gap:12px}
+  .pz-sec-logo{height:46px;max-width:120px;padding:5px 7px}
+  .pz-sec-big{font-size:28px;letter-spacing:-.5px;margin:4px 0 6px}
+  .pz-sec-blurb{font-size:14px;margin-bottom:14px}
+  .pz-sec-item{padding:8px 6px}
+  .pz-si-main{flex-wrap:wrap;gap:4px 8px}
+  .pz-sec-item .a,.pz-sec-item .t{white-space:normal}
+  .pz-sec-item .t{flex:1 1 100%;order:3;font-size:12.5px}
+  .pz-si-tags{flex-wrap:wrap;order:4;flex-basis:100%}
+  .pz-sec-go{display:none}
+  /* stage snapshot — side-scrolls; swipes here scroll the board, not the deck */
+  .pzs-board{grid-auto-columns:minmax(150px,1fr);overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  /* rail + nav: the ‹ › buttons dock into the right end of the rail bar instead
+     of floating over the slide's bottom corner (where they hid content) */
+  .pz-rail{padding:6px 92px 6px 12px;min-height:40px;box-sizing:border-box;font-size:10px;gap:4px;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  .pz-rnode{width:10px;height:10px}
+  .pz-nav{bottom:0;right:0;height:40px;align-items:center;gap:6px;padding:0 10px 0 16px;
+    background:linear-gradient(90deg,transparent,var(--pz-bg) 14px)}
+  .pz-nav button{width:32px;height:32px;font-size:17px;box-shadow:none}
+  .pz-empty{font-size:13px}
+}
 </style>
 <div id="preso-overlay" role="dialog" aria-label="Project Track presentation">
   <div class="pz-top">
-    <span class="pz-brand">TSI · Project Track<small>Open opportunities</small></span>
+    <span class="pz-brand"><span class="pz-bl">TSI · </span>Project Track<small>Open opportunities</small></span>
     <span class="sp"></span>
-    <button class="pz-btn" id="pz-theme-btn" onclick="presoToggleTheme()" title="Light / dark">🌙 Dark</button>
+    <button class="pz-btn" id="pz-theme-btn" onclick="presoToggleTheme()" title="Light / dark">🌙 <span class="pz-bl">Dark</span></button>
     <button class="pz-btn" id="pz-money-btn" onclick="presoToggleMoney()" title="Blur commercial figures">Hide $</button>
-    <button class="pz-btn" onclick="presoFullscreen()" title="Toggle full screen">⛶ Full screen</button>
-    <button class="pz-btn" onclick="presoExportDeck()" title="Save the deck as a self-contained HTML file (for sharing / hosting)">⬇ Save HTML</button>
-    <button class="pz-btn" onclick="closePreso()">✕ Exit</button>
+    <button class="pz-btn" id="pz-fs-btn" onclick="presoFullscreen()" title="Toggle full screen">⛶ <span class="pz-bl">Full screen</span></button>
+    <button class="pz-btn" onclick="presoExportDeck()" title="Save the deck as a self-contained HTML file (for sharing / hosting)">⬇ <span class="pz-bl">Save HTML</span></button>
+    <button class="pz-btn" onclick="closePreso()" title="Exit (Esc)">✕ <span class="pz-bl">Exit</span></button>
   </div>
   <div class="pz-stage" id="pz-stage"></div>
   <div class="pz-rail" id="pz-rail"></div>
@@ -17309,7 +17402,15 @@ startAdminPoll();
 .pb-card .grip{color:var(--pb-faint2);font-size:13px}
 .pb-badge{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#0e7490;color:#fff}
 .pb-empty{color:var(--pb-faint2);font-size:12px;font-style:italic;text-align:center;padding:14px 4px}
-@media(max-width:760px){.pb-col{flex-basis:82vw;max-width:82vw}}
+@media(max-width:760px){
+  .pb-top{gap:8px;padding:10px 12px}
+  .pb-hint{display:none}          /* the drag hint is desktop advice */
+  .pb-btn{padding:6px 10px;font-size:12px}
+  .pb-filters{padding:8px 12px;gap:8px}
+  .pb-filter-search{flex:1 1 100%}
+  .pb-board{gap:10px;padding:12px;scroll-snap-type:x proximity}
+  .pb-col{flex-basis:84vw;max-width:84vw;scroll-snap-align:start}
+}
 </style>
 <div id="presob-overlay" role="dialog" aria-label="Project Track deck builder">
   <div class="pb-top">
@@ -17365,6 +17466,14 @@ startAdminPoll();
 .ps-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--color-border)}
 .ps-btn{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-ui);border:1px solid var(--color-border-mid);background:transparent;color:var(--color-text-secondary)}
 .ps-btn.primary{background:var(--tsi-teal);color:#fff;border:none;font-weight:600}
+@media(max-width:480px){
+  #preso-set-overlay{padding:8px;align-items:flex-end}
+  .ps-modal{max-height:94vh}
+  .ps-row{grid-template-columns:1fr;gap:5px}
+  .ps-row label{font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .ps-mode{min-width:0;flex:1 1 calc(50% - 8px)}
+  .ps-foot{padding:12px 14px}
+}
 </style>
 <div id="preso-set-overlay" onclick="if(event.target===this)closePresoSettings()">
   <div class="ps-modal" role="dialog" aria-label="What to present">
@@ -19438,11 +19547,30 @@ async function presoBuildDeck(){
   return deck;
 }
 
+// Touch paging: a mostly-horizontal swipe on the stage moves one slide. Swipes
+// that start on a map (pannable), the stage-snapshot board (side-scrolls) or a
+// chart are left alone so those keep their own gestures.
+let _presoTouch=null, _presoTouchBound=false;
+function presoTouchStart(e){
+  if(e.touches.length!==1 || e.target.closest('.leaflet-container,.pzs-board,canvas,.pz-rail')){ _presoTouch=null; return; }
+  _presoTouch={x:e.touches[0].clientX, y:e.touches[0].clientY, t:Date.now()};
+}
+function presoTouchEnd(e){
+  const s=_presoTouch; _presoTouch=null; if(!s||!e.changedTouches.length) return;
+  const t=e.changedTouches[0], dx=t.clientX-s.x, dy=t.clientY-s.y;
+  if(Date.now()-s.t<900 && Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.6) presoGo(dx<0?1:-1);
+}
 async function openPreso(){
   const ov=document.getElementById('preso-overlay');
   ov.classList.add('open');
   presoApplyTheme();
-  document.getElementById('pz-stage').innerHTML='<div style="margin:auto;color:var(--pz-faint)">Building deck…</div>';
+  // iOS Safari has no element fullscreen — hide a button that would do nothing.
+  const fsBtn=document.getElementById('pz-fs-btn'); if(fsBtn) fsBtn.style.display=(ov.requestFullscreen||ov.webkitRequestFullscreen)?'':'none';
+  const stage=document.getElementById('pz-stage');
+  if(!_presoTouchBound){ _presoTouchBound=true;
+    stage.addEventListener('touchstart', presoTouchStart, {passive:true});
+    stage.addEventListener('touchend', presoTouchEnd, {passive:true}); }
+  stage.innerHTML='<div style="margin:auto;color:var(--pz-faint);padding:20px">Building deck…</div>';
   document.addEventListener('keydown', presoKey);
   try{ presoMapViewStore().pull(); }catch(_){}   // load the team's saved per-mill map framings
   try{ _presoDeck=await presoBuildDeck(); }catch(e){ _presoSectionsActive=PRESO_SECTIONS; _presoDeck=[{type:'overview',bySect:{},sections:PRESO_SECTIONS}]; }
@@ -19529,16 +19657,18 @@ function presoToggleMoney(){
   const ov=document.getElementById('preso-overlay'); ov.classList.toggle('hide-money');
   document.getElementById('pz-money-btn').classList.toggle('act', ov.classList.contains('hide-money'));
 }
+// Toolbar labels sit in .pz-bl so phones can collapse the buttons to icons.
+function presoThemeBtn(light){ const btn=document.getElementById('pz-theme-btn'); if(btn) btn.innerHTML=(light?'☀':'🌙')+' <span class="pz-bl">'+(light?'Light':'Dark')+'</span>'; }
 function presoApplyTheme(){
   const ov=document.getElementById('preso-overlay');
   const light=(localStorage.getItem('tsi_preso_theme')||'dark')==='light';
   ov.classList.toggle('preso-light', light);
-  const btn=document.getElementById('pz-theme-btn'); if(btn) btn.textContent=light?'☀ Light':'🌙 Dark';
+  presoThemeBtn(light);
 }
 function presoToggleTheme(){
   const ov=document.getElementById('preso-overlay');
   const light=ov.classList.toggle('preso-light');
-  const btn=document.getElementById('pz-theme-btn'); if(btn) btn.textContent=light?'☀ Light':'🌙 Dark';
+  presoThemeBtn(light);
   try{ localStorage.setItem('tsi_preso_theme', light?'light':'dark'); }catch(_){}
   presoRender();   // re-render so the map/chart re-tint for the theme
 }
@@ -20010,6 +20140,12 @@ function presoRenderRail(){
     html+=`</span>`;
   });
   rail.innerHTML=html;
+  // Keep the current node in view — the rail side-scrolls on narrow screens.
+  const on=rail.querySelector('.pz-rnode.on')||rail.querySelector('.pz-rname.cur');
+  if(on && rail.scrollWidth>rail.clientWidth){
+    const nr=on.getBoundingClientRect(), rr=rail.getBoundingClientRect();
+    rail.scrollLeft+=(nr.left+nr.width/2)-(rr.left+rr.width/2);
+  }
 }
 
 /* ─────────────── WHAT TO PRESENT — settings ─────────────── */
