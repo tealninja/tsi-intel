@@ -2,7 +2,7 @@
 
 Claude edits this file (via commits) as work is raised/finished. The
 human-readable master snapshot is the Google Doc **"TSI — Notes & Backlog"**
-(https://docs.google.com/document/d/1k87MEc1fns4ZjXODu9XChH-mE_M82fMcJe0fNmiDXUk/edit) —
+(https://docs.google.com/document/d/1uEB-jK27_YEQfBj0EaA1TeWsfiAoxbQqtybKJEBi6S0/edit) —
 the Drive connector can create/read but not edit in place, so the Doc is
 refreshed from this file on request. See `CLAUDE.md`.
 
