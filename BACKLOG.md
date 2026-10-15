@@ -185,6 +185,10 @@ Roles (cumulative ladder):
   helper; default provider is Esri Light/Dark Gray Canvas (keyless, base + label overlay).
   `CARTO_API_KEY` constant switches back to CARTO if a key is ever wanted (free tier is
   non-commercial, so Esri is the default). Needs a static redeploy (`npx wrangler deploy`).
+- [x] **Accounts map fills the screen on widescreen** (build #170) — map panel is a flex column;
+  the 900px caps on stats/map/legend are gone and the map grows to the main area's full width
+  and height (min 420px, so phones/short windows still scroll). ResizeObserver redraws Leaflet
+  when the panel changes size.
 
 ### 🗒️ 2026-07-16/17 session cont. — visits, familiarity, quotes, opp→site (builds #154–#168)
 Branch `claude/reintegrate-features-tablekit` → fast-forwarded to `main` after each change.

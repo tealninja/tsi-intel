@@ -1824,6 +1824,12 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 
 /* Main panel */
 .acct-main { overflow-y:auto; padding:0; grid-column:2; grid-row:1; }
+/* Accounts map panel — a flex column so the map grows to fill whatever the
+   main area gives it (full width + height on widescreen). On mobile the layout
+   is auto-height, so the map falls back to its 420px flex basis. */
+#acct-map-panel { display:flex; flex-direction:column; min-height:0; }
+#acct-map-panel > * { flex:0 0 auto; }
+#acct-map-panel #acct-map { flex:1 1 420px; min-height:420px; }
 .acct-empty-state {
   display:flex; flex-direction:column; align-items:center;
   justify-content:center; height:100%; gap:10px;
@@ -3653,7 +3659,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-10-15 · maps: keyless Esri basemap (CARTO now wants an API key)';
+const APP_BUILD = '#170 · 2026-10-15 · accounts map fills the screen on widescreen';
 // ── BASEMAP TILES ─────────────────────────────────────────────
 // CARTO now requires an API key for basemaps.cartocdn.com — keyless requests
 // return tiles watermarked "API KEY REQUIRED". Every map in the app goes
@@ -13439,6 +13445,11 @@ function renderAcctMap() {
   if (!_acctMap) {
     _acctMap = L.map('acct-map', { zoomControl:true, attributionControl:false }).setView([35, -40], 2);
     tsiBasemap().addTo(_acctMap);
+    // The map now sizes itself to the panel (flex), so redraw whenever the
+    // container changes size — window resize, sidebar collapse, theme/zoom.
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => { try { _acctMap.invalidateSize(); } catch(_) {} }).observe(mapEl);
+    }
   }
 
   _acctMapMarkers.forEach(m => m.remove());
@@ -16176,10 +16187,10 @@ startAdminPoll();
       </div>
 
       <!-- Stat cards — filtered to whatever the map is currently showing -->
-      <div id="acct-map-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;max-width:900px"></div>
+      <div id="acct-map-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px"></div>
 
-      <div id="acct-map" style="height:520px;max-width:900px;border-radius:var(--radius-md);background:var(--color-bg)"></div>
-      <div id="acct-map-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:10px;max-width:900px"></div>
+      <div id="acct-map" style="border-radius:var(--radius-md);background:var(--color-bg)"></div>
+      <div id="acct-map-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:10px"></div>
     </div>
 
     <!-- TABLE PANEL — full sortable/filterable grid of every account & site -->
