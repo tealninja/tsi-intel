@@ -179,6 +179,13 @@ Roles (cumulative ladder):
 
 ## ✅ Recently done
 
+### 🗒️ 2026-10-15 — maps "API KEY REQUIRED" (build #169)
+- [x] **CARTO basemaps now require an API key** — keyless tile requests come back watermarked
+  "API KEY REQUIRED" (no HTTP error). All 11 Leaflet maps now go through one `tsiBasemap()`
+  helper; default provider is Esri Light/Dark Gray Canvas (keyless, base + label overlay).
+  `CARTO_API_KEY` constant switches back to CARTO if a key is ever wanted (free tier is
+  non-commercial, so Esri is the default). Needs a static redeploy (`npx wrangler deploy`).
+
 ### 🗒️ 2026-07-16/17 session cont. — visits, familiarity, quotes, opp→site (builds #154–#168)
 Branch `claude/reintegrate-features-tablekit` → fast-forwarded to `main` after each change.
 
