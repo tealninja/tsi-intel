@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#169 · 2026-10-23 · opportunity cards export (4:3 PNG) + plant-model site & climate cards';
+const APP_BUILD = '#170 · 2026-10-23 · cards inline on the opportunity Overview, data-only frames';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -10751,6 +10751,9 @@ function openDetail(id) {
   renderDetailOverview(o);
   renderDetailSchedule(o);
   renderDetailNotes(o);
+  // Cards for PowerPoint — live 4:3 previews at the bottom of the Overview. Mounted after
+  // the Schedule tab has loaded this record so the Schedule card sees its phases.
+  try { cardxMount(o); } catch(e) { console.warn('cards', e); }
   // Render resources when tab is opened
   document.querySelector('.detail-tab[onclick*="resources"]')?.addEventListener('click', () => renderResourceTab(), {once:false});
   trackOppView(id);
@@ -10770,6 +10773,7 @@ function closeDetail() {
   const ov = document.getElementById('detail-overlay');
   if (ov) ov.style.display = 'none';
   _detailId = null;
+  try { if (typeof cardxTeardown === 'function') cardxTeardown(); } catch(_) {}
 }
 
 function editFromDetail() {
@@ -16323,7 +16327,7 @@ startAdminPoll();
       <div class="detail-title" id="detail-title">Opportunity Detail</div>
       <div class="detail-subtitle" id="detail-subtitle"></div>
     </div>
-    <button class="btn-detail-cards" onclick="openCardExport()" title="Every presentation card for this opportunity as a 4:3 PNG — drop them into PowerPoint">Download cards</button>
+    <button class="btn-detail-cards" onclick="cardxScrollTo()" title="Jump to the 4:3 cards for PowerPoint (bottom of the Overview)">Cards</button>
     <button class="btn-detail-edit" onclick="editFromDetail()">✎ Edit</button>
   </div>
 
@@ -16391,6 +16395,22 @@ startAdminPoll();
             <div id="ov-clima-legend"></div>
           </div>
         </div>
+      </div>
+
+      <!-- Cards for PowerPoint: every presentation card for this opportunity, 4:3, downloadable -->
+      <div class="detail-section" id="ov-cards-section">
+        <div class="detail-section-title ov-sec-title-row" style="margin-bottom:8px">
+          <span>Cards for PowerPoint <span class="r" style="margin-left:8px">4:3 · 2400 × 1800 px PNG</span></span>
+          <span class="cardx-controls">
+            <span class="cardx-seg" id="cardx-theme">
+              <button type="button" data-t="light" onclick="cardxSetTheme('light')">Light</button>
+              <button type="button" data-t="dark" onclick="cardxSetTheme('dark')">Dark</button>
+            </span>
+            <button type="button" class="btn-export-jpg" id="cardx-all-btn" onclick="cardxDownloadAll()">⬇ Download all (zip)</button>
+          </span>
+        </div>
+        <div class="cardx-hint"><span>Data only, no header or logo — drop each PNG where it has context in the deck. Map framing follows the saved view from the presentation.</span><span class="prog" id="cardx-prog"></span></div>
+        <div class="cardx-grid" id="cardx-grid"></div>
       </div>
 
     </div>
@@ -20440,33 +20460,23 @@ loadPriceBook().then(()=>{ _pbLoaded=true; });
   --pz-ink:#17222f; --pz-muted:#51617a; --pz-faint:#7a8ba0; --pz-node:#c7d2dd; --pz-text:#17222f;
   --pz-slidea:#ffffff; --pz-slideb:#f6f8fb; --pz-shadow:none; --pz-grid:rgba(30,50,80,.06)}
 
-/* ── export panel ── */
-.cardx-overlay{position:fixed;inset:0;z-index:3200;background:var(--color-bg);display:none;flex-direction:column;overflow:hidden}
-.cardx-overlay.open{display:flex}
-.cardx-top{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--tsi-deep-blue);color:#fff;flex:0 0 auto;flex-wrap:wrap}
-.cardx-title{font-family:var(--font-display);font-size:18px;line-height:1.1}
-.cardx-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px}
-.cardx-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.cardx-btn{background:rgba(255,255,255,0.12);color:#fff;border:0.5px solid rgba(255,255,255,0.35);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font-ui)}
-.cardx-btn:hover{background:rgba(255,255,255,0.2)}
-.cardx-btn.primary{background:var(--tsi-teal);border-color:var(--tsi-teal)}
-.cardx-btn:disabled{opacity:.5;cursor:default}
-.cardx-seg{display:inline-flex;border:0.5px solid rgba(255,255,255,0.35);border-radius:var(--radius-sm);overflow:hidden}
-.cardx-seg button{background:transparent;color:#fff;border:0;padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font-ui)}
-.cardx-seg button.on{background:rgba(255,255,255,0.22)}
-.cardx-hint{padding:8px 24px;font-size:11px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
-.cardx-hint .mono{font-family:var(--font-mono)}
+/* ── cards section on the opportunity Overview ── */
+.cardx-controls{display:inline-flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0}
+.cardx-seg{display:inline-flex;border:0.5px solid var(--color-border-mid,var(--color-border));border-radius:var(--radius-sm);overflow:hidden}
+.cardx-seg button{background:transparent;color:var(--color-text-secondary);border:0;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--font-ui)}
+.cardx-seg button.on{background:var(--tsi-deep-blue);color:#fff}
+.cardx-seg button:disabled{opacity:.5;cursor:default}
+.cardx-hint{font-size:11px;color:var(--color-text-muted);display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .cardx-hint .prog{margin-left:auto;color:var(--tsi-teal)}
-.cardx-body{flex:1 1 auto;overflow:auto;padding:20px 24px 40px}
-.cardx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px;max-width:1500px;margin:0 auto}
+.cardx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .cardx-item{background:var(--color-surface);border:0.5px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden}
 .cardx-item.na{opacity:.6}
 .cardx-thumb{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:var(--color-bg);border-bottom:0.5px solid var(--color-border)}
 .cardx-scaler{position:absolute;left:0;top:0;width:1200px;height:900px;transform-origin:0 0;pointer-events:none}
-.cardx-meta{display:flex;align-items:center;gap:8px;padding:10px 12px}
-.cardx-name{font-size:13px;font-weight:500;color:var(--color-heading)}
-.cardx-note{font-size:11px;color:var(--color-text-muted)}
-.cardx-dl{margin-left:auto;font-size:11px;padding:5px 12px;background:transparent;border:0.5px solid var(--color-border-mid,var(--color-border));border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-ui);color:var(--color-text-secondary)}
+.cardx-meta{display:flex;align-items:center;gap:8px;padding:8px 10px}
+.cardx-name{font-size:12px;font-weight:500;color:var(--color-heading)}
+.cardx-note{font-size:10px;color:var(--color-text-muted)}
+.cardx-dl{margin-left:auto;font-size:11px;padding:4px 10px;background:transparent;border:0.5px solid var(--color-border-mid,var(--color-border));border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-ui);color:var(--color-text-secondary)}
 .cardx-dl:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
 .cardx-dl:disabled{opacity:.5;cursor:default}
 #cardx-stage{position:fixed;left:0;top:0;width:1200px;height:900px;z-index:2900;pointer-events:none;display:none}
@@ -20474,23 +20484,14 @@ loadPriceBook().then(()=>{ _pbLoaded=true; });
 
 /* ── the 4:3 card frame (1200 × 900 CSS px, rasterised at 2×) ── */
 .cx-card{position:relative;width:1200px;height:900px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;
-  background:var(--pz-slidea);color:var(--pz-ink);font-family:var(--font-ui,'Inter',system-ui,sans-serif);padding:36px 44px 28px 50px}
+  background:var(--pz-slidea);color:var(--pz-ink);font-family:var(--font-ui,'Inter',system-ui,sans-serif);padding:40px 48px 40px 54px}
 .cx-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--acc,#00929f)}
 .cx-card .mono{font-family:var(--font-mono,'JetBrains Mono',monospace);font-variant-numeric:tabular-nums}
-.cx-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex:0 0 auto}
-.cx-head-l{display:flex;gap:18px;align-items:center;min-width:0}
-.cx-logo{height:64px;width:auto;max-width:200px;object-fit:contain;border-radius:6px;background:#fff;padding:6px 10px;border:0.5px solid var(--pz-line);flex-shrink:0}
-.cx-acct{font-size:30px;font-weight:500;line-height:1.08;letter-spacing:-.3px;color:var(--pz-ink)}
-.cx-type{font-size:15px;color:var(--pz-muted);margin-top:5px}
-.cx-head-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;padding-top:4px}
-.cx-head-r .pz-foot-svg{height:26px;width:auto;display:block}
-.cx-conf{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--pz-faint);font-weight:500}
-.cx-title{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:26px 0 14px;padding-bottom:10px;border-bottom:0.5px solid var(--pz-line);
-  font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc,#00929f);font-weight:500;flex:0 0 auto}
-.cx-title .r{font-size:12px;letter-spacing:0;text-transform:none;color:var(--pz-muted);font-weight:400}
+.cx-title{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:0 0 18px;padding-bottom:12px;border-bottom:0.5px solid var(--pz-line);
+  font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc,#00929f);font-weight:500;flex:0 0 auto}
+.cx-title .r{font-size:14px;letter-spacing:0;text-transform:none;color:var(--pz-muted);font-weight:400}
 .cx-body{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column}
 .cx-fit{flex:1 1 auto;min-height:0;transform-origin:0 0}
-.cx-foot{display:flex;justify-content:space-between;gap:16px;margin-top:16px;padding-top:10px;border-top:0.5px solid var(--pz-line);font-size:11px;color:var(--pz-faint);flex:0 0 auto}
 .cx-empty{color:var(--pz-faint);font-style:italic;font-size:18px;padding:18px 0}
 /* scope */
 .cx-chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
@@ -20553,26 +20554,7 @@ loadPriceBook().then(()=>{ _pbLoaded=true; });
 .cx-card .pz-map .pin{box-shadow:none;border:4px solid rgba(0,146,159,.3);background-clip:padding-box}
 </style>
 
-<!-- Export panel + offscreen rasterising stage -->
-<div id="cardx-overlay" class="cardx-overlay" role="dialog" aria-label="Download opportunity cards">
-  <div class="cardx-top">
-    <div><div class="cardx-title">Download cards</div><div class="cardx-sub" id="cardx-sub"></div></div>
-    <div class="cardx-actions">
-      <div class="cardx-seg" id="cardx-theme">
-        <button type="button" data-t="light" onclick="cardxSetTheme('light')">Light</button>
-        <button type="button" data-t="dark" onclick="cardxSetTheme('dark')">Dark</button>
-      </div>
-      <button type="button" class="cardx-btn primary" id="cardx-all-btn" onclick="cardxDownloadAll()">Download all (zip)</button>
-      <button type="button" class="cardx-btn" onclick="closeCardExport()">Close</button>
-    </div>
-  </div>
-  <div class="cardx-hint">
-    <span>Each card is a 4:3 landscape PNG, <span class="mono">2400 × 1800</span> px, ready to drop onto a 4:3 PowerPoint slide.</span>
-    <span>Map framing follows the saved view from the presentation.</span>
-    <span class="prog" id="cardx-prog"></span>
-  </div>
-  <div class="cardx-body"><div class="cardx-grid" id="cardx-grid"></div></div>
-</div>
+<!-- Offscreen stage where a card is parked while html2canvas rasterises it -->
 <div id="cardx-stage"></div>
 
 <script>
@@ -20750,24 +20732,35 @@ function cxCoords(o){ try{ return presoJobCoords(o); }catch(_){ return (o&&o.lat
 function cxLight(){ return _cardxTheme==='light'; }
 function cxDate(){ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
 
-function openCardExport(){
-  const o=DATA.find(r=>r.id===_detailId); if(!o){ showToast('Open an opportunity first','var(--tsi-amber)'); return; }
+// Mount the card gallery into the Overview for this opportunity (called by renderDetailOverview).
+function cardxMount(o){
+  if(!o||!document.getElementById('cardx-grid')) return;
   _cardxOpp=o; _cardxSec=cxSection(o);
   _cardxTheme=(document.documentElement.getAttribute('data-theme')==='dark')?'dark':'light';
-  document.getElementById('cardx-sub').textContent=[o.acct,o.type,presoLoc(o)!=='—'?presoLoc(o):''].filter(Boolean).join(' · ');
-  document.getElementById('cardx-overlay').classList.add('open');
-  document.addEventListener('keydown',cardxKey);
-  window.addEventListener('resize',cardxLayout);
+  window.removeEventListener('resize',cardxLayout); window.addEventListener('resize',cardxLayout);
   cardxRenderAll();
-  try{ usageLog('cards_export_open',o.id); }catch(_){}
 }
-function closeCardExport(){
-  cardxTeardown();
-  document.getElementById('cardx-overlay').classList.remove('open');
-  document.removeEventListener('keydown',cardxKey);
-  window.removeEventListener('resize',cardxLayout);
+// Rebuild one card in place (e.g. the Schedule card after the Gantt changes). Debounced.
+const _cardxRefreshT={};
+function cardxRefresh(key){
+  if(!_cardxOpp||!document.getElementById('cardx-grid')||_cardxBusy) return;
+  clearTimeout(_cardxRefreshT[key]);
+  _cardxRefreshT[key]=setTimeout(()=>{
+    const idx=_cardxCards.findIndex(c=>c.key===key); if(idx<0) return;
+    const old=_cardxCards[idx]; try{ old.chart&&old.chart.destroy(); }catch(_){} try{ old.map&&old.map.remove(); }catch(_){}
+    const item=document.querySelector(`#cardx-grid .cardx-item[data-key="${key}"]`); if(!item) return;
+    const card=cardxBuild(key,_cardxOpp,_cardxSec,item.querySelector('.cardx-scaler')); _cardxCards[idx]=card;
+    const def=CARDX_DEFS.find(d=>d.key===key)||{};
+    item.classList.toggle('na',!card.avail);
+    let n=item.querySelector('.cardx-note');
+    if(!n){ item.querySelector('.cardx-meta > div').insertAdjacentHTML('beforeend','<div class="cardx-note"></div>'); n=item.querySelector('.cardx-note'); }
+    n.textContent=card.avail?(def.note||''):(card.why||'No data');
+    cardxLayout();
+  },150);
 }
-function cardxKey(e){ if(e.key==='Escape'&&!_cardxBusy) closeCardExport(); }
+// Keep the Schedule card in step with the Schedule tab (the timeline is redrawn on every change).
+if(typeof renderMSTimeline==='function'){ const _rmtBase=renderMSTimeline; renderMSTimeline=function(){ const r=_rmtBase.apply(this,arguments); cardxRefresh('schedule'); return r; }; }
+function cardxScrollTo(){ showDetailTab('overview'); const el=document.getElementById('ov-cards-section'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
 function cardxSetTheme(t){ if(_cardxBusy||t===_cardxTheme) return; _cardxTheme=t; cardxRenderAll(); }
 function cardxTeardown(){
   _cardxCards.forEach(c=>{ try{ c.chart&&c.chart.destroy(); }catch(_){} try{ c.map&&c.map.remove(); }catch(_){} });
@@ -20798,17 +20791,13 @@ function cardxRenderAll(){
 
 // ── frame + bodies ────────────────────────────────────────────
 function cxFrame(o,sec,title,bodyHTML,opts={}){
+  // Data only: a small label row (title + a data-bearing right side such as coords or
+  // the climate source) and the body. No account, logo or TSI mark — the PNG is placed
+  // where it already has context in the deck.
   const light=cxLight();
-  const lg=(typeof oppAcctLogo==='function')?oppAcctLogo(o):'';
-  const sub=[o.type||'',presoLoc(o)!=='—'?presoLoc(o):''].filter(Boolean).join(' · ');
   return `<div class="cx-card pz-theme${light?' preso-light':''}${opts.cls?' '+opts.cls:''}" style="--acc:${sec.acc}">
-    <div class="cx-head">
-      <div class="cx-head-l">${lg?`<img class="cx-logo" src="${qattr(lg)}" alt="">`:''}<div style="min-width:0"><div class="cx-acct">${qesc(o.acct||'—')}</div><div class="cx-type">${qesc(sub)}</div></div></div>
-      <div class="cx-head-r">${presoLogoSVG(light?'#19446C':'#ffffff')}<span class="cx-conf">Confidential</span></div>
-    </div>
     <div class="cx-title"><span>${qesc(title)}</span><span class="r">${opts.right||''}</span></div>
     <div class="cx-body">${bodyHTML}</div>
-    <div class="cx-foot"><span>${qesc(sec.label)} · ${qesc(o.stage||'—')}${o.close?' · closes '+qesc(o.close):''}</span><span class="mono">TSI Intel · ${cxDate()}</span></div>
   </div>`;
 }
 // Shrink an overflowing body to fit (text-heavy cards).
@@ -20997,7 +20986,7 @@ async function cardxRasterize(card){
 function cxFileName(key){ const o=_cardxOpp; return `TSI_${cxSlug(o.acct)}_${key}_${new Date().toISOString().slice(0,10)}.png`; }
 function cxSaveBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
 const cxToBlob=cv=>new Promise(res=>cv.toBlob(res,'image/png'));
-function cardxSetBusy(b,msg){ _cardxBusy=b; document.querySelectorAll('#cardx-overlay .cardx-dl, #cardx-all-btn, #cardx-theme button').forEach(x=>x.disabled=b); const p=document.getElementById('cardx-prog'); if(p) p.textContent=msg||''; }
+function cardxSetBusy(b,msg){ _cardxBusy=b; document.querySelectorAll('#ov-cards-section .cardx-dl, #cardx-all-btn, #cardx-theme button').forEach(x=>x.disabled=b); const p=document.getElementById('cardx-prog'); if(p) p.textContent=msg||''; }
 async function cardxDownload(key){
   if(_cardxBusy) return; const card=_cardxCards.find(c=>c.key===key); if(!card) return;
   cardxSetBusy(true,'Rendering '+(CARDX_DEFS.find(d=>d.key===key)||{}).label+'…');

@@ -163,8 +163,9 @@ Roles (cumulative ladder):
   (insert→read→delete) confirmed. **Remaining: deploy the worker** so the route exists (below).
 - [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
   richer sample-quote slides.
-- [x] **Opportunity cards → PowerPoint (build #169)** — "Download cards" on the opportunity
-  detail top bar: every card from the presentation slide (full slide, scope of supply, details,
+- [x] **Opportunity cards → PowerPoint (builds #169–#170)** — live card gallery at the bottom of
+  the opportunity **Overview** ("Cards" in the top bar jumps to it); frames are **data only** (no
+  account / logo / TSI mark — the PNG goes where it has context in the deck). Every card from the presentation slide (full slide, scope of supply, details,
   install & commissioning, site location, capacity, commercial, site climate) **plus the
   schedule** (Gantt + milestone timeline), each rendered in a **4:3 landscape frame** (2400 ×
   1800 PNG, html2canvas at 2×) with the TSI mark + Confidential. Live previews, **light / dark
