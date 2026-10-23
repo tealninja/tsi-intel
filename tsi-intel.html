@@ -3653,7 +3653,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#168 · 2026-07-17 · opp location inherits from linked site (read-only when linked)';
+const APP_BUILD = '#169 · 2026-10-23 · opportunity cards export (4:3 PNG) + plant-model site & climate cards';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -10859,8 +10859,15 @@ function renderDetailOverview(o) {
 
   // Map
   const mapEl = document.getElementById('ov-map');
+  const _ovDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const _ovInfo = document.getElementById('ov-map-info'), _ovHdr = document.getElementById('ov-map-coords');
   if (mapEl && o.lat && o.lon) {
     mapEl.innerHTML = '';
+    // Plant-model site facts: coords · elevation in the header, lat / lon / elev /
+    // Köppen class in the panel over the map (elevation + climate fill async).
+    if (_ovInfo) _ovInfo.innerHTML = tsiSiteInfoHTML(o.acct, o.loc || '', [o.lat, o.lon], o);
+    if (_ovHdr)  _ovHdr.textContent = tsiCoordStr(o.lat, o.lon) + (o.elev != null ? ' · ' + tsiElevStr(o.elev) : '');
+    try { tsiSiteInfoFill(document.getElementById('ov-map-section'), o, [o.lat, o.lon]); } catch(_) {}
     try {
       if (_ovMap) { _ovMap.remove(); _ovMap = null; }
       setTimeout(() => {
@@ -10869,7 +10876,7 @@ function renderDetailOverview(o) {
           attributionControl: false,
           renderer: L.canvas({ padding: 0.5 }),
         }).setView([o.lat, o.lon], 8);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        L.tileLayer(_ovDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
           { maxZoom:19, tileSize:512, zoomOffset:-1, detectRetina: true }).addTo(_ovMap);
         const marker = L.circleMarker([o.lat, o.lon], {
           radius:8, fillColor:'#00929F', color:'white',
@@ -10883,6 +10890,8 @@ function renderDetailOverview(o) {
       }, 50);
     } catch(e) { mapEl.innerHTML = '<div style="padding:20px;color:var(--color-text-muted);font-size:11px">Map unavailable</div>'; }
   } else if (mapEl) {
+    if (_ovInfo) _ovInfo.innerHTML = '';
+    if (_ovHdr)  _ovHdr.textContent = '';
     mapEl.innerHTML = '<div style="padding:20px;color:var(--color-text-muted);font-size:11px;display:flex;align-items:center;justify-content:center;height:100%">No coordinates — geocode in Edit drawer</div>';
   }
 
@@ -10893,45 +10902,25 @@ function renderDetailOverview(o) {
     const srcEl = document.getElementById('ov-clima-src');
     if (srcEl) srcEl.textContent = o._climaSrc || '';
 
-    // Summary strip — annual avg, coldest, warmest, rainfall
-    const annualAvg  = (o._monthlyMean.reduce((a,b)=>a+b,0)/12).toFixed(1);
-    const coldest    = Math.min(...o._monthlyMean).toFixed(1);
-    const warmest    = Math.max(...o._monthlyMean).toFixed(1);
-    const rainfall   = Math.round(o._monthlyPrecip.reduce((a,b)=>a+b,0));
+    // Summary strip — annual avg, coldest, warmest, rainfall, Köppen class
+    const _w = tsiClimaOf(o);
+    const _st = tsiClimaStats(_w);
+    const _kp = tsiKoppen(o._monthlyMean, o._monthlyPrecip, o.lat);
     const summEl = document.getElementById('ov-clima-summary');
-    if (summEl) summEl.innerHTML = [
-      [annualAvg+'°C', 'Annual Avg'],
-      [coldest+'°C',   'Coldest Month'],
-      [warmest+'°C',   'Warmest Month'],
-      [rainfall+' mm', 'Annual Rainfall'],
-    ].map(([v,l])=>`<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border)">
-      <div style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--color-heading)">${v}</div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-muted)">${l}</div>
-    </div>`).join('');
+    if (summEl && _st) summEl.innerHTML = [
+      [_st.avg+'°C',     'Annual avg'],
+      [_st.coldest+'°C', 'Coldest month'],
+      [_st.warmest+'°C', 'Warmest month'],
+      [_st.rain+' mm',   'Annual rainfall'],
+    ].map(([v,l])=>`<div><div class="n">${v}</div><div class="l">${l}</div></div>`).join('')
+      + `<div style="grid-column:1/-1;border-bottom:0"><div class="n sm" style="font-family:var(--font-ui)">${_kp ? _kp.name : '—'}</div><div class="l">Climate${_kp ? ' · Köppen ' + _kp.code : ''}</div></div>`;
 
     const canvas = document.getElementById('ov-clima-canvas');
     if (canvas) {
       if (_ovClima) { _ovClima.destroy(); _ovClima = null; }
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      _ovClima = new Chart(canvas.getContext('2d'), {
-        data: {
-          labels: months,
-          datasets: [
-            { type:'bar',  label:'Precip (mm)', data:o._monthlyPrecip, backgroundColor:'rgba(0,146,159,0.15)', yAxisID:'y2', order:2 },
-            { type:'line', label:'High °C',     data:o._monthlyHigh,  borderColor:'#C05234', tension:.4, fill:false, pointRadius:2, yAxisID:'y1', order:1 },
-            { type:'line', label:'Mean °C',     data:o._monthlyMean,  borderColor:'#19446C', tension:.4, fill:false, pointRadius:2, yAxisID:'y1', order:1 },
-            { type:'line', label:'Low °C',      data:o._monthlyLow,   borderColor:'#4682B4', tension:.4, fill:false, pointRadius:2, yAxisID:'y1', order:1 },
-          ]
-        },
-        options: {
-          responsive:true,
-          plugins:{ legend:{ labels:{ font:{size:9} } } },
-          scales: {
-            y1:{ type:'linear', position:'left',  ticks:{ font:{size:9} }, title:{display:true,text:'°C',font:{size:9}} },
-            y2:{ type:'linear', position:'right', ticks:{ font:{size:9} }, grid:{drawOnChartArea:false}, title:{display:true,text:'mm',font:{size:9}} },
-          }
-        }
-      });
+      _ovClima = tsiClimaChart(canvas, _w, { light: !_ovDark, fontSize: 10 });
+      const lg = document.getElementById('ov-clima-legend');
+      if (lg) lg.innerHTML = tsiClimaLegendHTML(!_ovDark, false);
     }
   } else if (climaSection) {
     climaSection.style.display = 'none';
@@ -16334,6 +16323,7 @@ startAdminPoll();
       <div class="detail-title" id="detail-title">Opportunity Detail</div>
       <div class="detail-subtitle" id="detail-subtitle"></div>
     </div>
+    <button class="btn-detail-cards" onclick="openCardExport()" title="Every presentation card for this opportunity as a 4:3 PNG — drop them into PowerPoint">Download cards</button>
     <button class="btn-detail-edit" onclick="editFromDetail()">✎ Edit</button>
   </div>
 
@@ -16375,28 +16365,30 @@ startAdminPoll();
           <div id="ov-location" style="font-size:13px;color:var(--color-text-primary);margin-bottom:8px"></div>
           <div id="ov-fields" class="detail-field-grid" style="grid-template-columns:1fr 1fr"></div>
         </div>
-        <div class="detail-section" style="margin-bottom:0;padding:0;position:relative">
-          <div id="ov-map-wrap" style="height:200px;background:var(--color-bg);border-radius:var(--radius-lg);position:relative;overflow:hidden">
-            <div id="ov-map" style="height:200px;border-radius:var(--radius-lg)"></div>
-            <button onclick="exportMapPng()" style="position:absolute;bottom:10px;right:10px;z-index:9999;background:#fff;border:2px solid #000;border-radius:4px;padding:5px 12px;font-size:12px;font-weight:700;color:#000;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)">⬇ PNG</button>
+        <div class="detail-section" style="margin-bottom:0" id="ov-map-section">
+          <div class="detail-section-title ov-sec-title-row"><span>Site location</span><span class="r" id="ov-map-coords" data-si="hdr"></span></div>
+          <div id="ov-map-wrap">
+            <div id="ov-map"></div>
+            <div id="ov-map-info"></div>
+            <button class="btn-export-jpg" id="ov-map-png" onclick="exportMapPng()">⬇ PNG</button>
           </div>
         </div>
       </div>
 
       <!-- Climatogram (same width as map, next to a summary strip) -->
       <div id="ov-clima-section" style="display:none;margin-bottom:12px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="display:grid;grid-template-columns:minmax(200px,1fr) 2fr;gap:12px">
           <!-- Climate summary strip -->
           <div class="detail-section" style="margin-bottom:0">
-            <div class="detail-section-title">Climate Summary <span id="ov-clima-src" style="font-weight:400;text-transform:none"></span></div>
-            <div id="ov-clima-summary" style="display:flex;gap:0;flex-direction:column;justify-content:center;height:calc(100% - 28px)"></div>
+            <div class="detail-section-title">Climate summary</div>
+            <div id="ov-clima-summary" class="ov-clima-summ"></div>
           </div>
-          <!-- Climatogram chart -->
+          <!-- Climatogram chart (plant-model style: banded high / mean / low + precipitation) -->
           <div class="detail-section" style="margin-bottom:0;position:relative">
-            <button class="btn-export-jpg" onclick="exportClimaHiRes()" style="position:absolute;top:6px;right:8px;z-index:10">⬇ PNG</button>
-            <div id="ov-clima-chart-wrap">
-              <canvas id="ov-clima-canvas" height="200"></canvas>
-            </div>
+            <div class="detail-section-title ov-sec-title-row" style="padding-right:76px"><span>Climatogram — monthly temperature &amp; precipitation</span><span class="r" id="ov-clima-src"></span></div>
+            <button class="btn-export-jpg" onclick="exportClimaHiRes()" style="position:absolute;top:10px;right:12px;z-index:10">⬇ PNG</button>
+            <div id="ov-clima-chart-wrap"><canvas id="ov-clima-canvas"></canvas></div>
+            <div id="ov-clima-legend"></div>
           </div>
         </div>
       </div>
@@ -17075,13 +17067,13 @@ startAdminPoll();
 .preso-launch:hover{filter:brightness(1.08)}
 #preso-overlay{
   --pz-bg:#05080c; --pz-panel:#161d27; --pz-panel2:#1d2632; --pz-line:#2a3644; --pz-line2:#1e2a37;
-  --pz-ink:#eaf0f7; --pz-muted:#8fa2b7; --pz-faint:#5f7288; --pz-node:#33475b;
+  --pz-ink:#eaf0f7; --pz-muted:#8fa2b7; --pz-faint:#5f7288; --pz-node:#33475b; --pz-text:#e6eef7;
   --pz-slidea:#12202b; --pz-slideb:#0d1117; --pz-shadow:0 24px 60px rgba(0,0,0,.5); --pz-grid:rgba(255,255,255,.05);
   position:fixed;inset:0;z-index:12000;background:var(--pz-bg);color:var(--pz-ink);
   font-family:'Segoe UI',system-ui,sans-serif;display:none;flex-direction:column}
 #preso-overlay.preso-light{
   --pz-bg:#eef1f5; --pz-panel:#ffffff; --pz-panel2:#eef2f7; --pz-line:#e2e8f0; --pz-line2:#e6ebf1;
-  --pz-ink:#17222f; --pz-muted:#51617a; --pz-faint:#7a8ba0; --pz-node:#c7d2dd;
+  --pz-ink:#17222f; --pz-muted:#51617a; --pz-faint:#7a8ba0; --pz-node:#c7d2dd; --pz-text:#17222f;
   --pz-slidea:#ffffff; --pz-slideb:#f6f8fb; --pz-shadow:0 16px 40px rgba(20,40,70,.14); --pz-grid:rgba(30,50,80,.06)}
 #preso-overlay.open{display:flex}
 .pz-top{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--pz-line2);flex:0 0 auto}
@@ -19573,7 +19565,7 @@ function presoRender(){
   stage.scrollTop=0;
   presoRenderRail();
   if(slide.type==='overview'){ presoRenderOvMap(slide); presoRenderOvChart(slide); }
-  else if(slide.type==='job' && slide.job && !slide.job.__quote){ presoRenderClima(slide.job); presoRenderJobMap(slide.job, slide.section); }
+  else if(slide.type==='job' && slide.job && !slide.job.__quote){ presoRenderClima(slide.job); presoRenderJobMap(slide.job, slide.section); try{ tsiSiteInfoFill(stage, slide.job, presoJobCoords(slide.job)); }catch(_){} }
 }
 // Value-by-group bar chart on the overview (Chart.js)
 let _presoOvChart=null;
@@ -19795,44 +19787,28 @@ function presoRenderJobMap(o,sec){
 }
 // Compact site climatogram on job slides (best-effort, cached, non-blocking)
 let _presoClima=null;
+// (Re)build the slide's climate box: header with the data source, chart canvas, legend.
+function presoClimaBoxFill(box,w,light,canvasId){
+  const id=String(canvasId||'#pz-clima-canvas').replace(/^#/,'');
+  box.innerHTML=`<div class="pz-lbl pz-lbl-row"><span>Site climate — monthly temperature &amp; precipitation</span><span class="r">${qesc(w.src||'ERA5 reanalysis')}</span></div><div class="pz-clima"><canvas id="${id}"></canvas></div>${tsiClimaLegendHTML(light,true)}`;
+}
 function presoDrawClima(job){
-  const box=document.getElementById('pz-clima-box'), canvas=document.getElementById('pz-clima-canvas');
-  if(!box||!canvas||typeof Chart==='undefined'||!job._clima) return;
+  const box=document.getElementById('pz-clima-box');
+  if(!box||typeof Chart==='undefined'||!job._clima) return;
   // only draw if this job is still the active slide
   const cur=_presoDeck[_presoIdx]; if(!cur||cur.job!==job) return;
   const w=job._clima;
   const light=document.getElementById('preso-overlay').classList.contains('preso-light');
-  const tick=light?'#51617a':'#8fa2b7';
   try{ if(_presoClima){ _presoClima.destroy(); _presoClima=null; } }catch(_){}
+  presoClimaBoxFill(box,w,light,'#pz-clima-canvas');
   box.style.display='';
-  const months=['J','F','M','A','M','J','J','A','S','O','N','D'];
-  try{
-    _presoClima=new Chart(canvas.getContext('2d'),{
-      data:{ labels:months, datasets:[
-        { type:'bar',  label:'Precip', data:w.mPrec, backgroundColor:'rgba(0,146,159,0.20)', yAxisID:'y2', order:2 },
-        { type:'line', label:'High',   data:w.mHigh, borderColor:'#C05234', tension:.3, pointRadius:0, borderWidth:1.6, yAxisID:'y1', order:1 },
-        { type:'line', label:'Mean',   data:w.mMean, borderColor:light?'#19446C':'#5b9bd8', tension:.3, pointRadius:0, borderWidth:1.6, yAxisID:'y1', order:1 },
-        { type:'line', label:'Low',    data:w.mLow,  borderColor:'#4682B4', tension:.3, pointRadius:0, borderWidth:1.6, yAxisID:'y1', order:1 },
-      ]},
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
-        tooltip:{callbacks:{title:c=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][c[0].dataIndex]}}},
-        scales:{
-          x:{ ticks:{color:tick,font:{size:9}}, grid:{display:false} },
-          y1:{ type:'linear', position:'left',  ticks:{color:tick,font:{size:8},callback:v=>v+'°'}, grid:{color:light?'rgba(30,50,80,.07)':'rgba(255,255,255,.05)'} },
-          y2:{ type:'linear', position:'right', ticks:{color:tick,font:{size:8}}, grid:{drawOnChartArea:false} },
-        } } });
-  }catch(_){}
+  try{ _presoClima=tsiClimaChart(document.getElementById('pz-clima-canvas'),w,{light,compact:true}); }catch(_){}
 }
 async function presoRenderClima(job){
   const box=document.getElementById('pz-clima-box'); if(!box) return;
   const c=presoJobCoords(job); if(!c) return;   // site-resolved coords, not the opp's fuzzy loc
-  if(job._clima){ presoDrawClima(job); return; }
-  const ly=new Date().getUTCFullYear()-1;
-  let w=null;
-  try{ w=await _fetchClimateArchive(c[0],c[1],`${ly-4}-01-01`,`${ly}-12-31`,5); }
-  catch(_){ try{ w=await _fetchClimateArchive(c[0],c[1],`${ly-1}-01-01`,`${ly}-12-31`,2); }catch(__){ return; } }
-  if(!w) return;
-  job._clima=w;
+  const w=await tsiClimaEnsure(job,c); if(!w) return;
+  if(!job._clima) job._clima=w;
   presoDrawClima(job);
 }
 
@@ -19911,7 +19887,11 @@ function presoOppSlide(o,sec,s){
   const coords=presoJobCoords(o);
   // Real Leaflet map mounts into #pz-jobmap after render (presoRenderJobMap). The
   // grid + pin stay as an offline/no-coords fallback and are hidden once tiles load.
-  const pin=`<div class="pz-map" id="pz-jobmap"><div class="gb"></div>${coords?`<div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div>`:''}<div class="nm">${qesc(presoLoc(o))}</div></div>`;
+  // Caption strip + header carry the plant-model site facts (coords · elevation ·
+  // Köppen class); elevation + climate fill in asynchronously (tsiSiteInfoFill).
+  const _kw=tsiClimaOf(o); const _kp=(_kw&&coords)?tsiKoppen(_kw.mMean,_kw.mPrec,coords[0]):null;
+  const pin=`<div class="pz-lbl pz-lbl-row" style="margin-bottom:8px"><span>Site location</span>${coords?`<span class="r tsi-mono" data-si="hdr">${tsiCoordStr(coords[0],coords[1])}${o.elev!=null?' · '+tsiElevStr(o.elev):''}</span>`:''}</div>
+    <div class="pz-map" id="pz-jobmap"><div class="gb"></div>${coords?`<div class="pin" style="--acc:${sec.acc};left:${presoPinX(coords)}%;top:${presoPinY(coords)}%"></div>`:''}<div class="nm${coords?' rich':''}"><span>${qesc(presoLoc(o))}</span>${coords?`<span class="dim" data-si="clima-short">${_kp?qesc(_kp.name):''}</span>`:''}</div></div>`;
   // program / stage-link ribbon — explicit phase + linked opportunities first,
   // falling back to a parsed "Stage N of M" and same-account siblings.
   let ribbon='';
@@ -20399,5 +20379,650 @@ function quoteFromSeed(seedId){ openQuoteBuilder(null).then(()=>addQuoteLine(see
 loadPriceBook().then(()=>{ _pbLoaded=true; });
 
 </script>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SHARED SITE + CLIMATE HELPERS  ·  OPPORTUNITY CARD EXPORT (4:3 PNG)
+     - tsiKoppen / tsiClimaChart / tsiSiteInfo*: the plant-model style site
+       location + climatogram, shared by the deck, the opportunity Overview
+       and the exported cards.
+     - cardx*: "Download cards" on the opportunity detail — every card from
+       the presentation slide (plus the schedule) rendered in a 4:3 frame,
+       previewed live, rasterised with html2canvas to 2400×1800 PNG, singly
+       or zipped (JSZip), light or dark.
+     ══════════════════════════════════════════════════════════════════ -->
+<style>
+/* ── shared site-info panel (map overlay) + climatogram legend ── */
+.tsi-siteinfo{position:absolute;left:12px;top:12px;z-index:1000;background:var(--pz-panel,var(--color-surface,#fff));color:var(--pz-ink,var(--color-text-primary,#17222f));
+  border:0.5px solid var(--pz-line,var(--color-border,#e2e8f0));border-radius:8px;padding:10px 14px 12px;min-width:200px;max-width:280px;pointer-events:none;font-family:var(--font-ui,Inter,sans-serif)}
+.tsi-siteinfo .si-name{font-size:14px;font-weight:500;line-height:1.2}
+.tsi-siteinfo .si-sub{font-size:11px;color:var(--pz-muted,var(--color-text-secondary,#51617a));margin-top:2px}
+.tsi-siteinfo .si-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin-top:9px;padding-top:9px;border-top:0.5px solid var(--pz-line,var(--color-border,#e2e8f0));font-size:11.5px}
+.tsi-siteinfo .k{color:var(--pz-faint,var(--color-text-muted,#7a8ba0))}
+.tsi-siteinfo .v{color:var(--pz-ink,var(--color-text-primary,#17222f));font-weight:500}
+.tsi-siteinfo .v.mono,.tsi-mono{font-family:var(--font-mono,'JetBrains Mono',monospace);font-weight:400;font-variant-numeric:tabular-nums}
+.tsi-clima-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11px;color:var(--pz-muted,var(--color-text-secondary,#51617a));margin-top:8px;font-family:var(--font-ui,Inter,sans-serif)}
+.tsi-clima-legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.tsi-clima-legend i{display:inline-block;flex:0 0 auto}
+.tsi-clima-legend i.ln{width:18px;height:2px;border-radius:1px}
+.tsi-clima-legend i.sq{width:10px;height:10px;border-radius:2px}
+.tsi-clima-legend.compact{font-size:9.5px;gap:4px 10px;margin-top:4px}
+.tsi-clima-legend.compact i.ln{width:12px}.tsi-clima-legend.compact i.sq{width:8px;height:8px}
+/* deck: richer map caption strip + climate header */
+.pz-map .nm.rich{right:8px;display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;line-height:1.35}
+.pz-map .nm.rich .mono{font-family:var(--font-mono,monospace);font-variant-numeric:tabular-nums}
+.pz-map .nm.rich .dim{color:var(--pz-muted)}
+.pz-lbl-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pz-lbl-row .r{text-transform:none;letter-spacing:0;font-size:10.5px;color:var(--pz-faint)}
+/* opportunity Overview: site location + climatogram sections */
+.ov-sec-title-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ov-sec-title-row .r{font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary);text-transform:none;letter-spacing:0}
+#ov-map-wrap{position:relative;height:240px;border-radius:var(--radius-md);overflow:hidden;border:0.5px solid var(--color-border)}
+#ov-map{height:100%}
+#ov-map-wrap .tsi-siteinfo{top:10px;left:10px}
+#ov-map-png{position:absolute;right:10px;bottom:10px;z-index:1001;background:var(--color-surface)}
+#ov-clima-chart-wrap{height:250px;position:relative}
+#ov-clima-src{font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-text-secondary)}
+.ov-clima-summ{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.ov-clima-summ>div{padding:8px 0;border-bottom:0.5px solid var(--color-border)}
+.ov-clima-summ .n{font-size:20px;font-family:var(--font-mono);color:var(--color-heading);line-height:1.1}
+.ov-clima-summ .n.sm{font-size:14px}
+.ov-clima-summ .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-muted);margin-top:3px}
+.btn-detail-cards{background:rgba(255,255,255,0.12);color:white;border:0.5px solid rgba(255,255,255,0.35);border-radius:var(--radius-md);padding:6px 14px;font-size:12px;cursor:pointer;font-family:var(--font-ui)}
+.btn-detail-cards:hover{background:rgba(255,255,255,0.2)}
+
+/* ── theme vars for any .pz-theme container (export cards) ── */
+.pz-theme{
+  --pz-bg:#05080c; --pz-panel:#161d27; --pz-panel2:#1d2632; --pz-line:#2a3644; --pz-line2:#1e2a37;
+  --pz-ink:#eaf0f7; --pz-muted:#8fa2b7; --pz-faint:#5f7288; --pz-node:#33475b; --pz-text:#e6eef7;
+  --pz-slidea:#12202b; --pz-slideb:#0d1117; --pz-shadow:none; --pz-grid:rgba(255,255,255,.05)}
+.pz-theme.preso-light{
+  --pz-bg:#eef1f5; --pz-panel:#ffffff; --pz-panel2:#eef2f7; --pz-line:#e2e8f0; --pz-line2:#e6ebf1;
+  --pz-ink:#17222f; --pz-muted:#51617a; --pz-faint:#7a8ba0; --pz-node:#c7d2dd; --pz-text:#17222f;
+  --pz-slidea:#ffffff; --pz-slideb:#f6f8fb; --pz-shadow:none; --pz-grid:rgba(30,50,80,.06)}
+
+/* ── export panel ── */
+.cardx-overlay{position:fixed;inset:0;z-index:3200;background:var(--color-bg);display:none;flex-direction:column;overflow:hidden}
+.cardx-overlay.open{display:flex}
+.cardx-top{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--tsi-deep-blue);color:#fff;flex:0 0 auto;flex-wrap:wrap}
+.cardx-title{font-family:var(--font-display);font-size:18px;line-height:1.1}
+.cardx-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px}
+.cardx-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cardx-btn{background:rgba(255,255,255,0.12);color:#fff;border:0.5px solid rgba(255,255,255,0.35);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font-ui)}
+.cardx-btn:hover{background:rgba(255,255,255,0.2)}
+.cardx-btn.primary{background:var(--tsi-teal);border-color:var(--tsi-teal)}
+.cardx-btn:disabled{opacity:.5;cursor:default}
+.cardx-seg{display:inline-flex;border:0.5px solid rgba(255,255,255,0.35);border-radius:var(--radius-sm);overflow:hidden}
+.cardx-seg button{background:transparent;color:#fff;border:0;padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--font-ui)}
+.cardx-seg button.on{background:rgba(255,255,255,0.22)}
+.cardx-hint{padding:8px 24px;font-size:11px;color:var(--color-text-secondary);border-bottom:0.5px solid var(--color-border);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.cardx-hint .mono{font-family:var(--font-mono)}
+.cardx-hint .prog{margin-left:auto;color:var(--tsi-teal)}
+.cardx-body{flex:1 1 auto;overflow:auto;padding:20px 24px 40px}
+.cardx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px;max-width:1500px;margin:0 auto}
+.cardx-item{background:var(--color-surface);border:0.5px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden}
+.cardx-item.na{opacity:.6}
+.cardx-thumb{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:var(--color-bg);border-bottom:0.5px solid var(--color-border)}
+.cardx-scaler{position:absolute;left:0;top:0;width:1200px;height:900px;transform-origin:0 0;pointer-events:none}
+.cardx-meta{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.cardx-name{font-size:13px;font-weight:500;color:var(--color-heading)}
+.cardx-note{font-size:11px;color:var(--color-text-muted)}
+.cardx-dl{margin-left:auto;font-size:11px;padding:5px 12px;background:transparent;border:0.5px solid var(--color-border-mid,var(--color-border));border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-ui);color:var(--color-text-secondary)}
+.cardx-dl:hover{border-color:var(--tsi-teal);color:var(--tsi-teal)}
+.cardx-dl:disabled{opacity:.5;cursor:default}
+#cardx-stage{position:fixed;left:0;top:0;width:1200px;height:900px;z-index:2900;pointer-events:none;display:none}
+#cardx-stage.busy{display:block}
+
+/* ── the 4:3 card frame (1200 × 900 CSS px, rasterised at 2×) ── */
+.cx-card{position:relative;width:1200px;height:900px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;
+  background:var(--pz-slidea);color:var(--pz-ink);font-family:var(--font-ui,'Inter',system-ui,sans-serif);padding:36px 44px 28px 50px}
+.cx-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--acc,#00929f)}
+.cx-card .mono{font-family:var(--font-mono,'JetBrains Mono',monospace);font-variant-numeric:tabular-nums}
+.cx-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex:0 0 auto}
+.cx-head-l{display:flex;gap:18px;align-items:center;min-width:0}
+.cx-logo{height:64px;width:auto;max-width:200px;object-fit:contain;border-radius:6px;background:#fff;padding:6px 10px;border:0.5px solid var(--pz-line);flex-shrink:0}
+.cx-acct{font-size:30px;font-weight:500;line-height:1.08;letter-spacing:-.3px;color:var(--pz-ink)}
+.cx-type{font-size:15px;color:var(--pz-muted);margin-top:5px}
+.cx-head-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;padding-top:4px}
+.cx-head-r .pz-foot-svg{height:26px;width:auto;display:block}
+.cx-conf{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--pz-faint);font-weight:500}
+.cx-title{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:26px 0 14px;padding-bottom:10px;border-bottom:0.5px solid var(--pz-line);
+  font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc,#00929f);font-weight:500;flex:0 0 auto}
+.cx-title .r{font-size:12px;letter-spacing:0;text-transform:none;color:var(--pz-muted);font-weight:400}
+.cx-body{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column}
+.cx-fit{flex:1 1 auto;min-height:0;transform-origin:0 0}
+.cx-foot{display:flex;justify-content:space-between;gap:16px;margin-top:16px;padding-top:10px;border-top:0.5px solid var(--pz-line);font-size:11px;color:var(--pz-faint);flex:0 0 auto}
+.cx-empty{color:var(--pz-faint);font-style:italic;font-size:18px;padding:18px 0}
+/* scope */
+.cx-chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+.cx-chip{font-size:20px;font-weight:500;color:#fff;padding:10px 18px;border-radius:8px}
+.cx-fit.center{display:flex;flex-direction:column;justify-content:center}
+.cx-spec{font-size:26px;line-height:1.6;color:var(--pz-ink);white-space:pre-wrap}
+.cx-spec .x{color:var(--acc,#00929f);font-weight:500}
+.cx-details{font-size:22px;line-height:1.55;color:var(--pz-ink)}
+.cx-details p{margin:0 0 10px}.cx-details ul,.cx-details ol{margin:4px 0 10px 26px;padding:0}.cx-details li{margin:3px 0}
+.cx-details b,.cx-details strong{font-weight:500}
+.cx-details img{max-width:100%;max-height:420px;border-radius:6px}
+/* install */
+.cx-pills{display:flex;flex-wrap:wrap;gap:12px}
+.cx-pill{font-size:20px;padding:14px 24px;border-radius:8px;border:0.5px solid var(--pz-line);color:var(--pz-muted);display:inline-flex;align-items:center;gap:10px}
+.cx-pill::before{content:"";width:12px;height:12px;border-radius:50%;border:1.5px solid var(--pz-line);box-sizing:border-box}
+.cx-pill.on{color:var(--pz-ink);border-color:rgba(128,152,72,.6);background:rgba(128,152,72,.14)}
+.cx-pill.on::before{background:#809848;border-color:#809848}
+.cx-kv{display:grid;grid-template-columns:auto 1fr;gap:14px 28px;font-size:19px;margin-top:34px}
+.cx-kv .k{color:var(--pz-faint)}.cx-kv .v{color:var(--pz-ink)}
+/* tiles (capacity / commercial / climate stats) */
+.cx-tiles{display:grid;gap:16px}
+.cx-tile{background:var(--pz-panel);border:0.5px solid var(--pz-line);border-radius:8px;padding:22px 24px;border-left:3px solid var(--acc,#00929f)}
+.cx-tile .n{font-size:44px;line-height:1;color:var(--pz-ink);font-family:var(--font-mono,monospace);font-variant-numeric:tabular-nums}
+.cx-tile .n.sm{font-size:28px;line-height:1.15;font-family:var(--font-ui,sans-serif)}
+.cx-tile .l{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--pz-faint);margin-top:10px}
+.cx-tile.big .n{font-size:64px}
+/* location */
+.cx-map{position:relative;flex:1 1 auto;min-height:0;border-radius:8px;border:0.5px solid var(--pz-line);overflow:hidden;background:var(--pz-panel)}
+.cx-map .leaflet-container{width:100%;height:100%;background:var(--pz-panel)}
+.cx-map .tsi-siteinfo{left:16px;top:16px;min-width:240px;max-width:320px;padding:14px 18px 16px}
+.cx-map .tsi-siteinfo .si-name{font-size:18px}.cx-map .tsi-siteinfo .si-sub{font-size:13px}
+.cx-map .tsi-siteinfo .si-grid{font-size:14px;gap:6px 18px;margin-top:12px;padding-top:12px}
+.cx-nomap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--pz-faint);font-size:18px}
+.cx-map-attr{position:absolute;right:8px;bottom:6px;z-index:1000;font-size:10px;color:var(--pz-faint);background:rgba(22,29,39,.85);padding:2px 6px;border-radius:4px}
+.pz-theme.preso-light .cx-map-attr{background:rgba(255,255,255,.85)}
+/* climate */
+.cx-clima-grid{display:grid;grid-template-columns:1fr 250px;gap:22px;flex:1 1 auto;min-height:0}
+.cx-clima-chart{position:relative;min-height:0}
+.cx-clima-chart .wrap{position:absolute;inset:0 0 40px 0}
+.cx-clima-chart .tsi-clima-legend{position:absolute;left:0;right:0;bottom:4px;font-size:13px;gap:8px 20px}
+.cx-clima-chart .tsi-clima-legend i.ln{width:22px;height:2.5px}.cx-clima-chart .tsi-clima-legend i.sq{width:12px;height:12px}
+.cx-clima-stats{display:flex;flex-direction:column;gap:12px}
+.cx-clima-stats .cx-tile{padding:16px 18px}.cx-clima-stats .cx-tile .n{font-size:30px}.cx-clima-stats .cx-tile .n.sm{font-size:20px}
+.cx-clima-stats .cx-tile .l{margin-top:6px;font-size:11px}
+/* schedule */
+.cx-sched{display:flex;flex-direction:column;gap:14px;flex:1 1 auto;min-height:0}
+.cx-sched-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex:0 0 auto}
+.cx-sched-kpis .cx-tile{padding:14px 18px}.cx-sched-kpis .cx-tile .n{font-size:26px}.cx-sched-kpis .cx-tile .n.sm{font-size:18px}.cx-sched-kpis .cx-tile .l{margin-top:6px;font-size:11px}
+.cx-sched-svg{flex:1 1 auto;min-height:0;background:#fff;border:0.5px solid var(--pz-line);border-radius:8px;padding:14px 16px;overflow:hidden;display:flex;flex-direction:column;gap:6px}
+.cx-sched-svg svg{display:block;width:100%;height:auto}
+/* full slide inside the 4:3 frame */
+.cx-card.cx-slidecard{padding:0}
+.cx-card.cx-slidecard::before{display:none}
+.cx-card .pz-slide{aspect-ratio:auto;width:100%;height:100%;max-width:none;max-height:none;border-radius:0;border:0;box-shadow:none;overflow:hidden;margin:0;flex:0 0 auto;box-sizing:border-box}
+.cx-card .pz-slide .pz-eye-link{cursor:default}
+.cx-card .pz-grid{grid-template-columns:1.35fr 1fr}
+/* html2canvas 1.4 cannot parse color-mix(); use flat colours inside the export frame */
+.cx-card .pz-map .nm{background:rgba(22,29,39,.85);backdrop-filter:none}
+.cx-card.preso-light .pz-map .nm{background:rgba(255,255,255,.85)}
+.cx-card .pz-map .pin{box-shadow:none;border:4px solid rgba(0,146,159,.3);background-clip:padding-box}
+</style>
+
+<!-- Export panel + offscreen rasterising stage -->
+<div id="cardx-overlay" class="cardx-overlay" role="dialog" aria-label="Download opportunity cards">
+  <div class="cardx-top">
+    <div><div class="cardx-title">Download cards</div><div class="cardx-sub" id="cardx-sub"></div></div>
+    <div class="cardx-actions">
+      <div class="cardx-seg" id="cardx-theme">
+        <button type="button" data-t="light" onclick="cardxSetTheme('light')">Light</button>
+        <button type="button" data-t="dark" onclick="cardxSetTheme('dark')">Dark</button>
+      </div>
+      <button type="button" class="cardx-btn primary" id="cardx-all-btn" onclick="cardxDownloadAll()">Download all (zip)</button>
+      <button type="button" class="cardx-btn" onclick="closeCardExport()">Close</button>
+    </div>
+  </div>
+  <div class="cardx-hint">
+    <span>Each card is a 4:3 landscape PNG, <span class="mono">2400 × 1800</span> px, ready to drop onto a 4:3 PowerPoint slide.</span>
+    <span>Map framing follows the saved view from the presentation.</span>
+    <span class="prog" id="cardx-prog"></span>
+  </div>
+  <div class="cardx-body"><div class="cardx-grid" id="cardx-grid"></div></div>
+</div>
+<div id="cardx-stage"></div>
+
+<script>
+/* ─────────────── shared site + climate helpers ─────────────── */
+const TSI_KOPPEN_NAMES={
+  Af:'Tropical rainforest',Am:'Tropical monsoon',Aw:'Tropical savanna',As:'Tropical savanna',
+  BWh:'Hot desert',BWk:'Cold desert',BSh:'Hot semi-arid',BSk:'Cold semi-arid',
+  Csa:'Hot-summer Mediterranean',Csb:'Warm-summer Mediterranean',Csc:'Cold-summer Mediterranean',
+  Cwa:'Monsoon-influenced humid subtropical',Cwb:'Subtropical highland',Cwc:'Cold subtropical highland',
+  Cfa:'Humid subtropical',Cfb:'Oceanic',Cfc:'Subpolar oceanic',
+  Dsa:'Hot-summer Mediterranean continental',Dsb:'Warm-summer Mediterranean continental',Dsc:'Dry-summer subarctic',Dsd:'Dry-summer subarctic',
+  Dwa:'Monsoon-influenced hot-summer continental',Dwb:'Monsoon-influenced warm-summer continental',Dwc:'Monsoon-influenced subarctic',Dwd:'Monsoon-influenced subarctic',
+  Dfa:'Hot-summer humid continental',Dfb:'Warm-summer humid continental',Dfc:'Subarctic',Dfd:'Extremely cold subarctic',
+  ET:'Tundra',EF:'Ice cap'};
+// Köppen–Geiger class from monthly mean temperature (°C) + monthly precipitation (mm).
+// Thresholds per Peel et al. (2007): C/D split at 0 °C, B uses the seasonal Pth rule.
+function tsiKoppen(mMean,mPrec,lat){
+  if(!Array.isArray(mMean)||!Array.isArray(mPrec)) return null;
+  const T=mMean.map(Number), P=mPrec.map(v=>Number(v)||0);
+  if(T.length<12||T.some(v=>!isFinite(v))) return null;
+  const Thot=Math.max(...T), Tcold=Math.min(...T), Tann=T.reduce((a,b)=>a+b,0)/12, Pann=P.reduce((a,b)=>a+b,0);
+  const north=(lat==null)||Number(lat)>=0;
+  const sIdx=north?[3,4,5,6,7,8]:[9,10,11,0,1,2], wIdx=north?[9,10,11,0,1,2]:[3,4,5,6,7,8];
+  const sum=idx=>idx.reduce((a,i)=>a+P[i],0), mn=idx=>Math.min(...idx.map(i=>P[i])), mx=idx=>Math.max(...idx.map(i=>P[i]));
+  const Ps=sum(sIdx), Pw=sum(wIdx), Psdry=mn(sIdx), Pwdry=mn(wIdx), Pswet=mx(sIdx), Pwwet=mx(wIdx);
+  let Pth; if(Pann>0 && Ps>=0.7*Pann) Pth=2*Tann+28; else if(Pann>0 && Pw>=0.7*Pann) Pth=2*Tann; else Pth=2*Tann+14;
+  const warm=T.filter(t=>t>=10).length;
+  let code;
+  if(Pann<10*Pth){ code=(Pann<5*Pth?'BW':'BS')+(Tann>=18?'h':'k'); }
+  else if(Thot<10){ code=Thot>0?'ET':'EF'; }
+  else if(Tcold>=18){ const Pdry=Math.min(...P); code=Pdry>=60?'Af':(Pdry>=100-Pann/25?'Am':'Aw'); }
+  else{
+    const first=Tcold>0?'C':'D';
+    let second='f'; if(Psdry<40 && Psdry<Pwwet/3) second='s'; else if(Pwdry<Pswet/10) second='w';
+    let third; if(Thot>=22) third='a'; else if(warm>=4) third='b'; else if(first==='D'&&Tcold<-38) third='d'; else third='c';
+    code=first+second+third;
+  }
+  return {code, name:TSI_KOPPEN_NAMES[code]||code};
+}
+// Monthly normals for a record, whichever shape they were stored in.
+function tsiClimaOf(o){
+  if(!o) return null;
+  if(o._clima && o._clima.mMean) return o._clima;
+  if(o._monthlyHigh&&o._monthlyMean&&o._monthlyLow&&o._monthlyPrecip)
+    return {mHigh:o._monthlyHigh,mMean:o._monthlyMean,mLow:o._monthlyLow,mPrec:o._monthlyPrecip,src:o._climaSrc||''};
+  return null;
+}
+// Ensure normals exist (fetch ERA5 via open-meteo once; cached on the record).
+async function tsiClimaEnsure(o,coords){
+  const have=tsiClimaOf(o); if(have) return have;
+  if(!o||!coords||typeof _fetchClimateArchive!=='function') return null;
+  if(o._climaP) return o._climaP;
+  const ly=new Date().getUTCFullYear()-1;
+  o._climaP=(async()=>{
+    let w=null;
+    try{ w=await _fetchClimateArchive(coords[0],coords[1],`${ly-4}-01-01`,`${ly}-12-31`,5); }
+    catch(_){ try{ w=await _fetchClimateArchive(coords[0],coords[1],`${ly-1}-01-01`,`${ly}-12-31`,2); }catch(__){ w=null; } }
+    if(w) o._clima=w;
+    return w;
+  })();
+  return o._climaP;
+}
+function tsiClimaStats(w){
+  if(!w||!w.mMean) return null;
+  const m=w.mMean.filter(v=>v!=null), p=(w.mPrec||[]).filter(v=>v!=null);
+  if(!m.length) return null;
+  return { avg:+(m.reduce((a,b)=>a+b,0)/m.length).toFixed(1), coldest:+Math.min(...m).toFixed(1), warmest:+Math.max(...m).toFixed(1),
+    rain:Math.round(p.reduce((a,b)=>a+b,0)) };
+}
+const TSI_MONTHS_FULL=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Plant-model climatogram: precipitation bars (right axis) + daily high / mean /
+// low lines with a warm band (high→mean) and a cool band (mean→low).
+function tsiClimaChart(canvas,w,opts={}){
+  if(!canvas||typeof Chart==='undefined'||!w||!w.mMean) return null;
+  const light=opts.light!==false, compact=!!opts.compact;
+  const tick=light?'#51617a':'#8fa2b7', grid=light?'rgba(30,50,80,.08)':'rgba(255,255,255,.07)';
+  const meanC=light?'#19446C':'#6FA8DC';
+  const fs=compact?9:(opts.fontSize||11);
+  const mono="'JetBrains Mono', ui-monospace, monospace";
+  const labels=compact?['J','F','M','A','M','J','J','A','S','O','N','D']:TSI_MONTHS_FULL;
+  try{ const prev=Chart.getChart(canvas); if(prev) prev.destroy(); }catch(_){}
+  const pr=compact?0:(opts.pointRadius!=null?opts.pointRadius:3);
+  return new Chart(canvas.getContext('2d'),{
+    data:{ labels, datasets:[
+      { type:'bar',  label:'Precipitation', data:w.mPrec, backgroundColor:'rgba(0,146,159,.45)', borderRadius:2, barPercentage:.72, yAxisID:'y2', order:3 },
+      { type:'line', label:'Daily high avg', data:w.mHigh, borderColor:'#D98E2B', backgroundColor:'rgba(217,142,43,.22)', fill:2, tension:.35, pointRadius:pr, pointBackgroundColor:'#D98E2B', borderWidth:compact?1.6:2, yAxisID:'y1', order:1 },
+      { type:'line', label:'Daily mean',     data:w.mMean, borderColor:meanC, tension:.35, pointRadius:pr, pointBackgroundColor:meanC, borderWidth:compact?1.8:2.2, yAxisID:'y1', order:0 },
+      { type:'line', label:'Daily low avg',  data:w.mLow,  borderColor:'#9AA5B1', backgroundColor:'rgba(120,140,165,.16)', fill:2, tension:.35, pointRadius:pr, pointBackgroundColor:'#9AA5B1', borderWidth:compact?1.4:1.8, yAxisID:'y1', order:2 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, animation:opts.animate===false?false:undefined,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{title:c=>TSI_MONTHS_FULL[c[0]?.dataIndex]||''}} },
+      scales:{
+        x:{ ticks:{color:tick,font:{size:fs}}, grid:{display:false} },
+        y1:{ type:'linear', position:'left', ticks:{color:tick,font:{size:fs,family:mono},callback:v=>v+'°C'}, grid:{color:grid},
+             title:compact?{display:false}:{display:true,text:'Temperature (°C)',color:tick,font:{size:fs}} },
+        y2:{ type:'linear', position:'right', beginAtZero:true, ticks:{color:tick,font:{size:fs,family:mono},callback:v=>v+'mm'}, grid:{drawOnChartArea:false},
+             title:compact?{display:false}:{display:true,text:'Precipitation (mm)',color:tick,font:{size:fs}} },
+      } } });
+}
+function tsiClimaLegendHTML(light,compact){
+  const meanC=light?'#19446C':'#6FA8DC';
+  return `<div class="tsi-clima-legend${compact?' compact':''}">
+    <span><i class="ln" style="background:#D98E2B"></i>Daily high avg</span>
+    <span><i class="ln" style="background:${meanC}"></i>Daily mean</span>
+    <span><i class="ln" style="background:#9AA5B1"></i>Daily low avg</span>
+    <span><i class="sq" style="background:rgba(0,146,159,.6)"></i>Precipitation mm (right axis)</span></div>`;
+}
+// Coordinates with a true minus sign (U+2212), fixed decimals.
+function tsiCoordStr(lat,lon,d=4){ const f=v=>(v<0?'−':'')+Math.abs(Number(v)).toFixed(d); return f(lat)+', '+f(lon); }
+function tsiElevStr(m){ return m==null?'—':Math.round(m)+' m'; }
+const _tsiElevCache={};
+// Elevation at a coordinate (open-meteo, cached per 0.001°), falls back to null.
+function tsiElevation(coords){
+  if(!coords) return Promise.resolve(null);
+  const key=Number(coords[0]).toFixed(3)+','+Number(coords[1]).toFixed(3);
+  if(!_tsiElevCache[key]) _tsiElevCache[key]=(async()=>{
+    try{ const d=await (await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${coords[0]}&longitude=${coords[1]}`)).json(); const e=d?.elevation?.[0]; return (e==null||isNaN(e))?null:Number(e); }
+    catch(_){ return null; } })();
+  return _tsiElevCache[key];
+}
+// Site-info panel (name · sub · lat / lon / elev / climate) — overlayed on a map.
+function tsiSiteInfoHTML(name,sub,coords,o){
+  const lat=coords?coords[0]:null, lon=coords?coords[1]:null;
+  const f=v=>v==null?'—':(v<0?'−':'')+Math.abs(Number(v)).toFixed(4);
+  const elev=(o&&o.elev!=null)?tsiElevStr(o.elev):'…';
+  const w=tsiClimaOf(o); const k=w?tsiKoppen(w.mMean,w.mPrec,lat):null;
+  return `<div class="tsi-siteinfo">
+    <div class="si-name">${qesc(name||'—')}</div>${sub?`<div class="si-sub">${qesc(sub)}</div>`:''}
+    <div class="si-grid">
+      <span class="k">Lat</span><span class="v mono">${f(lat)}</span>
+      <span class="k">Lon</span><span class="v mono">${f(lon)}</span>
+      <span class="k">Elev</span><span class="v mono" data-si="elev">${elev}</span>
+      <span class="k">Climate</span><span class="v" data-si="clima">${k?qesc(k.name)+' ('+k.code+')':'…'}</span>
+    </div></div>`;
+}
+// Fill the async parts of a site-info panel (and any [data-si="hdr"] caption) in `root`.
+function tsiSiteInfoFill(root,o,coords){
+  if(!root||!coords) return;
+  const setAll=(sel,txt)=>root.querySelectorAll(sel).forEach(el=>{ el.textContent=txt; });
+  tsiElevation(coords).then(e=>{
+    const val=e!=null?e:(o&&o.elev!=null?o.elev:null);
+    if(val!=null){ if(o&&o.elev==null) o._elev=val; setAll('[data-si="elev"]',tsiElevStr(val)); root.querySelectorAll('[data-si="hdr"]').forEach(el=>{ el.textContent=tsiCoordStr(coords[0],coords[1])+' · '+tsiElevStr(val); }); }
+    else setAll('[data-si="elev"]','—');
+  });
+  tsiClimaEnsure(o,coords).then(w=>{
+    const k=w?tsiKoppen(w.mMean,w.mPrec,coords[0]):null;
+    setAll('[data-si="clima"]',k?`${k.name} (${k.code})`:'—');
+    root.querySelectorAll('[data-si="clima-short"]').forEach(el=>{ el.textContent=k?k.name:''; });
+  });
+}
+
+/* ─────────────── opportunity card export (4:3 PNG) ─────────────── */
+const CARDX_DEFS=[
+  { key:'slide',      label:'Full slide',               note:'The presentation slide in 4:3' },
+  { key:'scope',      label:'Scope of supply' },
+  { key:'details',    label:'Details' },
+  { key:'install',    label:'Install & commissioning' },
+  { key:'location',   label:'Site location' },
+  { key:'capacity',   label:'Capacity' },
+  { key:'commercial', label:'Commercial' },
+  { key:'climate',    label:'Site climate' },
+  { key:'schedule',   label:'Schedule',                 note:'Gantt + milestone timeline' },
+];
+const CARDX_W=1200, CARDX_H=900, CARDX_SCALE=2;
+const CARDX_LIBS={ html2canvas:'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', JSZip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js' };
+let _cardxTheme='light', _cardxOpp=null, _cardxSec=null, _cardxCards=[], _cardxBusy=false;
+const _cxSleep=ms=>new Promise(r=>setTimeout(r,ms));
+function cxLib(name){
+  if(window[name]) return Promise.resolve(window[name]);
+  return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=CARDX_LIBS[name]; s.onload=()=>window[name]?res(window[name]):rej(new Error(name+' missing')); s.onerror=()=>rej(new Error(name+' failed to load')); document.head.appendChild(s); });
+}
+function cxSlug(s){ return String(s||'').normalize('NFKD').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'-').slice(0,40)||'opp'; }
+function cxSection(o){ try{ const k=presoClassify(o); return PRESO_SECT[k]||PRESO_SECTIONS[0]; }catch(_){ return PRESO_SECTIONS[0]; } }
+function cxCoords(o){ try{ return presoJobCoords(o); }catch(_){ return (o&&o.lat&&o.lon)?[o.lat,o.lon]:null; } }
+function cxLight(){ return _cardxTheme==='light'; }
+function cxDate(){ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }
+
+function openCardExport(){
+  const o=DATA.find(r=>r.id===_detailId); if(!o){ showToast('Open an opportunity first','var(--tsi-amber)'); return; }
+  _cardxOpp=o; _cardxSec=cxSection(o);
+  _cardxTheme=(document.documentElement.getAttribute('data-theme')==='dark')?'dark':'light';
+  document.getElementById('cardx-sub').textContent=[o.acct,o.type,presoLoc(o)!=='—'?presoLoc(o):''].filter(Boolean).join(' · ');
+  document.getElementById('cardx-overlay').classList.add('open');
+  document.addEventListener('keydown',cardxKey);
+  window.addEventListener('resize',cardxLayout);
+  cardxRenderAll();
+  try{ usageLog('cards_export_open',o.id); }catch(_){}
+}
+function closeCardExport(){
+  cardxTeardown();
+  document.getElementById('cardx-overlay').classList.remove('open');
+  document.removeEventListener('keydown',cardxKey);
+  window.removeEventListener('resize',cardxLayout);
+}
+function cardxKey(e){ if(e.key==='Escape'&&!_cardxBusy) closeCardExport(); }
+function cardxSetTheme(t){ if(_cardxBusy||t===_cardxTheme) return; _cardxTheme=t; cardxRenderAll(); }
+function cardxTeardown(){
+  _cardxCards.forEach(c=>{ try{ c.chart&&c.chart.destroy(); }catch(_){} try{ c.map&&c.map.remove(); }catch(_){} });
+  _cardxCards=[]; document.getElementById('cardx-grid').innerHTML='';
+}
+function cardxLayout(){
+  document.querySelectorAll('#cardx-grid .cardx-thumb').forEach(th=>{
+    const w=th.clientWidth||360; const sc=th.querySelector('.cardx-scaler'); if(sc) sc.style.transform=`scale(${(w/CARDX_W).toFixed(4)})`;
+  });
+}
+function cardxRenderAll(){
+  cardxTeardown();
+  document.querySelectorAll('#cardx-theme button').forEach(b=>b.classList.toggle('on',b.dataset.t===_cardxTheme));
+  const grid=document.getElementById('cardx-grid'); const o=_cardxOpp, sec=_cardxSec;
+  CARDX_DEFS.forEach(def=>{
+    const item=document.createElement('div'); item.className='cardx-item'; item.dataset.key=def.key;
+    item.innerHTML=`<div class="cardx-thumb"><div class="cardx-scaler"></div></div>
+      <div class="cardx-meta"><div><div class="cardx-name">${qesc(def.label)}</div>${def.note?`<div class="cardx-note">${qesc(def.note)}</div>`:''}</div>
+      <button type="button" class="cardx-dl" onclick="cardxDownload('${def.key}')">PNG</button></div>`;
+    grid.appendChild(item);
+    const scaler=item.querySelector('.cardx-scaler');
+    const card=cardxBuild(def.key,o,sec,scaler);
+    _cardxCards.push(card);
+    if(!card.avail){ item.classList.add('na'); const n=item.querySelector('.cardx-note'); const msg=card.why||'No data'; if(n) n.textContent=msg; else item.querySelector('.cardx-meta > div').insertAdjacentHTML('beforeend',`<div class="cardx-note">${qesc(msg)}</div>`); }
+  });
+  cardxLayout(); requestAnimationFrame(cardxLayout);
+}
+
+// ── frame + bodies ────────────────────────────────────────────
+function cxFrame(o,sec,title,bodyHTML,opts={}){
+  const light=cxLight();
+  const lg=(typeof oppAcctLogo==='function')?oppAcctLogo(o):'';
+  const sub=[o.type||'',presoLoc(o)!=='—'?presoLoc(o):''].filter(Boolean).join(' · ');
+  return `<div class="cx-card pz-theme${light?' preso-light':''}${opts.cls?' '+opts.cls:''}" style="--acc:${sec.acc}">
+    <div class="cx-head">
+      <div class="cx-head-l">${lg?`<img class="cx-logo" src="${qattr(lg)}" alt="">`:''}<div style="min-width:0"><div class="cx-acct">${qesc(o.acct||'—')}</div><div class="cx-type">${qesc(sub)}</div></div></div>
+      <div class="cx-head-r">${presoLogoSVG(light?'#19446C':'#ffffff')}<span class="cx-conf">Confidential</span></div>
+    </div>
+    <div class="cx-title"><span>${qesc(title)}</span><span class="r">${opts.right||''}</span></div>
+    <div class="cx-body">${bodyHTML}</div>
+    <div class="cx-foot"><span>${qesc(sec.label)} · ${qesc(o.stage||'—')}${o.close?' · closes '+qesc(o.close):''}</span><span class="mono">TSI Intel · ${cxDate()}</span></div>
+  </div>`;
+}
+// Shrink an overflowing body to fit (text-heavy cards).
+function cxFit(card){
+  const body=card.querySelector('.cx-body'), fit=card.querySelector('.cx-fit'); if(!body||!fit) return;
+  fit.style.transform=''; fit.style.width='';
+  const avail=body.clientHeight, need=fit.scrollHeight;
+  if(need>avail+2){ const s=Math.max(.45,avail/need); fit.style.transform=`scale(${s.toFixed(4)})`; fit.style.width=(100/s).toFixed(2)+'%'; }
+}
+function cardxBuild(key,o,sec,mount){
+  const card={key,el:null,map:null,chart:null,avail:true,why:''};
+  const b=({ slide:cxBodySlide, scope:cxBodyScope, details:cxBodyDetails, install:cxBodyInstall, location:cxBodyLocation,
+             capacity:cxBodyCapacity, commercial:cxBodyCommercial, climate:cxBodyClimate, schedule:cxBodySchedule })[key](o,sec);
+  if(b.avail===false){ card.avail=false; card.why=b.why||''; }
+  mount.innerHTML = key==='slide' ? b.html : cxFrame(o,sec,b.title,b.html,b.opts||{});
+  card.el=mount.firstElementChild; card.el.id='cx-card-'+key;
+  if(b.after){ try{ b.after(card); }catch(e){ console.warn('card after()',key,e); } }
+  requestAnimationFrame(()=>cxFit(card.el));
+  return card;
+}
+function cxBodyScope(o,sec){
+  const tags=presoScopeTags(o.tags);
+  const chips=tags.length?`<div class="cx-chips">${tags.map(t=>`<span class="cx-chip" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</div>`:'';
+  const spec=(o.notes||'').trim();
+  const specHtml=spec?`<div class="cx-spec">${qesc(spec).replace(/(\d+)\s*[x×]/g,'<span class="x">$1×</span>')}</div>`:(chips?'':`<div class="cx-empty">Scope defined by project type; details TBD.</div>`);
+  const kv=[['Project',o.type||'—'],['Category',o.cat||'—']];
+  return { title:'Scope of supply', html:`<div class="cx-fit center">${chips}${specHtml}<div class="cx-kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span class="v">${qesc(v)}</span>`).join('')}</div></div>`, avail:!!(spec||chips), why:'No scope tags or notes' };
+}
+function cxBodyDetails(o,sec){
+  const raw=(o.details||'').trim(); const clean=raw?rteSanitize(raw):'';
+  const has=clean&&(clean.replace(/<[^>]*>/g,'').trim()||/<(li|img)\b/i.test(clean));
+  return { title:'Details', html:`<div class="cx-fit center"><div class="cx-details">${has?clean:'<div class="cx-empty">No details narrative yet — add it in the opportunity drawer.</div>'}</div></div>`, avail:!!has, why:'No details narrative' };
+}
+function cxBodyInstall(o,sec){
+  const inst=presoInstall(o.tags);
+  const kv=[['Freight',o.freightTerms||'—'],['Category',o.cat||'—'],['Source',o.source||'—']];
+  return { title:'Install & commissioning', html:`<div class="cx-fit center"><div class="cx-pills">${inst.map(p=>`<span class="cx-pill${p.on?' on':''}">${qesc(p.label)}</span>`).join('')}</div>
+    <div class="cx-kv">${kv.map(([k,v])=>`<span class="k">${k}</span><span class="v">${qesc(v)}</span>`).join('')}</div></div>` };
+}
+function cxBodyCapacity(o,sec){
+  const caps=presoCapacity(o);
+  if(!caps.length){
+    const tags=presoScopeTags(o.tags);
+    return { title:'Capacity', html:`<div class="cx-fit"><div class="cx-empty">No throughput or unit counts found in the scope. Scope by tags &amp; type:</div>
+      <div class="cx-chips">${tags.map(t=>`<span class="cx-chip" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</div><div class="cx-spec">${qesc(o.type||'')}</div></div>`, avail:false, why:'No capacity figures in scope' };
+  }
+  const cols=Math.min(caps.length,3);
+  return { title:'Capacity', html:`<div class="cx-fit" style="display:flex;flex-direction:column;justify-content:center"><div class="cx-tiles" style="grid-template-columns:repeat(${cols},1fr)${cols===1?';max-width:560px':''}">${caps.map(c=>`<div class="cx-tile big"><div class="n">${qesc(c.big)}</div><div class="l">${qesc(c.sub)}</div></div>`).join('')}</div>
+    ${o.type?`<div class="cx-kv" style="margin-top:34px"><span class="k">Project</span><span class="v">${qesc(o.type)}</span></div>`:''}</div>` };
+}
+function cxBodyCommercial(o,sec){
+  const weighted=(o.val&&o.prob!=null)?presoMoney(o.val*o.prob):'—';
+  const tiles=[
+    {n:presoMoney(o.val),l:'Value'},{n:o.prob!=null?Math.round(o.prob*100)+'%':'—',l:'Probability'},{n:weighted,l:'Weighted value'},
+    {n:o.stage||'—',l:'Stage',sm:true},{n:o.close||'TBD',l:'Expected close',sm:true},{n:o.lead||'—',l:'Lead',sm:true}];
+  const kv=[['Category',o.cat||'—'],['Source',o.source||'—'],['Updated',o.updatedAt?new Date(o.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(o.updatedBy?' · '+o.updatedBy:''):'—']];
+  return { title:'Commercial', html:`<div class="cx-fit" style="display:flex;flex-direction:column;justify-content:center"><div class="cx-tiles" style="grid-template-columns:repeat(3,1fr)">${tiles.map(t=>`<div class="cx-tile"><div class="n${t.sm?' sm':''}">${qesc(t.n)}</div><div class="l">${t.l}</div></div>`).join('')}</div>
+    <div class="cx-kv" style="margin-top:30px">${kv.map(([k,v])=>`<span class="k">${k}</span><span class="v">${qesc(v)}</span>`).join('')}</div></div>` };
+}
+// Leaflet map for a card (canvas renderer so leaflet-image can snapshot the markers).
+function cxMountMap(el,o,sec,coords,zoom){
+  if(typeof L==='undefined'||!coords){ el.insertAdjacentHTML('beforeend','<div class="cx-nomap">Map unavailable</div>'); return null; }
+  const light=cxLight();
+  const map=L.map(el,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false,keyboard:false,doubleClickZoom:false,boxZoom:false,touchZoom:false,renderer:L.canvas({padding:.5})}).setView(coords,zoom||7);
+  L.tileLayer(light?'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png':'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',{maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
+  L.circleMarker(coords,{radius:11,color:'#ffffff',weight:2.5,fillColor:sec.acc,fillOpacity:.95}).addTo(map);
+  const pts=[coords];
+  let port=null; try{ port=presoSitePort(o); }catch(_){}
+  if(port){ L.circleMarker([port.lat,port.lon],{radius:7,color:'#ffffff',weight:1.5,fillColor:'#19446C',fillOpacity:.9}).addTo(map);
+    L.polyline([coords,[port.lat,port.lon]],{color:sec.acc,weight:2,opacity:.6,dashArray:'5,6'}).addTo(map); pts.push([port.lat,port.lon]); }
+  let saved=null; try{ saved=presoGetMapView(o.id); }catch(_){}
+  const fit=()=>{ try{ map.invalidateSize(); if(saved) map.setView([saved.lat,saved.lon],saved.zoom,{animate:false}); else if(pts.length>1) map.fitBounds(pts,{padding:[70,70],maxZoom:8,animate:false}); else map.setView(coords,zoom||7,{animate:false}); }catch(_){} };
+  map.whenReady(fit); [80,300,900].forEach(t=>setTimeout(fit,t));
+  el._cxMap=map;
+  return map;
+}
+function cxBodyLocation(o,sec){
+  const coords=cxCoords(o);
+  const hdr=coords?`<span class="mono" data-si="hdr">${tsiCoordStr(coords[0],coords[1])}${o.elev!=null?' · '+tsiElevStr(o.elev):''}</span>`:'';
+  const html=`<div class="cx-map" id="cx-map-location">${coords?tsiSiteInfoHTML(o.acct,presoLoc(o)!=='—'?presoLoc(o):'',coords,o):'<div class="cx-nomap">No coordinates — geocode the site in the edit drawer</div>'}<span class="cx-map-attr">© OpenStreetMap · Carto</span></div>`;
+  return { title:'Site location', html, opts:{right:hdr}, avail:!!coords, why:'No coordinates',
+    after:(card)=>{ if(!coords) return; const el=card.el.querySelector('.cx-map'); card.map=cxMountMap(el,o,sec,coords,7); tsiSiteInfoFill(card.el,o,coords); } };
+}
+function cxBodyClimate(o,sec){
+  const coords=cxCoords(o); const w=tsiClimaOf(o); const light=cxLight();
+  const statsHTML=(w)=>{ const s=tsiClimaStats(w); const k=w?tsiKoppen(w.mMean,w.mPrec,coords?coords[0]:null):null; if(!s) return '';
+    return [[s.avg+'°C','Annual avg'],[s.coldest+'°C','Coldest month'],[s.warmest+'°C','Warmest month'],[s.rain+' mm','Annual rainfall'],[k?k.name:'—','Climate'+(k?' · '+k.code:''),true]]
+      .map(([n,l,sm])=>`<div class="cx-tile"><div class="n${sm?' sm':''}">${qesc(n)}</div><div class="l">${qesc(l)}</div></div>`).join(''); };
+  const html=`<div class="cx-clima-grid"><div class="cx-clima-chart"><div class="wrap"><canvas id="cx-clima-canvas"></canvas></div>${tsiClimaLegendHTML(light,false)}</div>
+    <div class="cx-clima-stats" data-cx="stats">${statsHTML(w)}</div></div>`;
+  return { title:'Site climate — monthly temperature & precipitation', html, opts:{right:`<span data-cx="src">${qesc(w&&w.src?w.src:(coords?'Loading ERA5 normals…':''))}</span>`},
+    avail:!!(w||coords), why:'No coordinates for climate normals',
+    after:(card)=>{
+      const draw=(w)=>{ if(!w){ const s=card.el.querySelector('[data-cx="src"]'); if(s) s.textContent='Climate normals unavailable'; return; }
+        const cv=card.el.querySelector('#cx-clima-canvas'); card.chart=tsiClimaChart(cv,w,{light,fontSize:13,pointRadius:4,animate:false});
+        const st=card.el.querySelector('[data-cx="stats"]'); if(st) st.innerHTML=statsHTML(w);
+        const s=card.el.querySelector('[data-cx="src"]'); if(s) s.textContent=w.src||'ERA5 reanalysis · open-meteo'; };
+      if(w) draw(w); else if(coords) tsiClimaEnsure(o,coords).then(draw);
+    } };
+}
+function cxBodySchedule(o,sec){
+  const phases=(typeof _schedPhases!=='undefined'&&Array.isArray(_schedPhases))?_schedPhases:[];
+  const ms=(typeof _schedMilestones!=='undefined'&&Array.isArray(_schedMilestones))?_schedMilestones:[];
+  const po=(document.getElementById('sched-po-date')||{}).value||'';
+  const total=phases.length?Math.max(...phases.map(p=>(Number(p.start)||0)+(Number(p.dur)||0))):0;
+  const poTxt=po?new Date(po+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'TBD';
+  const kpis=[[poTxt,'Expected PO',true],[String(phases.length),'Phases'],[total?total+' wk':'—','Duration'],[String(ms.length),'Milestones']];
+  const html=`<div class="cx-sched"><div class="cx-sched-kpis">${kpis.map(([n,l,sm])=>`<div class="cx-tile"><div class="n${sm?' sm':''}">${qesc(n)}</div><div class="l">${l}</div></div>`).join('')}</div>
+    <div class="cx-sched-svg" data-cx="svg">${phases.length?'':'<div class="cx-empty" style="color:#7a8ba0">No schedule yet — add phases on the Schedule tab.</div>'}</div></div>`;
+  return { title:'Schedule', html, opts:{right:po?'Weeks from PO · calendar from '+qesc(poTxt):'Weeks from PO'}, avail:phases.length>0, why:'No phases on the Schedule tab',
+    after:(card)=>{
+      if(!phases.length) return;
+      const host=card.el.querySelector('[data-cx="svg"]'); const srcs=['#gantt-svg-wrap svg','#ms-timeline-svg svg'];
+      let h=0; srcs.forEach(sel=>{ const s=document.querySelector(sel); if(!s) return; const c=s.cloneNode(true);
+        const w=parseFloat(s.getAttribute('width'))||s.viewBox?.baseVal?.width||730, hh=parseFloat(s.getAttribute('height'))||s.viewBox?.baseVal?.height||200;
+        if(!c.getAttribute('viewBox')) c.setAttribute('viewBox',`0 0 ${w} ${hh}`); c.removeAttribute('width'); c.removeAttribute('height');
+        c.setAttribute('preserveAspectRatio','xMidYMin meet'); c.style.width='100%'; c.style.height='auto'; c.style.maxHeight=(hh/w*1080).toFixed(0)+'px'; host.appendChild(c); h+=hh/w; });
+      // vertical budget: scale both SVGs down together if they overflow the panel
+      requestAnimationFrame(()=>{ const avail=host.clientHeight-28, need=[...host.querySelectorAll('svg')].reduce((a,s)=>a+s.getBoundingClientRect().height,0)+6*(host.children.length-1);
+        if(need>avail){ const k=avail/need; host.querySelectorAll('svg').forEach(s=>{ s.style.width=(k*100).toFixed(1)+'%'; s.style.margin='0 auto'; }); } });
+    } };
+}
+function cxBodySlide(o,sec){
+  const light=cxLight();
+  let html='';
+  try{ html=presoOppSlide(o,sec,{i:0,n:1}); }catch(e){ html=`<div class="pz-slide"><div class="pz-empty">Slide unavailable</div></div>`; }
+  html=html.replace(/\son[a-z]+="[^"]*"/g,'')
+           .replace(/id="pz-jobmap"/,'id="cx-jobmap"').replace(/id="pz-clima-box"/,'id="cx-clima-box"').replace(/id="pz-clima-canvas"/,'id="cx-slide-clima"')
+           .replace(/<span class="pos">[^<]*<\/span>/,`<span class="pos">${qesc(sec.label)}</span>`);
+  const wrapped=`<div class="cx-card cx-slidecard pz-theme${light?' preso-light':''}" style="--acc:${sec.acc}">${html}</div>`;
+  return { title:'Full slide', html:wrapped,
+    after:(card)=>{
+      const sl=card.el.querySelector('.pz-slide'); if(!sl) return;
+      // The slide was designed 16:9; in the 4:3 frame a long right column can run
+      // past the bottom — scale the whole slide down until it fits (two passes).
+      const fitSlide=()=>{ sl.style.transform=''; sl.style.width=''; sl.style.height='';
+        for(let pass=0;pass<2;pass++){ const avail=card.el.clientHeight; const cur=sl.getBoundingClientRect().height||avail; const k0=parseFloat((sl.style.transform.match(/scale\(([\d.]+)\)/)||[])[1]||1);
+          const need=sl.scrollHeight*k0; if(need<=avail+2) break; const k=Math.max(.5,(avail/need)*k0);
+          sl.style.transformOrigin='0 0'; sl.style.transform=`scale(${k.toFixed(4)})`; sl.style.width=(100/k).toFixed(2)+'%'; sl.style.height=(100/k).toFixed(2)+'%'; } };
+      card.refit=fitSlide; requestAnimationFrame(fitSlide);
+      sl.classList.add('pz-has-footer');
+      sl.insertAdjacentHTML('beforeend',`<div class="pz-slide-footer"><span class="pz-foot-logo">${presoLogoSVG(light?'#19446C':'#ffffff')}</span><span class="pz-foot-conf">Confidential</span></div>`);
+      const coords=cxCoords(o);
+      const mapEl=card.el.querySelector('#cx-jobmap');
+      if(mapEl&&coords){ mapEl.querySelectorAll('.gb,.pin').forEach(x=>x.style.display='none'); card.map=cxMountMap(mapEl,o,sec,coords,6); tsiSiteInfoFill(card.el,o,coords); }
+      const box=card.el.querySelector('#cx-clima-box');
+      if(box&&coords){ tsiClimaEnsure(o,coords).then(w=>{ if(!w) return; box.style.display=''; presoClimaBoxFill(box,w,light,'#cx-slide-clima'); card.chart=tsiClimaChart(box.querySelector('canvas'),w,{light,compact:true,animate:false}); requestAnimationFrame(()=>{ fitSlide(); try{ card.chart&&card.chart.resize(); }catch(_){} }); }); }
+    } };
+}
+
+// ── rasterise + download ──────────────────────────────────────
+function cxWithTimeout(p,ms){ return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]); }
+async function cardxRasterize(card){
+  await cxLib('html2canvas');
+  const stage=document.getElementById('cardx-stage'); const el=card.el; const home=el.parentNode, next=el.nextSibling;
+  stage.classList.add('busy'); stage.appendChild(el);
+  const maps=[...el.querySelectorAll('.leaflet-container')].map(c=>c._cxMap).filter(Boolean);
+  maps.forEach(m=>{ try{ m.invalidateSize({animate:false}); }catch(_){} });
+  if(card.refit){ try{ card.refit(); }catch(_){} } else cxFit(el);
+  if(card.chart){ try{ card.chart.resize(); }catch(_){} }
+  await _cxSleep(maps.length?700:150);
+  // Snapshot live maps with leaflet-image (tiles + canvas markers); fall back to html2canvas' own pass.
+  const snaps=new Map();
+  for(const c of el.querySelectorAll('.leaflet-container')){
+    const m=c._cxMap; if(!m||typeof leafletImage!=='function') continue;
+    try{ const cv=await cxWithTimeout(new Promise((res,rej)=>leafletImage(m,(e,cv)=>e?rej(e):res(cv))),6000); snaps.set(c,cv.toDataURL('image/png')); }catch(_){}
+  }
+  let canvas;
+  try{
+    canvas=await html2canvas(el,{ scale:CARDX_SCALE, useCORS:true, allowTaint:false, backgroundColor:null, logging:false, width:CARDX_W, height:CARDX_H,
+      windowWidth:Math.max(document.documentElement.clientWidth,CARDX_W+80), windowHeight:Math.max(document.documentElement.clientHeight,CARDX_H+80),
+      onclone:(doc)=>{
+        const cc=doc.getElementById(el.id); if(!cc) return;
+        const orig=[...el.querySelectorAll('.leaflet-container')], cl=[...cc.querySelectorAll('.leaflet-container')];
+        orig.forEach((oc,i)=>{ const url=snaps.get(oc); const t=cl[i]; if(!t) return;
+          if(url){ t.innerHTML=`<img src="${url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">`; t.style.position='relative'; }
+          else t.querySelectorAll('.leaflet-control-container').forEach(x=>x.remove()); });
+      } });
+  } finally {
+    home.insertBefore(el,next); stage.classList.remove('busy');
+    maps.forEach(m=>{ try{ m.invalidateSize({animate:false}); }catch(_){} });
+    if(card.chart){ try{ card.chart.resize(); }catch(_){} }
+  }
+  return canvas;
+}
+function cxFileName(key){ const o=_cardxOpp; return `TSI_${cxSlug(o.acct)}_${key}_${new Date().toISOString().slice(0,10)}.png`; }
+function cxSaveBlob(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+const cxToBlob=cv=>new Promise(res=>cv.toBlob(res,'image/png'));
+function cardxSetBusy(b,msg){ _cardxBusy=b; document.querySelectorAll('#cardx-overlay .cardx-dl, #cardx-all-btn, #cardx-theme button').forEach(x=>x.disabled=b); const p=document.getElementById('cardx-prog'); if(p) p.textContent=msg||''; }
+async function cardxDownload(key){
+  if(_cardxBusy) return; const card=_cardxCards.find(c=>c.key===key); if(!card) return;
+  cardxSetBusy(true,'Rendering '+(CARDX_DEFS.find(d=>d.key===key)||{}).label+'…');
+  try{ const cv=await cardxRasterize(card); const blob=await cxToBlob(cv); cxSaveBlob(blob,cxFileName(key)); showToast('Card saved — '+cxFileName(key),'var(--tsi-succ-green)'); try{ usageLog('cards_export_png',_cardxOpp.id+':'+key); }catch(_){} }
+  catch(e){ console.error(e); showToast('Export failed — '+(e.message||e),'var(--tsi-coral)'); }
+  finally{ cardxSetBusy(false,''); }
+}
+async function cardxDownloadAll(){
+  if(_cardxBusy) return;
+  const list=_cardxCards.filter(c=>c.avail); if(!list.length){ showToast('Nothing to export','var(--tsi-amber)'); return; }
+  cardxSetBusy(true,'Preparing…');
+  let zip=null; try{ const JZ=await cxLib('JSZip'); zip=new JZ(); }catch(_){ zip=null; }
+  const out=[]; let n=0;
+  try{
+    for(const card of list){ n++; cardxSetBusy(true,`Rendering ${n} of ${list.length} — ${(CARDX_DEFS.find(d=>d.key===card.key)||{}).label}…`);
+      try{ const cv=await cardxRasterize(card); const blob=await cxToBlob(cv); out.push([cxFileName(card.key),blob]); }catch(e){ console.warn('card failed',card.key,e); } }
+    if(!out.length) throw new Error('no cards rendered');
+    if(zip){ out.forEach(([name,blob])=>zip.file(name,blob)); cardxSetBusy(true,'Zipping…'); const zb=await zip.generateAsync({type:'blob'});
+      cxSaveBlob(zb,`TSI_${cxSlug(_cardxOpp.acct)}_cards_${new Date().toISOString().slice(0,10)}.zip`); showToast(`${out.length} cards zipped`,'var(--tsi-succ-green)'); }
+    else { for(const [name,blob] of out){ cxSaveBlob(blob,name); await _cxSleep(400); } showToast(`${out.length} cards saved (zip library unavailable — saved individually)`,'var(--tsi-amber)'); }
+    try{ usageLog('cards_export_zip',_cardxOpp.id); }catch(_){}
+  }catch(e){ console.error(e); showToast('Export failed — '+(e.message||e),'var(--tsi-coral)'); }
+  finally{ cardxSetBusy(false,''); }
+}
+</script>
+
 </body>
 </html>

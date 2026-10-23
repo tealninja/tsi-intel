@@ -163,8 +163,24 @@ Roles (cumulative ladder):
   (insert→read→delete) confirmed. **Remaining: deploy the worker** so the route exists (below).
 - [ ] Polish: real capacity fields (vs. regex), presenter notes, per-deck save/name/reuse,
   richer sample-quote slides.
+- [x] **Opportunity cards → PowerPoint (build #169)** — "Download cards" on the opportunity
+  detail top bar: every card from the presentation slide (full slide, scope of supply, details,
+  install & commissioning, site location, capacity, commercial, site climate) **plus the
+  schedule** (Gantt + milestone timeline), each rendered in a **4:3 landscape frame** (2400 ×
+  1800 PNG, html2canvas at 2×) with the TSI mark + Confidential. Live previews, **light / dark
+  toggle**, single PNG or **Download all (zip)** (JSZip; falls back to individual saves). Maps are
+  snapshotted with leaflet-image and follow the deck's saved framing. Cards without data are
+  marked and left out of the zip.
+- [x] **Plant-model site + climate cards (build #169)** — shared helpers used by the deck, the
+  opportunity Overview and the exports: **site location** carries coords (U+2212 minus), elevation
+  (open-meteo, cached) and a **Köppen–Geiger class** (computed from the monthly normals, Peel 2007
+  thresholds); **climatogram** is the banded high / mean / low + precipitation chart with legend,
+  axis titles and the ERA5 source note; Overview climate summary adds the Köppen row.
 - [ ] **Deck export to PPTX** (PptxGenJS via CDN, TSI-themed) so it's distributable /
-  Canva-importable (Canva imports .pptx). Raised alongside "export to ppt or Canva".
+  Canva-importable (Canva imports .pptx). Raised alongside "export to ppt or Canva". The 4:3 card
+  export above covers the "drop into a detailed PowerPoint" case; a native .pptx is still open.
+- [ ] Cards follow-ups: key-contacts card, milestones + cash-flow card, portfolio cards (overview
+  map, value-by-line chart, stage board) — declined for now, revisit if asked.
 - [x] **"What to present" settings** — "⚙ What to present" modal: **Auto / Smart rules /
   Hand-picked**. Smart filters (updated-within, closes-within, value ≥ X, stages) + **group-by
   line / stage / region** (deck sections are now dynamic). **AI describe box** parses a plain-
