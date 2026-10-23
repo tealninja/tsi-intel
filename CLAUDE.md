@@ -50,8 +50,15 @@ static assets — the two `wrangler deploy` steps and all secrets are **human/CL
   agent proxy. Use the header **build stamp** (`APP_BUILD` in `tsi-intel.html`) for
   human confirmation, and **bump `APP_BUILD` on every deployable change**.
 
+**Where the app is served (current):** `https://tsiprojects.bodhistoys.com/tsi-intel/` — a mirror of
+`tsi-intel.html` in the tsi-projects repo (`tsi-intel/index.html`), behind that site's passcode.
+After every change here run `scripts/sync-to-tsi-projects.sh` (rewrites the mirror, appends
+`/hub.js`, sets tsi-projects `versions.json` to `1.<APP_BUILD>.0`), then commit and push `main`
+in tsi-projects; Workers Builds deploys it. The old `tsi-intel.bodhistoys.com` static Worker still
+exists but is stale — treat it as legacy.
+
 **Human deploy steps (wrangler):**
-1. Static app: `git checkout <branch> && npx wrangler deploy` (repo root, `wrangler.jsonc`).
+1. Static app (legacy `tsi-intel.bodhistoys.com`): `git checkout <branch> && npx wrangler deploy` (repo root, `wrangler.jsonc`).
 2. API worker: `cd deploy && wrangler deploy` (`deploy/wrangler.toml` + `tsi-intel-api.js`;
    binds DB=D1 + TSI_DATA=KV; adds prices/quotes/store/shipping routes).
 3. Shipping: `cd deploy && wrangler secret put SHIPPING_API_KEY` (EasyPost; rating is free).
