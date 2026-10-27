@@ -86,7 +86,75 @@ function err(msg, status=400, origin) {
   return json({ success: false, error: msg }, status, origin);
 }
 
+// ── Opportunity change log + nightly snapshots ─────────────────────────────
+// Every write to the 'opportunities' collection passes through applyOppChangeLog:
+// the incoming record is diffed against the stored one on the estimate fields
+// below and each movement is appended to record.changes[] as
+//   { at, by, field, from, to, src }   (src = the record's current `source`)
+// The client logs the same entries optimistically; entries it already wrote for
+// this save are recognised (same field + same `to`, <10 min old) and not doubled.
+// The server also guarantees lastUpdatedAt / lastUpdatedBy move on every save
+// that changes anything other than bookkeeping, so no save path can skip them.
+const OPP_CHANGE_FIELDS = ['val','prob','close','expectedCloseDate','stage','status','lead','deliveryQtr','statusLine'];
+const OPP_META_KEYS = new Set(['changes','changesSeededAt','lastUpdatedAt','lastUpdatedBy','updatedAt','updatedBy','version']);
+function chgNorm(v){ if (v == null || v === '') return null; return typeof v === 'number' ? v : String(v); }
+function chgSame(a, b){
+  a = chgNorm(a); b = chgNorm(b);
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (String(a) === String(b)) return true;
+  const na = Number(a), nb = Number(b);
+  return String(a).trim() !== '' && String(b).trim() !== '' && isFinite(na) && isFinite(nb) && na === nb;
+}
+function stripMeta(o){ const r = {}; Object.keys(o || {}).forEach(k => { if (!OPP_META_KEYS.has(k)) r[k] = o[k]; }); return r; }
+function applyOppChangeLog(prev, next, user, nowIso){
+  const nowMs = Date.parse(nowIso);
+  const changes = Array.isArray(next.changes) ? next.changes.slice()
+                : (prev && Array.isArray(prev.changes) ? prev.changes.slice() : []);
+  let moved = false;
+  if (prev) {
+    for (const f of OPP_CHANGE_FIELDS) {
+      const a = prev[f], b = next[f];
+      if (chgSame(a, b)) continue;
+      moved = true;
+      const dup = changes.some(c => c && c.field === f && chgSame(c.to, b) && c.at && (nowMs - Date.parse(c.at)) < 10 * 60 * 1000);
+      if (!dup) changes.push({ at: nowIso, by: (user && user !== 'unknown') ? user : (next.lastUpdatedBy || 'unknown'), field: f, from: chgNorm(a), to: chgNorm(b), src: next.source || (prev && prev.source) || null });
+    }
+  }
+  next.changes = changes;
+  // Stamp when content moved and the client left the stamp where it was.
+  const stampUnchanged = !next.lastUpdatedAt || (prev && next.lastUpdatedAt === prev.lastUpdatedAt);
+  if (stampUnchanged) {
+    const contentChanged = !prev || moved || JSON.stringify(stripMeta(prev)) !== JSON.stringify(stripMeta(next));
+    if (contentChanged) { next.lastUpdatedAt = nowIso; if (user && user !== 'unknown') next.lastUpdatedBy = user; else if (!next.lastUpdatedBy) next.lastUpdatedBy = user; }
+  }
+  return next;
+}
+
+// Nightly pipeline snapshot → collection 'snapshots', id = YYYY-MM-DD.
+// { id, at, n, opps:[{id,val,prob,close,stage,status,lead}] } — enough to draw
+// pipeline-over-time and per-quarter slippage without anyone editing anything.
+async function takePipelineSnapshot(env, dateId){
+  const { results } = await env.DB.prepare(`SELECT data FROM collections WHERE collection='opportunities'`).all();
+  const opps = results.map(r => { try { return JSON.parse(r.data); } catch { return null; } }).filter(o => o && o.id != null)
+    .map(o => ({ id: String(o.id),
+      val:   (o.val == null || o.val === '' || !isFinite(Number(o.val))) ? null : Number(o.val),
+      prob:  (o.prob == null || o.prob === '' || !isFinite(Number(o.prob))) ? null : Number(o.prob),
+      close: o.close || null, stage: o.stage || null, status: o.status || null, lead: o.lead || null }));
+  const at = new Date().toISOString();
+  const id = dateId || at.slice(0, 10);
+  const snap = { id, at, n: opps.length, opps };
+  await env.DB.prepare(
+    `INSERT OR REPLACE INTO collections (collection, id, data, updated_at, updated_by) VALUES ('snapshots', ?, ?, ?, 'cron')`
+  ).bind(id, JSON.stringify(snap), at).run();
+  return snap;
+}
+
 export default {
+  // Cron Trigger (see wrangler.toml [triggers]) — one snapshot per UTC day.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(takePipelineSnapshot(env));
+  },
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin');
    try {
@@ -484,9 +552,14 @@ export default {
 
     // GET /api/store/:collection — list all objects in the collection
     if (collMatch && request.method === 'GET') {
-      const { results } = await env.DB.prepare(
-        `SELECT data FROM collections WHERE collection=? ORDER BY updated_at DESC`
-      ).bind(collMatch[1]).all();
+      // Optional ?from=&to= bound the object id (lexicographic) — e.g. snapshots
+      // keyed YYYY-MM-DD → /api/store/snapshots?from=2026-07-01&to=2026-09-30.
+      const qFrom = url.searchParams.get('from'), qTo = url.searchParams.get('to');
+      let sql = `SELECT data FROM collections WHERE collection=?`; const binds = [collMatch[1]];
+      if (qFrom) { sql += ` AND id >= ?`; binds.push(qFrom); }
+      if (qTo)   { sql += ` AND id <= ?`; binds.push(qTo); }
+      sql += qFrom || qTo ? ` ORDER BY id ASC` : ` ORDER BY updated_at DESC`;
+      const { results } = await env.DB.prepare(sql).bind(...binds).all();
       const items = results.map(r => { try { return JSON.parse(r.data); } catch { return null; } }).filter(Boolean);
       return json({ success: true, items }, 200, origin);
     }
@@ -514,10 +587,19 @@ export default {
       let body; try { body = await request.json(); } catch { return err('Invalid JSON', 400, origin); }
       const [, coll, id] = collItemMatch;
       const obj = { ...body, id };
+      const nowIso = new Date().toISOString();
+      if (coll === 'opportunities') {
+        let prev = null;
+        try {
+          const row = await env.DB.prepare(`SELECT data FROM collections WHERE collection=? AND id=?`).bind(coll, id).first();
+          if (row && row.data) prev = JSON.parse(row.data);
+        } catch {}
+        applyOppChangeLog(prev, obj, user, nowIso);
+      }
       await env.DB.prepare(
         `INSERT OR REPLACE INTO collections (collection, id, data, updated_at, updated_by) VALUES (?,?,?,?,?)`
-      ).bind(coll, id, JSON.stringify(obj), new Date().toISOString(), user).run();
-      return json({ success: true, id }, 200, origin);
+      ).bind(coll, id, JSON.stringify(obj), nowIso, user).run();
+      return json({ success: true, id, changes: coll === 'opportunities' ? (obj.changes || []).length : undefined }, 200, origin);
     }
 
     // DELETE /api/store/:collection/:id
@@ -560,6 +642,16 @@ export default {
       } catch (e) {
         return json({ error: 'Shipping upstream error: ' + ((e && e.message) || e) }, 502, origin);
       }
+    }
+
+    // ── POST /api/snapshots/run — take today's pipeline snapshot on demand ──
+    // (same payload the nightly cron writes; useful for the first baseline and
+    //  after a big round of edits). Optional body { date:'YYYY-MM-DD' }.
+    if (path === '/api/snapshots/run' && request.method === 'POST') {
+      let body = {}; try { body = await request.json(); } catch {}
+      const dateId = (typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date)) ? body.date : undefined;
+      const snap = await takePipelineSnapshot(env, dateId);
+      return json({ success: true, id: snap.id, at: snap.at, n: snap.n }, 200, origin);
     }
 
     // ── GET /api/health ───────────────────────────────────────

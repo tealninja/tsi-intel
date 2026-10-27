@@ -8,6 +8,41 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗓️ 2026-10-27 — Opportunity history (raised by JT) — build #173
+- [x] **History hygiene** — feed renders sorted by `at` desc (direct D1 writes append, the app
+  unshifts); the 50/80-entry caps are gone; every save path goes through `oppPrepareSave()`
+  (diff → `changes[]` + human action string + `lastUpdatedAt/By`). The Worker repeats the diff
+  and the stamp server-side on `PUT /api/store/opportunities/:id`, so no writer can skip them.
+- [x] **Field-level change log** `o.changes[] = {at, by, field, from, to, src}` for val · prob ·
+  close · expectedCloseDate · stage · status · lead · deliveryQtr · statusLine. One-time backfill
+  parses the existing `history[].action` strings (field-anchored `… → …` form, incl. `status O → W`),
+  lifts the older structured entries, and seeds a `{from:null,to:first}` origin point per field at
+  `createdAt` (`origin:true`, hidden by default in What changed). Records carry `changesSeededAt`;
+  newer out-of-band history (Claude's direct D1 updates) is parsed incrementally on load.
+- [x] **Staleness** — days since the newest history entry not matching
+  `/Pass [1-4]|normalised|Site link|Account name/`, falling back to `lastUpdatedAt`, then `createdAt`.
+  <30 fresh · 30–59 🍞 · 60–89 🦠 · ≥90 💀. Badge on the ID cell + map popup (tooltip "no update in N
+  days — last: <date> <action>"), Freshness chips with counts, sortable **Last Update** column,
+  "⇅ Sort by staleness", per-rep counts + stale value on Summary and History, **Still accurate ✓**
+  on the detail view (appends `Reviewed — no change`).
+- [x] **statusLine** (≤140 chars) — drawer field, second line under the project in the table,
+  inline edit at the top of the detail view, map popup. Editing appends `Status: <text>`.
+- [x] **Trajectory** sub-tab on the detail view — step charts of value, probability, close quarter,
+  val×prob with change markers, plus the merged event table.
+- [x] **What changed** (History tab) — date range, rep/field filters, tiles (net value Δ, net
+  weighted Δ, slips vs pull-ins, prob ups vs downs), per-rep slip rate, change-event rows.
+- [x] **Nightly snapshot** — Worker Cron Trigger (`15 6 * * *` UTC) writes
+  `collections('snapshots', YYYY-MM-DD, {opps:[{id,val,prob,close,stage,status,lead}]})`;
+  `POST /api/snapshots/run` takes one on demand ("Take snapshot now"). Powers pipeline-over-time
+  (gross/weighted · by stage · by rep) and the per-quarter slippage waterfall (baseline = first
+  snapshot at quarter start; until snapshots exist it is reconstructed from `changes[]`).
+- [!] **Needs a human `cd deploy && wrangler deploy`** for the cron, the server-side change log and
+  `/api/snapshots/run` (the app degrades gracefully: client-side log + reconstructed baselines).
+- [x] Fixed on the way: the drawer's edit path persisted the bare form object, dropping `history`,
+  `todos`, `milestones` etc. from the stored record. It now persists the merged record.
+- [ ] The `tsi-intel-update` skill (direct D1 `json_set` writes) should also append to `$.changes`
+  and may set `$.statusLine`; until then its history strings are parsed on load.
+
 ## 🗓️ 2026-10-27 — Schedule Lite hand-off (raised by JT)
 - [x] Schedule Lite (tsiprojects.bodhistoys.com/schedule) links to an opportunity and **pushes
   phases + milestones** into `o.schedule` (the Schedule tab's shape; PO date = schedule start,
