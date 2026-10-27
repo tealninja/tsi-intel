@@ -2970,6 +2970,10 @@ table.prod-grid td.prod-code .prod-child-tick { color:var(--color-text-muted); m
 .q-mode-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
 .q-mode-badge.local { animation:qModePulse 1.6s ease-in-out infinite; }
 @keyframes qModePulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+/* Basemap looks (OpenStreetMap tiles; see tsiTileLayer) */
+.leaflet-tile-pane .tsi-tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.82) contrast(.88) saturate(.6); }
+.leaflet-tile-pane .tsi-tiles-muted { filter: saturate(.35) opacity(.85); }
+.leaflet-tile-pane .tsi-tiles-dark.tsi-tiles-muted { filter: invert(1) hue-rotate(180deg) brightness(.78) contrast(.85) saturate(.25); }
 /* Loud offline banner — quotes are NOT persisting to the DB */
 .q-mode-banner { display:flex; align-items:center; gap:12px; padding:11px 16px; margin-bottom:var(--sp-3);
   background:rgba(196,162,48,0.14); border:1px solid var(--tsi-amber); border-left:4px solid var(--tsi-amber);
@@ -3657,7 +3661,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#171 · 2026-10-27 · Schedule Lite hand-off: open / push from the Schedule tab, ?opp= deep link';
+const APP_BUILD = '#172 · 2026-10-27 · maps on OpenStreetMap tiles (CARTO basemaps now need an API key)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -3667,6 +3671,17 @@ try {
 } catch(_){}
 try { console.log('%cTSI Intel build '+APP_BUILD, 'color:#00929f;font-weight:600'); } catch(_){}
 const MGMT_INITIALS  = 'JT';  // ← initials allowed to enter MGMT mode
+
+// ── Basemap tiles ── CARTO's free basemaps started demanding an API key (every tile
+// renders an "API KEY REQUIRED" watermark), so all maps use OpenStreetMap's standard
+// tiles instead. Dark and muted looks are CSS filters on the tile pane (see
+// .tsi-tiles-dark / .tsi-tiles-muted). variant: 'light' | 'dark' | 'light_nolabels' | 'dark_nolabels'.
+function tsiTileLayer(variant, opts) {
+  const v = String(variant || 'light');
+  const cls = (v.startsWith('dark') ? 'tsi-tiles-dark' : '') + (v.endsWith('nolabels') ? ' tsi-tiles-muted' : '');
+  return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    Object.assign({ maxZoom: 19, attribution: '© OpenStreetMap contributors', className: cls.trim() }, opts || {}));
+}
 
 function workerHeaders() {
   const h = { 'Content-Type': 'application/json' };
@@ -4694,7 +4709,7 @@ function initFamiliarityMap(){
     try{
       _famMap=L.map('fam-map',{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([25,-40],2);
       const dark=document.documentElement.getAttribute('data-theme')==='dark';
-      L.tileLayer(dark?'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png':'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',{maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(_famMap);
+      tsiTileLayer(dark?'dark_nolabels':'light').addTo(_famMap);
       setTimeout(()=>{ try{_famMap.invalidateSize();}catch(_){} },140);
     }catch(_){}
   }
@@ -5943,12 +5958,7 @@ function initMap() {
   if (tsiMap) return;
   tsiMap = L.map('tsi-map', { zoomControl: true, scrollWheelZoom: true });
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  L.tileLayer(
-    dark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
-    { attribution: '© OpenStreetMap © CARTO', maxZoom: 18 }
-  ).addTo(tsiMap);
+  tsiTileLayer(dark ? 'dark_nolabels' : 'light_nolabels').addTo(tsiMap);
   tsiMap.setView([20, 10], 2);
 }
 
@@ -7426,11 +7436,7 @@ function initDrawerMap(lat, lon) {
   if (!_drawerMap) {
     _drawerMap = L.map('d-loc-map', { zoomControl:true, scrollWheelZoom:false, attributionControl:false });
     const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    L.tileLayer(
-      dark ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
-           : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
-      { maxZoom:18 }
-    ).addTo(_drawerMap);
+    tsiTileLayer(dark ? 'dark_nolabels' : 'light_nolabels').addTo(_drawerMap);
   }
 
   const latlng = [lat, lon];
@@ -10415,8 +10421,7 @@ function renderAcctSiteMapClima(site) {
     try {
       _amSiteMap = L.map('am-site-map', { zoomControl:true, attributionControl:false, scrollWheelZoom:false })
         .setView([site.lat, site.lon], 9);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_amSiteMap);
+      tsiTileLayer('light').addTo(_amSiteMap);
       L.circleMarker([site.lat, site.lon], {
         radius:8, fillColor:getGroupColor(site.groupId), color:'white', weight:2, fillOpacity:0.9
       }).addTo(_amSiteMap);
@@ -10884,8 +10889,7 @@ function renderDetailOverview(o) {
           attributionControl: false,
           renderer: L.canvas({ padding: 0.5 }),
         }).setView([o.lat, o.lon], 8);
-        L.tileLayer(_ovDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-          { maxZoom:19, tileSize:512, zoomOffset:-1, detectRetina: true }).addTo(_ovMap);
+        tsiTileLayer(_ovDark ? 'dark' : 'light').addTo(_ovMap);
         const marker = L.circleMarker([o.lat, o.lon], {
           radius:8, fillColor:'#00929F', color:'white',
           weight:2, fillOpacity:0.9
@@ -13142,8 +13146,7 @@ function renderSummaryMap(data) {
   if (!_sumMap) {
     _sumMap = L.map('sum-map', { zoomControl:true, attributionControl:false })
       .setView([30, 0], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_sumMap);
+    tsiTileLayer('light').addTo(_sumMap);
     setTimeout(() => _sumMap.invalidateSize(), 100);
   }
 
@@ -13460,8 +13463,7 @@ function renderAcctMap() {
 
   if (!_acctMap) {
     _acctMap = L.map('acct-map', { zoomControl:true, attributionControl:false }).setView([35, -40], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      { maxZoom:18, tileSize:512, zoomOffset:-1 }).addTo(_acctMap);
+    tsiTileLayer('light').addTo(_acctMap);
   }
 
   _acctMapMarkers.forEach(m => m.remove());
@@ -14380,7 +14382,7 @@ function initSiteMap(lat, lon) {
     if (_siteMap) { _siteMap.remove(); _siteMap = null; }
     setTimeout(() => {
       _siteMap = L.map('s-loc-map', { zoomControl:true, scrollWheelZoom:false, attributionControl:false }).setView([lat,lon], 9);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(_siteMap);
+      tsiTileLayer('light').addTo(_siteMap);
       L.circleMarker([lat,lon], { radius:8, fillColor:'#00929F', color:'white', weight:2, fillOpacity:0.9 }).addTo(_siteMap);
       setTimeout(() => _siteMap.invalidateSize(), 100);
     }, 50);
@@ -19746,10 +19748,7 @@ function presoRenderOvMap(s){
       // Match the Summary map exactly (it renders reliably): @2x tiles, tileSize
       // 512, zoomOffset -1, and NO crossOrigin. crossOrigin:true made the browser
       // fetch tiles in CORS mode and Carto's response blocked them → blank map.
-      L.tileLayer(light
-        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
-        {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
+      tsiTileLayer(light ? 'light' : 'dark_nolabels').addTo(map);
       const pts=[];
       (s.sections||PRESO_SECTIONS).forEach(sec=>{
         (s.bySect[sec.key]||[]).forEach(o=>{ if(o.__quote) return; const c=presoJobCoords(o); if(!c) return;
@@ -19821,10 +19820,7 @@ function presoRenderJobMap(o,sec){
         onAdd:function(){ const b=L.DomUtil.create('button','pz-map-reset'); b.type='button'; b.title='Reset map framing'; b.innerHTML='⟲';
           L.DomEvent.on(b,'click',(ev)=>{ L.DomEvent.stop(ev); presoResetMapView(o.id); }); return b; } });
       map.addControl(new ResetCtl());
-      L.tileLayer(light
-        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
-        : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
-        {maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
+      tsiTileLayer(light ? 'light' : 'dark_nolabels').addTo(map);
       const pts=[c];
       L.circleMarker(c,{radius:9,color:sec.acc,fillColor:sec.acc,fillOpacity:.85,weight:2}).addTo(map);
       const port=presoSitePort(o);
@@ -20906,7 +20902,7 @@ function cxMountMap(el,o,sec,coords,zoom){
   if(typeof L==='undefined'||!coords){ el.insertAdjacentHTML('beforeend','<div class="cx-nomap">Map unavailable</div>'); return null; }
   const light=cxLight();
   const map=L.map(el,{zoomControl:false,attributionControl:false,scrollWheelZoom:false,dragging:false,keyboard:false,doubleClickZoom:false,boxZoom:false,touchZoom:false,renderer:L.canvas({padding:.5})}).setView(coords,zoom||7);
-  L.tileLayer(light?'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png':'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',{maxZoom:18,tileSize:512,zoomOffset:-1}).addTo(map);
+  tsiTileLayer(light?'light':'dark').addTo(map);
   L.circleMarker(coords,{radius:11,color:'#ffffff',weight:2.5,fillColor:sec.acc,fillOpacity:.95}).addTo(map);
   const pts=[coords];
   let port=null; try{ port=presoSitePort(o); }catch(_){}
