@@ -8,6 +8,16 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗓️ 2026-10-27 — Schedule Lite hand-off (raised by JT)
+- [x] Schedule Lite (tsiprojects.bodhistoys.com/schedule) links to an opportunity and **pushes
+  phases + milestones** into `o.schedule` (the Schedule tab's shape; PO date = schedule start,
+  milestone % kept where names match). Links, lags, parties and subtasks stay in Schedule Lite;
+  its JSON rides along as `o.scheduleLite` so the full schedule reopens from the Schedule tab
+  (**Open in Schedule Lite** → `/schedule/?opp=ID`). Build #171.
+- [x] `/tsi-intel/?opp=ID&tab=schedule` deep link opens that opportunity (used after a push).
+- [ ] Schedule Lite's timeline band was rebuilt for a clean **Timeline PNG** export; consider
+  reusing it for the Schedule card (cards currently draw the simple phase Gantt + MS line).
+
 ## 🗒️ 2026-07-06 review — new batch (raised by JT)
 **Quick wins / polish**
 - [x] Pipeline **Value** shows thousands separators (commas).

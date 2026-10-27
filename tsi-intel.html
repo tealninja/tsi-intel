@@ -2603,6 +2603,10 @@ table.compact { min-width:720px!important; }
   transition:all var(--transition);
 }
 .btn-template:hover { border-color:var(--tsi-teal); color:var(--tsi-teal); }
+/* Schedule Lite hand-off (tsiprojects.bodhistoys.com/schedule) */
+.sched-lite { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.sched-lite a.btn-template { text-decoration:none; display:inline-block; line-height:1.2; }
+.sched-lite-note { font-size:10px; color:var(--color-text-muted); font-family:var(--font-mono); white-space:nowrap; }
 
 /* Phase editor table */
 .phase-table-wrap {
@@ -3653,7 +3657,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#170 · 2026-10-23 · cards inline on the opportunity Overview, data-only frames';
+const APP_BUILD = '#171 · 2026-10-27 · Schedule Lite hand-off: open / push from the Schedule tab, ?opp= deep link';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -10934,6 +10938,7 @@ function renderDetailOverview(o) {
 // ── SCHEDULE / GANTT ──────────────────────────────────────────
 function renderDetailSchedule(o) {
   loadScheduleFromRecord(o);
+  renderSchedLite(o);
   renderPhaseTable();
   renderGanttSVG();
   renderMilestonesTable();
@@ -11838,6 +11843,40 @@ function doExportSection(el, filename) {
     a.click();
     showToast('✓ Image saved', 'var(--tsi-succ-green)');
   }).catch(() => showToast('⚠ Export failed', 'var(--tsi-coral)'));
+}
+
+// ── SCHEDULE LITE hand-off ────────────────────────────────────
+// Schedule Lite (tsiprojects.bodhistoys.com/schedule) can link to an opportunity
+// and push its phases + milestones into o.schedule (the shape this tab edits),
+// leaving the dependency detail there. It also saves its own JSON on the record
+// as o.scheduleLite so the full schedule reopens from here with /schedule/?opp=ID.
+function renderSchedLite(o) {
+  const el = document.getElementById('sched-lite');
+  if (!el) return;
+  const sl = o && o.scheduleLite;
+  const href = '/schedule/?opp=' + encodeURIComponent(o.id);
+  const when = sl && sl.pushedAt ? new Date(sl.pushedAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '';
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  el.innerHTML = `<a class="btn-template" href="${href}" target="_blank" rel="noopener" title="${sl ? 'Reopen the full schedule (links, lags, parties) in Schedule Lite' : 'Build this schedule with dependencies in Schedule Lite, then push the phases and milestones back here'}">${sl ? 'Open in Schedule Lite' : 'Build in Schedule Lite'}</a>`
+    + (sl ? `<span class="sched-lite-note" title="${esc(sl.title || '')}">Pushed from Schedule Lite ${when}${sl.tasks ? ' · ' + sl.tasks + ' rows' : ''}${sl.start && sl.finish ? ' · ' + esc(sl.start) + ' → ' + esc(sl.finish) : ''}</span>` : '');
+}
+
+// Deep link: /tsi-intel/?opp=ID[&tab=schedule] opens that opportunity (used by
+// Schedule Lite after a push). Runs once the pipeline has loaded.
+let _oppUrlOpened = false;
+function openOppFromUrl() {
+  if (_oppUrlOpened) return;
+  try {
+    const q = new URLSearchParams(location.search);
+    const id = q.get('opp'); if (!id) return;
+    if (!DATA.find(r => r.id === id)) return;        // not loaded yet (or unknown) — try again after the cloud load
+    if (!document.getElementById('detail-overlay')) return;   // markup below the boot script not parsed yet
+    _oppUrlOpened = true;
+    openDetail(id);
+    const tab = q.get('tab');
+    if (tab && ['overview','schedule','notes','resources','products'].includes(tab)) showDetailTab(tab);
+    window.history.replaceState(null, '', location.pathname + location.hash);   // `history` is shadowed by the app's own array
+  } catch (e) { console.warn('deep link', e); }
 }
 
 // ── SAVE/LOAD schedule to record ──────────────────────────────
@@ -14959,6 +14998,7 @@ if(API_WORKER_URL){const sb=document.getElementById('sync-btn');if(sb)sb.style.d
 // Load from worker if configured (async — won't block UI)
 if(API_WORKER_URL) {
   loadFromWorker().then(loaded => {
+    openOppFromUrl();          // ?opp=ID deep link — DATA is final now
     if(loaded) {
       populateFilters(); renderPipeline(); renderImminent();
       renderTorr(); renderWon(); renderHotCards();
@@ -14972,6 +15012,9 @@ if(API_WORKER_URL) {
   startSyncAudit();                            // ~60s: flag opps others changed
 }
 usageLog('session_start');
+// ?opp=ID deep link against the embedded seed (the cloud load re-tries once DATA is final).
+// The detail overlay markup sits below this script, so wait for the parser to finish.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openOppFromUrl); else setTimeout(openOppFromUrl, 0);
 if (typeof syncStarredFromData === 'function') syncStarredFromData();
 renderHotCards();
 renderPipeline();
@@ -16425,6 +16468,7 @@ startAdminPoll();
           <input type="date" class="sched-po-input" id="sched-po-date" onchange="onSchedChange()">
           <button class="btn-sched-toggle" id="sched-date-toggle" onclick="toggleSchedDates()">📅 Show calendar dates</button>
         </div>
+        <div class="sched-lite" id="sched-lite"></div>
         <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--color-text-muted);align-self:center">Templates:</span>
           <button class="btn-template" onclick="applyTemplate('dryer')">Dryer System</button>
