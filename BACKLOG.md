@@ -8,6 +8,20 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗓️ 2026-10-28 — Evolution strip on the opportunity Overview (raised by JT) — build #176
+- [x] **Evolution** section on the detail Overview, under the KPI strip: one row each for value,
+  probability, close (quarter) and weighted (val×prob) — inline SVG step sparklines on a shared time
+  axis (first logged point → now, quarter gridlines), change markers with hover tooltips
+  (date · from → to · by · source), as-entered → now, net change (+$ / +pts / N qtrs slip or
+  pull-in, sage / coral), revision count and last change. Rows and "Full history →" open the
+  Trajectory tab. No Chart.js dependency, so it renders offline and inside exports.
+- [x] KPI tiles carry a "was … · Δ" line when the attribute moved since it was entered.
+- [x] Trajectory tab reuses the same series builder (`oppEvoSeries`) and falls back to the SVG
+  charts when Chart.js is unavailable. Fixed: the weighted series double-plotted its origin
+  (val and prob origin entries share a timestamp; the replay now starts from each factor's
+  earliest known value and merges same-instant points).
+- [ ] Idea: let the sparklines carry stage / status changes as tick marks on the axis row.
+
 ## 🗓️ 2026-10-27 — Opportunity history (raised by JT) — build #173
 - [x] **History hygiene** — feed renders sorted by `at` desc (direct D1 writes append, the app
   unshifts); the 50/80-entry caps are gone; every save path goes through `oppPrepareSave()`
