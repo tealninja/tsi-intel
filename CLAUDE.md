@@ -71,8 +71,11 @@ the new route strings, then after the user saves a quote / edits an account,
 - Each opportunity carries `history[]` (`{at,by,action}`, human-readable, render sorted by `at` desc,
   no cap) and `changes[]` (`{at,by,field,from,to,src}`) for val · prob · close · expectedCloseDate ·
   stage · status · lead · deliveryQtr · statusLine. All app save paths go through `oppPrepareSave()`;
-  the Worker's `PUT /api/store/opportunities/:id` repeats the diff against the stored row and stamps
-  `lastUpdatedAt/By`. Direct D1 writes (the `tsi-intel-update` skill) should append a history line in
+  the server repeats the diff against the stored row and stamps `lastUpdatedAt/By` on
+  `PUT …/store/opportunities/:id`. **Which server:** when served from tsiprojects.bodhistoys.com the
+  app's `storeApi()` uses the same-origin `/api/tsi-intel/store/*` (tsi-projects Worker,
+  `api/tsi-intel.js`, deploys from GitHub main, guard live) and falls back to the tsi-intel-api
+  Worker's `/api/store/*` (same routes + guard in `deploy/tsi-intel-api.js`, needs `wrangler deploy`). Direct D1 writes (the `tsi-intel-update` skill) should append a history line in
   the parseable form `field from → to; …` (e.g. `prob 0.5 → 0.75; close 2026-Q4 → 2027-Q1`) — the app
   parses those into `changes[]` on load — and ideally also append to `$.changes`.
 - Staleness = days since the newest history entry not matching

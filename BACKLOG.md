@@ -39,8 +39,10 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
 - [x] Cron + manual snapshot route moved to the **tsi-projects** Worker (deploys from GitHub main;
   `TSI_INTEL_DB` binding + `[triggers]`), so no wrangler step is needed for snapshots (build #174).
   First snapshot (2026-10-28) written directly in D1.
-- [!] **Still needs a human `cd deploy && wrangler deploy`** for the server-side change-log guard on
-  `PUT /api/store/opportunities/:id` (the app logs client-side meanwhile).
+- [x] Server-side change-log guard is live via the **tsi-projects** Worker: `storeApi()` now prefers
+  same-origin `/api/tsi-intel/store/*` (mirrors `/api/store/*`, same D1) and falls back to the
+  tsi-intel-api Worker (build #175). `cd deploy && wrangler deploy` is now optional — it only
+  brings the API worker's own copy of the guard + `/api/snapshots/run` up to date.
 - [x] Fixed on the way: the drawer's edit path persisted the bare form object, dropping `history`,
   `todos`, `milestones` etc. from the stored record. It now persists the merged record.
 - [ ] The `tsi-intel-update` skill (direct D1 `json_set` writes) should also append to `$.changes`

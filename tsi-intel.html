@@ -3716,7 +3716,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#174 · 2026-10-28 · snapshots served from the tsi-projects Worker (same-origin cron + route)';
+const APP_BUILD = '#175 · 2026-10-28 · store API via the same-origin tsi-projects Worker (server-side change log live)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -6421,15 +6421,30 @@ const BUGS_KEY = 'tsi_pipeline_bugs_v1';   // legacy localStorage key (pre-Store
 // D1-backed (via the worker's /api/store/:collection) with localStorage as an
 // offline cache. Any feature persists by picking a collection name — no bespoke
 // table needed. First user: the bug register; next: saved views, follows, prefs.
+// When served from tsiprojects.bodhistoys.com/tsi-intel/, the same-origin Worker mirrors
+// /api/store/* at /api/tsi-intel/store/* against the same D1 — and applies the
+// opportunity change-log guard server-side. It deploys from GitHub main, so it is
+// preferred; the tsi-intel-api Worker stays as the fallback (and for local copies).
+function sameOriginStoreBase(){
+  return (/^https?:$/.test(location.protocol) && /^\/tsi-intel(\/|$)/.test(location.pathname)) ? location.origin + '/api/tsi-intel/store/' : null;
+}
 async function storeApi(method, path, body){
-  if (!API_WORKER_URL) return { ok:false };
-  try {
-    const opt = { method, headers: workerHeaders() };
-    if (body != null) opt.body = JSON.stringify(body);
-    const res = await fetch(API_WORKER_URL + '/api/store/' + path, opt);
-    if (!res.ok) return { ok:false, status:res.status };
-    return { ok:true, data: await res.json().catch(()=>({})) };
-  } catch (e) { return { ok:false, error:e.message }; }
+  const bases = [];
+  const so = sameOriginStoreBase(); if (so) bases.push({ base: so, same:true });
+  if (API_WORKER_URL) bases.push({ base: API_WORKER_URL + '/api/store/', same:false });
+  if (!bases.length) return { ok:false };
+  let last = { ok:false };
+  for (const b of bases) {
+    try {
+      const opt = { method, headers: workerHeaders() };
+      if (b.same) opt.credentials = 'same-origin';
+      if (body != null) opt.body = JSON.stringify(body);
+      const res = await fetch(b.base + path, opt);
+      if (!res.ok) { last = { ok:false, status:res.status }; continue; }   // 401/404/5xx → next base
+      return { ok:true, data: await res.json().catch(()=>({})) };
+    } catch (e) { last = { ok:false, error:e.message }; }
+  }
+  return last;
 }
 function Store(collection){
   const cacheKey = 'tsi_store_' + collection + '_v1';
