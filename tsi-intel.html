@@ -2468,6 +2468,27 @@ body.gap-fix-active #opp-drawer-overlay { background:transparent; pointer-events
 .age-pill.age-moldy  { border-color:var(--tsi-coral); color:var(--tsi-coral); }
 .age-pill.age-rotten { border-color:var(--tsi-coral); color:var(--tsi-coral); background:rgba(192,57,43,.06); }
 .age-pill.age-fresh  { border-color:var(--tsi-sage); color:var(--tsi-sage); }
+/* Aging strip — one markup for the opportunity Overview, the presentation slide and the
+   exported card (agingStripHTML). Deck theme vars first, app tokens as fallbacks. */
+.aging-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.aging-tile { min-width:0; padding:8px 10px; background:var(--pz-panel2,var(--color-surface)); border:0.5px solid var(--pz-line,var(--color-border)); border-left:3px solid var(--pz-faint,var(--color-text-muted)); border-radius:6px; }
+.aging-tile .n { font:400 18px var(--font-mono); line-height:1.1; color:var(--pz-ink,var(--color-heading)); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.aging-tile .n small { font-size:11px; color:var(--pz-muted,var(--color-text-secondary)); margin-left:2px; }
+.aging-tile .l { font:400 9.5px var(--font-ui); text-transform:uppercase; letter-spacing:.05em; color:var(--pz-faint,var(--color-text-muted)); margin-top:3px; white-space:nowrap; }
+.aging-tile .s { font:400 10.5px var(--font-ui); color:var(--pz-muted,var(--color-text-secondary)); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.aging-tile .s .mono { font-family:var(--font-mono); }
+.aging-tile.age-fresh  { border-left-color:var(--tsi-sage); }
+.aging-tile.age-stale  { border-left-color:var(--tsi-amber); }
+.aging-tile.age-stale .n { color:var(--tsi-amber); }
+.aging-tile.age-moldy, .aging-tile.age-rotten { border-left-color:var(--tsi-coral); }
+.aging-tile.age-moldy .n, .aging-tile.age-rotten .n { color:var(--tsi-coral); }
+.aging-tile.age-slip  { border-left-color:var(--tsi-amber); }
+.aging-tile.age-slip .n { color:var(--tsi-amber); }
+.aging-strip.clickable .aging-tile { cursor:pointer; }
+.aging-strip.clickable .aging-tile:hover { border-color:var(--tsi-teal); }
+.aging-sub { font-size:11px; color:var(--color-text-secondary); margin:-6px 0 10px; }
+.aging-sub .mono { font-family:var(--font-mono); }
+@media (max-width:720px) { .aging-strip { grid-template-columns:1fr 1fr; } }
 .chip-tier .chip-n { font:400 10px var(--font-mono); opacity:.8; }
 .chip-tier .chip-n:empty { display:none; }
 .stale-rep-table td.num, .stale-rep-table th.num { text-align:right; font-family:var(--font-mono); }
@@ -3763,7 +3784,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#176 · 2026-10-28 · evolution strip on the opportunity overview: value, probability, close, weighted';
+const APP_BUILD = '#177 · 2026-10-28 · aging strip: open, since last update, in stage, close slips — on the overview, the slide and the cards';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -10988,6 +11009,8 @@ function renderDetailOverview(o) {
     <div class="detail-kpi-label">${k.l}</div>
     <div class="detail-kpi-delta" data-evo="${k.l}"></div>
   </div>`).join('');
+  // Aging strip (shared with the presentation slide and the exported card).
+  if (typeof renderDetailAging === 'function') { try { renderDetailAging(o); } catch(e) { console.warn('aging', e); } }
   // Evolution strip + the "was …" line under each KPI (both read the change log).
   if (typeof renderDetailEvolution === 'function') { try { renderDetailEvolution(o); } catch(e) { console.warn('evolution', e); } }
 
@@ -11589,6 +11612,72 @@ function staleBadgeHTML(o, opts){
   const n = s.days == null ? '?' : s.days + 'd';
   return `<span class="age-badge age-${s.tier}" title="${_histEsc(staleTooltip(o, s))}">${s.icon}${opts && opts.days ? '<span class="age-n">'+n+'</span>' : ''}</span>`;
 }
+// ── Aging ─────────────────────────────────────────────────────────────────
+// One set of facts (oppAgingFacts) and one renderer (agingStripHTML) feed the
+// opportunity Overview, the presentation slide and the exported card, so a deal's
+// age reads the same everywhere. Facts: days open (since createdAt), days since the
+// last substantive update (oppStaleInfo — same number and tier as the title-row pill),
+// days in the current stage (newest real stage change, else created) and close slips
+// (close changes that moved later, plus the net quarters vs the as-entered close).
+function oppAgingFacts(o, now){
+  now = now || Date.now();
+  const changes = oppChangesSorted(o);
+  const real = changes.filter(c => !c.origin && c.from != null);
+  const days = t => (t == null || !isFinite(t)) ? null : Math.max(0, Math.floor((now - t) / 864e5));
+  let created = Date.parse(o.createdAt);
+  if (!isFinite(created)) created = changes.length ? Date.parse(changes[0].at) : NaN;
+  if (!isFinite(created)) created = null;
+  const stale = oppStaleInfo(o);
+  const stageChg = real.filter(c => c.field === 'stage').pop();
+  const stageSince = stageChg ? Date.parse(stageChg.at) : created;
+  const closeChgs = real.filter(c => c.field === 'close');
+  const slips = closeChgs.filter(c => _closeSlipDir(c.from, c.to) > 0).length;
+  const pullIns = closeChgs.filter(c => _closeSlipDir(c.from, c.to) < 0).length;
+  // As-entered close: the backfilled origin point when there is one (what the Evolution
+  // strip plots), else the first real change's "from", else the live value.
+  const originClose = changes.find(c => c.field === 'close' && (c.origin || c.from == null));
+  const origClose = originClose ? (originClose.to || null) : (closeChgs.length ? closeChgs[0].from : (o.close || null));
+  const q0 = closeToQuarter(origClose), q1 = closeToQuarter(o.close);
+  const netQtrs = (q0 != null && q1 != null) ? q1 - q0 : null;
+  return { now, created, openDays:days(created), stale, stageSince, stageDays:days(stageSince), stageChangedBy:stageChg ? stageChg.by : null,
+           slips, pullIns, origClose, netQtrs };
+}
+function _agingDate(t){ return t == null ? '—' : new Date(t).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); }
+// opts: cls (extra class on the strip), onclick (per-tile handler, app only)
+function agingStripHTML(o, opts){
+  opts = opts || {};
+  const a = oppAgingFacts(o);
+  const E = _histEsc;
+  const dn = n => n == null ? '—' : `${n}<small>d</small>`;
+  const st = a.stale;
+  const tiles = [
+    { cls:'', n:dn(a.openDays), l:'Open',
+      s:a.created ? `since <span class="mono">${E(_agingDate(a.created))}</span>` : 'no created date' },
+    { cls:'age-' + st.tier, n:st.days == null ? 'never' : dn(st.days), l:'Since last update',
+      s:st.last ? `${st.icon ? st.icon + ' ' : ''}${st.label} · <span class="mono">${E(_agingDate(st.last.t))}</span>${st.last.by ? ' by ' + E(st.last.by) : ''}` : 'no dated history' },
+    { cls:'', n:dn(a.stageDays), l:'In stage',
+      s:`${E(o.stage || '—')}${a.stageChangedBy ? ' · set by ' + E(a.stageChangedBy) : (a.stageSince ? ' · since created' : '')}` },
+    { cls:a.slips ? 'age-slip' : '', n:a.slips ? `${a.slips}<small>×</small>` : '0', l:a.slips === 1 ? 'Close slip' : 'Close slips',
+      s:a.netQtrs == null ? (o.close ? 'as entered' : 'no close set')
+        : a.netQtrs === 0 ? (a.slips || a.pullIns ? 'back to as entered' : 'as entered')
+        : `${a.netQtrs > 0 ? '+' : '−'}${Math.abs(a.netQtrs)} qtr${Math.abs(a.netQtrs) === 1 ? '' : 's'} vs <span class="mono">${E(a.origClose || '—')}</span>` },
+  ];
+  const click = opts.onclick ? ` onclick="${opts.onclick}"` : '';
+  return `<div class="aging-strip${opts.cls ? ' ' + opts.cls : ''}${opts.onclick ? ' clickable' : ''}">` + tiles.map(t =>
+    `<div class="aging-tile ${t.cls}"${click} title="${E(t.l)}"><div class="n">${t.n}</div><div class="l">${t.l}</div><div class="s">${t.s}</div></div>`).join('') + '</div>';
+}
+// Small text pill with the staleness tier (deck section lists; same tiers as the badge).
+function agingTierPillHTML(o){
+  if (!o || o.status !== 'O') return '';
+  const s = oppStaleInfo(o);
+  if (s.tier === 'fresh') return '';
+  return `<span class="age-pill age-${s.tier}" title="${_histEsc(staleTooltip(o, s))}">${s.icon ? s.icon + ' ' : ''}${s.days == null ? 'never updated' : s.days + 'd'}</span>`;
+}
+function renderDetailAging(o){
+  o = o || DATA.find(r => r.id === _detailId); if (!o) return;
+  const el = document.getElementById('ov-aging-strip'); if (!el) return;
+  el.innerHTML = agingStripHTML(o, { onclick:"showDetailTab('trajectory')" });
+}
 // Pipeline-table filter chips (multi-select on tier).
 const _staleFilter = new Set();
 function toggleStaleChip(el){
@@ -11646,7 +11735,7 @@ function markOppReviewed(id){
   addHistoryEntry(o, 'Reviewed — no change');
   markDirty(o.id);
   oppPersist(o);
-  renderHistory(o); renderDetailStatusLine(o); if (typeof renderTrajectory === 'function') renderTrajectory(o); if (typeof renderDetailEvolution === 'function') renderDetailEvolution(o);
+  renderHistory(o); renderDetailStatusLine(o); if (typeof renderTrajectory === 'function') renderTrajectory(o); if (typeof renderDetailEvolution === 'function') renderDetailEvolution(o); if (typeof renderDetailAging === 'function') renderDetailAging(o);
   try { renderPipeline(); } catch(_){}
   showToast('✓ Marked as reviewed — ' + (o.acct || o.id), 'var(--tsi-succ-green)');
 }
@@ -11693,7 +11782,7 @@ function commitDetailStatusLine(){
   const inp = document.getElementById('stl-input'); const o = DATA.find(r => r.id === _detailId); if (!inp || !o) return;
   const changed = setOppStatusLine(o.id, inp.value);
   renderDetailStatusLine(o);
-  if (changed) { renderHistory(o); if (typeof renderTrajectory === 'function') renderTrajectory(o); if (typeof renderDetailEvolution === 'function') renderDetailEvolution(o); try { renderPipeline(); } catch(_){} showToast('✓ Status line saved', 'var(--tsi-succ-green)'); }
+  if (changed) { renderHistory(o); if (typeof renderTrajectory === 'function') renderTrajectory(o); if (typeof renderDetailEvolution === 'function') renderDetailEvolution(o); if (typeof renderDetailAging === 'function') renderDetailAging(o); try { renderPipeline(); } catch(_){} showToast('✓ Status line saved', 'var(--tsi-succ-green)'); }
 }
 
 // Render one history entry: a structured field change (from → to, tinted by
@@ -17440,6 +17529,12 @@ startAdminPoll();
       <!-- KPI strip -->
       <div class="detail-hero" id="detail-hero" style="margin-bottom:12px"></div>
 
+      <!-- Aging — open · since last update · in stage · close slips (same block as the deck) -->
+      <div class="detail-section" id="ov-aging">
+        <div class="detail-section-title ov-sec-title-row"><span>Aging</span><a class="evo-link" onclick="showDetailTab('trajectory')" title="The event log behind these numbers">Full history →</a></div>
+        <div id="ov-aging-strip"></div>
+      </div>
+
       <!-- Evolution — how the estimate moved (value · probability · close · weighted) -->
       <div class="detail-section" id="ov-evolution">
         <div class="detail-section-title ov-sec-title-row"><span>Evolution</span><a class="evo-link" onclick="showDetailTab('trajectory')" title="Full-size charts and the event log">Full history →</a></div>
@@ -18273,6 +18368,8 @@ startAdminPoll();
 .pz-clima{height:120px;margin-top:4px}
 .pz-comm{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:14px}
 .pz-comm .k{color:var(--pz-faint)}.pz-comm .v{color:var(--pz-ink);text-align:right;font-variant-numeric:tabular-nums}
+.pz-aging .aging-tile{padding:7px 9px}.pz-aging .aging-tile .n{font-size:17px}
+.pz-sec-item .age-pill{flex-shrink:0;margin-left:4px}
 #preso-overlay.hide-money .pz-money{filter:blur(7px);opacity:.5;user-select:none}
 /* overview */
 .pz-ov-title{font-size:30px;font-weight:800;margin-bottom:4px}
@@ -20944,7 +21041,7 @@ function presoSectionHTML(s){
       // list stays compact and doesn't scroll behind the slide footer.
       const tagHtml=tg.length?`<span class="pz-si-tags">${tg.map(t=>`<span class="pz-si-tag" style="background:${t.color}">${qesc(t.label)}</span>`).join('')}</span>`:'';
       return `<div class="pz-sec-item" onclick="presoJumpToId('${qattr(o.id)}')" title="Open this opportunity">
-        <div class="pz-si-main"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span>${tagHtml}<span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div></div>`;
+        <div class="pz-si-main"><span class="a">${qesc(o.acct)}</span><span class="t">${qesc(o.type||'')}</span>${tagHtml}${agingTierPillHTML(o)}<span class="v pz-money">${o.val?presoMoney(o.val):''}</span><span class="pz-sec-go">→</span></div></div>`;
     }).join('')
     : `<div class="pz-empty">No opportunities in this section yet.</div>`;
   return `<div class="pz-slide" style="--acc:${sec.acc}">
@@ -21052,6 +21149,7 @@ function presoOppSlide(o,sec,s){
         <div class="pz-box"><div class="pz-lbl">Install &amp; Commissioning</div>
           <div class="pz-inst">${inst.map(p=>`<span class="pz-pill${p.on?' on':''}">${qesc(p.label)}</span>`).join('')}</div>
           ${o.freightTerms?`<div style="font-size:12.5px;color:#5f7288;margin-top:11px">Freight: ${qesc(o.freightTerms)}</div>`:''}</div>
+        ${o.status==='O'?`<div class="pz-box"><div class="pz-lbl">Aging</div>${agingStripHTML(o,{cls:'pz-aging'})}</div>`:''}
       </div>
       <div>
         <div class="pz-box">${pin}${capsHtml||'<div style="color:#5f7288;font-size:12.5px">Scope by tags &amp; type</div>'}</div>
@@ -21616,6 +21714,7 @@ loadPriceBook().then(()=>{ _pbLoaded=true; });
 .cx-tile{background:var(--pz-panel);border:0.5px solid var(--pz-line);border-radius:8px;padding:22px 24px;border-left:3px solid var(--acc,#00929f)}
 .cx-tile .n{font-size:44px;line-height:1;color:var(--pz-ink);font-family:var(--font-mono,monospace);font-variant-numeric:tabular-nums}
 .cx-tile .n.sm{font-size:28px;line-height:1.15;font-family:var(--font-ui,sans-serif)}
+.cx-aging{gap:14px}.cx-aging .aging-tile{padding:22px 24px;border-radius:8px;border-left-width:3px}.cx-aging .aging-tile .n{font-size:44px}.cx-aging .aging-tile .n small{font-size:20px}.cx-aging .aging-tile .l{font-size:14px;margin-top:8px}.cx-aging .aging-tile .s{font-size:15px;margin-top:6px}
 .cx-tile .l{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--pz-faint);margin-top:10px}
 .cx-tile.big .n{font-size:64px}
 /* location */
@@ -21815,6 +21914,7 @@ const CARDX_DEFS=[
   { key:'location',   label:'Site location' },
   { key:'capacity',   label:'Capacity' },
   { key:'commercial', label:'Commercial' },
+  { key:'aging',      label:'Aging',                    note:'Open · since last update · in stage · close slips' },
   { key:'climate',    label:'Site climate' },
   { key:'schedule',   label:'Schedule',                 note:'Gantt + milestone timeline' },
 ];
@@ -21910,7 +22010,7 @@ function cxFit(card){
 function cardxBuild(key,o,sec,mount){
   const card={key,el:null,map:null,chart:null,avail:true,why:''};
   const b=({ slide:cxBodySlide, scope:cxBodyScope, details:cxBodyDetails, install:cxBodyInstall, location:cxBodyLocation,
-             capacity:cxBodyCapacity, commercial:cxBodyCommercial, climate:cxBodyClimate, schedule:cxBodySchedule })[key](o,sec);
+             capacity:cxBodyCapacity, commercial:cxBodyCommercial, aging:cxBodyAging, climate:cxBodyClimate, schedule:cxBodySchedule })[key](o,sec);
   if(b.avail===false){ card.avail=false; card.why=b.why||''; }
   mount.innerHTML = key==='slide' ? b.html : cxFrame(o,sec,b.title,b.html,b.opts||{});
   card.el=mount.firstElementChild; card.el.id='cx-card-'+key;
@@ -21956,6 +22056,15 @@ function cxBodyCommercial(o,sec){
   const kv=[['Category',o.cat||'—'],['Source',o.source||'—'],['Updated',o.updatedAt?new Date(o.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(o.updatedBy?' · '+o.updatedBy:''):'—']];
   return { title:'Commercial', html:`<div class="cx-fit" style="display:flex;flex-direction:column;justify-content:center"><div class="cx-tiles" style="grid-template-columns:repeat(3,1fr)">${tiles.map(t=>`<div class="cx-tile"><div class="n${t.sm?' sm':''}">${qesc(t.n)}</div><div class="l">${t.l}</div></div>`).join('')}</div>
     <div class="cx-kv" style="margin-top:30px">${kv.map(([k,v])=>`<span class="k">${k}</span><span class="v">${qesc(v)}</span>`).join('')}</div></div>` };
+}
+function cxBodyAging(o,sec){
+  // Same tiles as the Overview and the slide (agingStripHTML), scaled for the 4:3 frame.
+  const a=oppAgingFacts(o);
+  const kv=[['Created',a.created?_agingDate(a.created):'—'],['Last update',a.stale.last?_agingDate(a.stale.last.t)+(a.stale.last.by?' · '+a.stale.last.by:''):'—'],
+            ['Stage',o.stage||'—'],['Expected close',(o.close||'TBD')+(a.origClose&&a.origClose!==o.close?' (was '+a.origClose+')':'')]];
+  return { title:'Aging', html:`<div class="cx-fit" style="display:flex;flex-direction:column;justify-content:center">${agingStripHTML(o,{cls:'cx-aging'})}
+    <div class="cx-kv" style="margin-top:30px">${kv.map(([k,v])=>`<span class="k">${k}</span><span class="v">${qesc(v)}</span>`).join('')}</div></div>`,
+    avail:o.status==='O', why:'Closed opportunity' };
 }
 // Leaflet map for a card (canvas renderer so leaflet-image can snapshot the markers).
 function cxMountMap(el,o,sec,coords,zoom){

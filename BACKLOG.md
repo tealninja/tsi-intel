@@ -8,6 +8,18 @@ refreshed from this file on request. See `CLAUDE.md`.
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]` blocked
 
+## 🗓️ 2026-10-28 — Aging on the deck and the Overview (raised by JT) — build #177
+- [x] One shared block, `oppAgingFacts()` → `agingStripHTML()`, rendered identically on the opportunity
+  Overview (new **Aging** section under the KPI strip), the presentation job slide (left column, under
+  Install & commissioning) and a new **Aging** card in the PowerPoint gallery. Four tiles: **Open**
+  (days since created), **Since last update** (the staleness days + Fresh / Stale / Moldy / Rotten tier,
+  same `oppStaleInfo` as the title-row pill, tier colour on the tile), **In stage** (days since the
+  newest real stage change, else created) and **Close slips** (count of close changes that moved later,
+  net quarters vs the as-entered close — same origin point the Evolution strip uses).
+- [x] Deck section lists carry the staleness tier pill next to each deal (open, non-fresh only).
+- [x] Closed / won / lost records show no aging block (the slide and card skip it; the card says why).
+- [ ] Idea: a deck-level "stale deals" callout on the overview slide (count + value by tier).
+
 ## 🗓️ 2026-10-28 — Evolution strip on the opportunity Overview (raised by JT) — build #176
 - [x] **Evolution** section on the detail Overview, under the KPI strip: one row each for value,
   probability, close (quarter) and weighted (val×prob) — inline SVG step sparklines on a shared time
