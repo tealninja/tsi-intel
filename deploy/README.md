@@ -38,8 +38,9 @@ next load. Both bindings the worker needs:
 
 ### Nightly pipeline snapshot (Cron Trigger) + opportunity change log
 
-`wrangler.toml` declares `[triggers] crons = ["15 6 * * *"]`; the `scheduled` export writes one
-row per UTC day to `collections` (`collection='snapshots'`, `id=YYYY-MM-DD`,
+The nightly cron runs from the **tsi-projects** Worker (`api/tsi-intel.js` there, deployed from
+GitHub main). This file keeps the same `scheduled` export (enable it by uncommenting `[triggers]` in
+`wrangler.toml`) and the manual route; the `scheduled` export writes one row per UTC day to `collections` (`collection='snapshots'`, `id=YYYY-MM-DD`,
 `{opps:[{id,val,prob,close,stage,status,lead}]}`). `POST /api/snapshots/run` takes one on demand
 (the History tab's "Take snapshot now"). `PUT /api/store/opportunities/:id` also diffs the incoming
 record against the stored one and appends `{at,by,field,from,to,src}` to `changes[]`, stamping

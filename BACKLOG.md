@@ -36,8 +36,11 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done · `[?]` decision · `[!]`
   `POST /api/snapshots/run` takes one on demand ("Take snapshot now"). Powers pipeline-over-time
   (gross/weighted · by stage · by rep) and the per-quarter slippage waterfall (baseline = first
   snapshot at quarter start; until snapshots exist it is reconstructed from `changes[]`).
-- [!] **Needs a human `cd deploy && wrangler deploy`** for the cron, the server-side change log and
-  `/api/snapshots/run` (the app degrades gracefully: client-side log + reconstructed baselines).
+- [x] Cron + manual snapshot route moved to the **tsi-projects** Worker (deploys from GitHub main;
+  `TSI_INTEL_DB` binding + `[triggers]`), so no wrangler step is needed for snapshots (build #174).
+  First snapshot (2026-10-28) written directly in D1.
+- [!] **Still needs a human `cd deploy && wrangler deploy`** for the server-side change-log guard on
+  `PUT /api/store/opportunities/:id` (the app logs client-side meanwhile).
 - [x] Fixed on the way: the drawer's edit path persisted the bare form object, dropping `history`,
   `todos`, `milestones` etc. from the stored record. It now persists the merged record.
 - [ ] The `tsi-intel-update` skill (direct D1 `json_set` writes) should also append to `$.changes`

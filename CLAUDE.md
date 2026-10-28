@@ -80,8 +80,10 @@ the new route strings, then after the user saves a quote / edits an account,
   Data-hygiene passes should keep using those words in their action strings so they don't count as
   a sales update.
 - `statusLine` (≤140 chars) is the one-sentence current state; editing it appends `Status: <text>`.
-- Nightly snapshots: Cron Trigger in `deploy/wrangler.toml` → `collection='snapshots'`, id `YYYY-MM-DD`.
-  `POST /api/snapshots/run` takes one on demand. Nothing else in the schema changed.
+- Nightly snapshots: Cron Trigger in the **tsi-projects** Worker (`wrangler.toml` [triggers] +
+  `api/tsi-intel.js`, bound to this D1 as `TSI_INTEL_DB`) → `collection='snapshots'`, id `YYYY-MM-DD`.
+  Same-origin `POST /api/tsi-intel/snapshots/run` (and the API worker's `POST /api/snapshots/run`
+  once redeployed) take one on demand. Nothing else in the schema changed.
 
 ## Conventions
 - Match the surrounding style in `tsi-intel.html`; data lives inline as JS consts.

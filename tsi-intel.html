@@ -3716,7 +3716,7 @@ const TSI_API_KEY = '';  // Set in Cloudflare Worker — not needed in HTML
 
 // ── Build stamp ── shown in the header so you can confirm a redeploy landed.
 // BUMP THIS on every deployable change (kept ~= branch commit count · date).
-const APP_BUILD = '#173 · 2026-10-27 · opportunity history: change log, staleness, status line, trajectory, what changed, snapshots';
+const APP_BUILD = '#174 · 2026-10-28 · snapshots served from the tsi-projects Worker (same-origin cron + route)';
 try {
   // Header shows only the short build number (bumps every deploy → still a quick
   // confirm). The full stamp lives in the profile menu; hover the header for it too.
@@ -11880,22 +11880,37 @@ function renderWhatChanged(){
 let _snapStore = null, _snapLoaded = false, _snapBusy = false;
 function snapStore(){ return _snapStore || (_snapStore = Store('snapshots')); }
 function snapshots(){ return snapStore().all().filter(s => s && s.id && Array.isArray(s.opps)).slice().sort((a,b) => a.id < b.id ? -1 : 1); }
+// Same-origin snapshot API: the app is served from tsiprojects.bodhistoys.com/tsi-intel/,
+// whose Worker hosts the nightly cron + /api/tsi-intel/snapshots (deploys from GitHub main).
+function sameOriginSnapshotApi(){ return /^https?:$/.test(location.protocol) && /^\/tsi-intel(\/|$)/.test(location.pathname) ? location.origin + '/api/tsi-intel/snapshots' : null; }
 async function loadSnapshots(force){
   if (_snapLoaded && !force) return snapshots();
-  try { await snapStore().pull(); } catch(_){}
+  let ok = false;
+  try { ok = await snapStore().pull(); } catch(_){}
+  if (!ok || !snapStore().all().length) {
+    const so = sameOriginSnapshotApi();
+    if (so) { try { const r = await fetch(so, { credentials:'same-origin' }); const d = await r.json(); if (r.ok && Array.isArray(d.items)) snapStore().setAll(d.items); } catch(_){} }
+  }
   _snapLoaded = true; return snapshots();
 }
 async function takeSnapshotNow(){
   if (_snapBusy) return; _snapBusy = true;
   const btn = document.getElementById('snap-now-btn'); if (btn) btn.disabled = true;
   try {
-    if (typeof API_WORKER_URL === 'undefined' || !API_WORKER_URL) throw new Error('No API worker configured');
-    const res = await fetch(API_WORKER_URL + '/api/snapshots/run', { method:'POST', headers:workerHeaders(), body:'{}' });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || ('HTTP ' + res.status));
+    // Prefer the same-origin route (tsi-projects Worker); fall back to the API worker.
+    const tries = [];
+    const so = sameOriginSnapshotApi(); if (so) tries.push({ url: so + '/run', init:{ method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json' }, body:'{}' } });
+    if (typeof API_WORKER_URL !== 'undefined' && API_WORKER_URL) tries.push({ url: API_WORKER_URL + '/api/snapshots/run', init:{ method:'POST', headers:workerHeaders(), body:'{}' } });
+    if (!tries.length) throw new Error('No snapshot endpoint available');
+    let d = null, lastErr = null;
+    for (const t of tries) {
+      try { const res = await fetch(t.url, t.init); const j = await res.json().catch(() => ({})); if (res.ok && j.success) { d = j; break; } lastErr = new Error(j.error || ('HTTP ' + res.status)); }
+      catch (e) { lastErr = e; }
+    }
+    if (!d) throw lastErr || new Error('Snapshot failed');
     showToast('✓ Snapshot ' + d.id + ' · ' + d.n + ' opps', 'var(--tsi-succ-green)');
     await loadSnapshots(true); renderPipelineOverTime(); renderSlippage();
-  } catch (e) { showToast('Snapshot failed: ' + e.message + ' (is the API worker redeployed?)', 'var(--tsi-coral)'); }
+  } catch (e) { showToast('Snapshot failed: ' + e.message, 'var(--tsi-coral)'); }
   _snapBusy = false; if (btn) btn.disabled = false;
 }
 let _potChart = null, _slipChart = null;
