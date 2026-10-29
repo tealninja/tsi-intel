@@ -11,6 +11,7 @@ import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { OAuthProvider } from "@cloudflare/workers-oauth-provider";
 import { z } from "zod";
+import { registerContractTools } from "./contracts";
 import {
   Env, money, searchCatalog, getPriceBook, createQuote, addLine,
   listQuotes, getQuote, setStatus,
@@ -23,11 +24,12 @@ function jtext(obj: unknown) { return { content: [{ type: "text" as const, text:
 function jerr(e: unknown) { return { content: [{ type: "text" as const, text: "Error: " + (e instanceof Error ? e.message : String(e)) }], isError: true }; }
 
 export class TsiQuotesMCP extends McpAgent<Env, unknown, Props> {
-  server = new McpServer({ name: "TSI Quotes", version: "1.0.0" });
+  server = new McpServer({ name: "TSI Intel and Contracts", version: "1.1.0" });
 
   async init() {
     const env = this.env;
     const user = () => (this.props?.user || "claude");
+    registerContractTools(this.server, env as any);
 
     this.server.tool(
       "search_catalog",
