@@ -96,6 +96,29 @@ export function registerContractTools(server: McpServer, env: CEnv) {
   );
 
   server.tool(
+    "contract_review_pack",
+    "Everything needed for a sensibility review of one deal, in one call: the review checklist, the deal's levers, its issue counts and rule-based consistency notes, any custom clauses, the saved scenarios, and the full clean contract text. After reading it, follow the checklist: findings first with section references, then walk each scenario through the text, then record each outcome with contract_record_run. Say plainly what depends on foreign law and should go to counsel; do not assert foreign law.",
+    { deal_id: z.string(), include_text: z.boolean().optional().describe("default true; set false to review only the notes and scenarios") },
+    async (a) => {
+      try {
+        const id = encodeURIComponent(a.deal_id);
+        const [brief, render, scen] = await Promise.all([
+          api(env, "/review-brief"),
+          api(env, `/deals/${id}/render?view=clean`),
+          api(env, "/scenarios"),
+        ]);
+        const head = {
+          deal: { id: render.id, name: render.name, posture: render.posture, depth: render.depth, packaging: render.packaging },
+          issues: render.issues, consistency_notes: render.consistency, custom_clauses: render.custom_clauses,
+          scenarios: (scen.scenarios || []).map((s: any) => ({ id: s.id, title: s.title, condensed: s.condensed, expectation: s.expectation })),
+        };
+        const body = a.include_text === false ? "" : `\n\n=== CONTRACT TEXT (clean view) ===\n${render.text}`;
+        return jtext(`=== REVIEW CHECKLIST ===\n${brief.brief}\n\n=== DEAL AND FINDINGS SO FAR ===\n${JSON.stringify(head, null, 2)}${body}`);
+      } catch (e) { return jerr(e); }
+    }
+  );
+
+  server.tool(
     "contract_list_scenarios",
     "List the saved test scenarios (real situations kept as told and as condensed, with what TSI expects the contract to do). Walk these through a rendered deal and record the outcome with contract_record_run.",
     {},
