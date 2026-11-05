@@ -67,6 +67,13 @@ exists but is stale — treat it as legacy.
 the new route strings, then after the user saves a quote / edits an account,
 `d1_database_query` that `quotes` / `collections` gained rows.
 
+**MCP connectors (do not deploy from `mcp/`).** The live `tsi-intel-mcp` Worker (the CRM connector
+in claude.ai, v2.1.0, own OAuth with a static client id and secret) is a different build from
+anything in `mcp/` or `mcp/worker/`; both of those use the same Worker name, so a `wrangler deploy`
+from either would REPLACE the live connector. Leave them alone unless you are deliberately
+replacing it. The contract builder has its own Worker and connector in `mcp-contracts/`
+(`tsi-contracts-mcp`, see its README).
+
 ## Opportunity history (build #173+)
 - Each opportunity carries `history[]` (`{at,by,action}`, human-readable, render sorted by `at` desc,
   no cap) and `changes[]` (`{at,by,field,from,to,src}`) for val · prob · close · expectedCloseDate ·
