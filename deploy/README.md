@@ -36,6 +36,17 @@ next load. Both bindings the worker needs:
   prices, quotes, and `/api/store/*` (bugs, saved views, follows, **Project Track deck
   arrangement**, and now **opportunities + accounts** — see below).
 
+### Nightly pipeline snapshot (Cron Trigger) + opportunity change log
+
+The nightly cron runs from the **tsi-projects** Worker (`api/tsi-intel.js` there, deployed from
+GitHub main). This file keeps the same `scheduled` export (enable it by uncommenting `[triggers]` in
+`wrangler.toml`) and the manual route; the `scheduled` export writes one row per UTC day to `collections` (`collection='snapshots'`, `id=YYYY-MM-DD`,
+`{opps:[{id,val,prob,close,stage,status,lead}]}`). `POST /api/snapshots/run` takes one on demand
+(the History tab's "Take snapshot now"). `PUT /api/store/opportunities/:id` also diffs the incoming
+record against the stored one and appends `{at,by,field,from,to,src}` to `changes[]`, stamping
+`lastUpdatedAt/By` — so every writer, app or not, is logged. Deploying this file enables all three;
+the app works without them (client-side log, baselines reconstructed from `changes[]`).
+
 ### Shipping estimates (`POST /api/shipping/rates`) — parcel rate shopping
 
 The Quote Builder's **⚡ Estimate** button (next to Freight / Shipping) fetches

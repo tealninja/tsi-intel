@@ -31,3 +31,9 @@ database_id = "e18ad8cb-ce35-42b2-ba01-8a1d31551398"
 
 # Optional: the AI proxy (/api/ai) reads env.ANTHROPIC_API_KEY. It's a secret, not
 # set here — add it only if you use that route:  wrangler secret put ANTHROPIC_API_KEY
+
+# The nightly pipeline snapshot cron lives in the tsi-projects Worker (it deploys from
+# GitHub main automatically). tsi-intel-api.js keeps a `scheduled` export + the manual
+# POST /api/snapshots/run so this Worker can take over by uncommenting:
+# [triggers]
+# crons = ["15 6 * * *"]
