@@ -22,33 +22,6 @@ Example prompt in claude.ai once connected:
 > terms."* → Claude calls `get_price_book` + `create_quote` and returns the
 > quote number and total.
 
-## Contract builder tools (added 2026-10-29)
-
-The same connector carries the contract builder (tsiprojects.bodhistoys.com/contractbuilder/).
-These tools call that site's `/api/contractbuilder/*` with a service token rather than touching
-its database directly, so the page and the connector always agree:
-
-| Tool | What it does |
-|------|--------------|
-| `contract_list_deals` / `contract_get_deal` / `contract_create_deal` | Read and create deal sheets |
-| `contract_update_deal` | Set levers, values, per-clause posture overrides, concession-log entries |
-| `contract_render` | The contract text of a deal (clean or working view) with its issue counts |
-| `contract_review_pack` | Checklist, deal levers, issue counts, consistency notes, scenarios and the clean text in one call, for a Claude review |
-| `contract_record_review` / `contract_list_reviews` | Record and read the overall review result for a deal (verdict, summary, full report) |
-| `contract_list_scenarios` / `contract_save_scenario` | The scenario library (real situations, as told and condensed) |
-| `contract_record_run` / `contract_list_runs` | Record and read scenario walk-throughs against a deal |
-| `contract_save_version` | Freeze a labelled version of a deal and its document |
-
-Extra secret on this Worker: `wrangler secret put TSI_PROJECTS_TOKEN` — the same value as
-`CONTRACT_API_TOKEN` on the tsi-projects Worker (`npx wrangler secret put CONTRACT_API_TOKEN`
-in that repo). Optional var `TSI_PROJECTS_URL` if the site moves.
-
-To run a review on your Claude membership, no API key: in a claude.ai chat with this connector on, ask
-> *"Review deal x7k2 with contract_review_pack and record the scenario outcomes."*
-
-Example prompt once connected:
-> *"Render deal x7k2 and walk the 'Late delivery with concurrent buyer delay' scenario through it; record the run."*
-
 ## Architecture
 
 `OAuthProvider` (from `@cloudflare/workers-oauth-provider`) wraps the MCP handler
