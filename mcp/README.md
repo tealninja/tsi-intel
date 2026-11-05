@@ -34,6 +34,7 @@ its database directly, so the page and the connector always agree:
 | `contract_update_deal` | Set levers, values, per-clause posture overrides, concession-log entries |
 | `contract_render` | The contract text of a deal (clean or working view) with its issue counts |
 | `contract_review_pack` | Checklist, deal levers, issue counts, consistency notes, scenarios and the clean text in one call, for a Claude review |
+| `contract_record_review` / `contract_list_reviews` | Record and read the overall review result for a deal (verdict, summary, full report) |
 | `contract_list_scenarios` / `contract_save_scenario` | The scenario library (real situations, as told and condensed) |
 | `contract_record_run` / `contract_list_runs` | Record and read scenario walk-throughs against a deal |
 | `contract_save_version` | Freeze a labelled version of a deal and its document |

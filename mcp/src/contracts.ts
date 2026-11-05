@@ -97,7 +97,7 @@ export function registerContractTools(server: McpServer, env: CEnv) {
 
   server.tool(
     "contract_review_pack",
-    "Everything needed for a sensibility review of one deal, in one call: the review checklist, the deal's levers, its issue counts and rule-based consistency notes, any custom clauses, the saved scenarios, and the full clean contract text. After reading it, follow the checklist: findings first with section references, then walk each scenario through the text, then record each outcome with contract_record_run. Say plainly what depends on foreign law and should go to counsel; do not assert foreign law.",
+    "Everything needed for a sensibility review of one deal, in one call: the review checklist, the deal's levers, its issue counts and rule-based consistency notes, any custom clauses, the saved scenarios, and the full clean contract text. After reading it, follow the checklist: findings first with section references, then walk each scenario through the text, record each outcome with contract_record_run, and record the overall result with contract_record_review. Say plainly what depends on foreign law and should go to counsel; do not assert foreign law.",
     { deal_id: z.string(), include_text: z.boolean().optional().describe("default true; set false to review only the notes and scenarios") },
     async (a) => {
       try {
@@ -143,6 +143,20 @@ export function registerContractTools(server: McpServer, env: CEnv) {
     "Record the outcome of walking one scenario through a deal: which clauses apply in what order, what each party owes, and whether TSI would accept the outcome at this posture. The verdict is one of acceptable, gap, ambiguous, not_balanced, not_computable. The run appears in the builder under the deal's Scenarios tab.",
     { deal_id: z.string(), scenario_id: z.string(), verdict: z.enum(["acceptable", "gap", "ambiguous", "not_balanced", "not_computable"]), report: z.string(), version_id: z.number().optional() },
     async (a) => { try { return jtext(await api(env, `/deals/${encodeURIComponent(a.deal_id)}/runs`, { method: "POST", body: JSON.stringify(a) })); } catch (e) { return jerr(e); } }
+  );
+
+  server.tool(
+    "contract_record_review",
+    "Record the OVERALL result of a review of a deal: a verdict (ready, needs_work or not_ready), a one-line summary and the full report in markdown (findings first with section references, then what was checked and found clean, then questions for counsel). Record each scenario walk-through separately with contract_record_run. The result appears in the builder under the deal's Review tab.",
+    { deal_id: z.string(), verdict: z.enum(["ready", "needs_work", "not_ready"]), summary: z.string(), report: z.string(), version_id: z.number().optional() },
+    async (a) => { try { return jtext(await api(env, `/deals/${encodeURIComponent(a.deal_id)}/reviews`, { method: "POST", body: JSON.stringify({ ...a, source: "connector" }) })); } catch (e) { return jerr(e); } }
+  );
+
+  server.tool(
+    "contract_list_reviews",
+    "List the overall review results recorded for a deal, newest first.",
+    { deal_id: z.string() },
+    async (a) => { try { return jtext(await api(env, `/deals/${encodeURIComponent(a.deal_id)}/reviews`)); } catch (e) { return jerr(e); } }
   );
 
   server.tool(
