@@ -1,0 +1,22 @@
+{
+  // TSI Contracts: remote MCP server for the contract builder. A SEPARATE Worker from the
+  // TSI Intel CRM connector (tsi-intel-mcp). Deploy with `npx wrangler deploy` from this folder.
+  "name": "tsi-contracts-mcp",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+
+  // OAuth codes and access tokens. Namespace "tsi-contracts-mcp-oauth", created in the
+  // Cloudflare account on 2026-11-05.
+  "kv_namespaces": [
+    { "binding": "KV", "id": "821c17db380a4021889c22ecd30c0ab2" }
+  ],
+
+  "vars": {
+    "OAUTH_CLIENT_ID": "tsi-contracts",
+    "TSI_PROJECTS_URL": "https://tsiprojects.bodhistoys.com"
+  }
+
+  // Secrets (never committed). Set with `npx wrangler secret put <NAME>`:
+  //   OAUTH_CLIENT_SECRET   the client secret you also type into claude.ai
+  //   TSI_PROJECTS_TOKEN    same value as CONTRACT_API_TOKEN on the tsi-projects Worker
+}

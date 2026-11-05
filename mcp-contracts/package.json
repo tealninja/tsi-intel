@@ -1,0 +1,12 @@
+{
+  "name": "tsi-contracts-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Remote MCP server for the TSI contract builder (claude.ai custom connector).",
+  "scripts": {
+    "test": "node test/run.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}
