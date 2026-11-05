@@ -12,6 +12,7 @@ migrations/
 scripts/
 docs/
 mcp/
+mcp-contracts/
 
 # TypeScript sources (the MCP server) — never serve as public assets
 *.ts
